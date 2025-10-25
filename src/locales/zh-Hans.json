@@ -1,0 +1,75 @@
+{
+  "chartIndex": {
+    "noCharts": "还没有谱面，快去创建一个！",
+    "nav": {
+      "create": "创建谱面",
+      "import": "导入谱面",
+      "export": "导出谱面"
+    },
+    "charts": {
+      "edit": "进入编辑",
+      "delete": "删除谱面",
+      "deleteConfirm": "确定删除谱面{name}？",
+      "deleteSuccess": "谱面{name}已删除。",
+      "export": "导出谱面"
+    },
+    "licenseDeclaration": "虽然本软件使用MIT许可证，但作者不鼓励、支持其付费再分发，请知悉。"
+  },
+  "create": {
+    "title": "创建谱面",
+    "name": "曲目名称",
+    "bpm": "基准BPM",
+    "composer": "曲师",
+    "create": "创建",
+    "alert": {
+      "name": "请填写曲目名称",
+      "bpm": "请正确填写基准BPM"
+    },
+    "success": "谱面创建成功，3秒后跳转至该谱面。"
+  },
+  "import": {
+    "title": "导入谱面",
+    "formathint": "导入谱面可用PEZ/ZIP包，亦可将谱面（兼容RPEJSON）、音乐、曲绘分别上传。",
+    "retail": "使用散文件",
+    "archive": "使用谱包",
+    "chart": "谱面文件",
+    "alert": {
+      "chart": "请提供谱面文件",
+      "archive": "请提供谱面压缩包（.pez/.zip）",
+      "imcompleteMeta": "元数据不完整",
+      "incompleteArchive": "压缩包不完整，缺少：{missing}",
+      "unzipFailed": "解压缩失败，请检查文件是否损坏或格式是否正确。"
+    }
+  },
+  "form": {
+    
+    "hint": "谱面标识符用于索引谱面，请尽量使用易于记忆的纯英文+数字名称（最好不要包含空格）",
+    "id": "谱面标识符",
+    "music": "音乐文件",
+    "illustration": "曲绘文件",
+    "chartsLocation": "谱面列表位于{location}",
+    "idState": {
+      
+      "occupied": "该标识符已被使用",
+      "available": "该标识符可用",
+      "empty": "请填写标识符",
+      "invalid": "该标识符含有非法字符"
+    },
+    "alert": {
+      "music": "请提供音乐文件",
+      "illustration": "请提供曲绘文件",
+      "unknownImageType": "未知的图像类型：{filename}",
+      "unknownAudioType": "未知的音频类型：{filename}",
+      "folderOccupied": "该文件夹已被使用，但先前未被识别为谱面：{folder}"
+    }
+  },
+  "delete": {
+    "confirm": "确定删除谱面{name}，标识符：{id}吗？",
+    "success": "谱面{name}已删除。",
+    "notFound": "您进入了一个不存在的谱面。",
+    "delete": "删除",
+    "alreadyWritten": "该谱面自创建以来已写了{mins}分钟。",
+    "notKPA": "该谱面不是KPAJSON谱面，似乎是从别处导入的。",
+    "hint": "删除的谱面将回收至{path}。"
+  }
+}

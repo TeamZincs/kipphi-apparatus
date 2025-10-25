@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "fs:allow-exists",
+    "fs:allow-read-file",
+    "fs:allow-read-dir",
+    "fs:read-all",
+    "fs:allow-appdata-read-recursive",
+    "fs:allow-appdata-write-recursive"
+  ],
+  "restrictions": {
+    "fs": {
+      "scope": {
+        "allow": [
+          "$APPDATA/**",
+          "$HOME/**"
+        ]
+      }
+    }
+  }
+}
+

@@ -1,0 +1,45 @@
+:root {
+    --size: 1.25em;
+}
+
+main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    flex-direction: column;
+
+}
+
+
+div[role="form"], li[role="form"] {
+    display: grid;
+    grid-template-columns: max-content min-content;
+    align-self: center;
+    text-align: start;
+    gap: 0.25em;
+    background-color: azure;
+    padding: 1em;
+    border-radius: 0.5em;
+    box-shadow: 0.25em 0.25em 0.25em rgba(0, 0, 0, 0.25);
+    border: 2px solid rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+}
+
+
+input {
+    font-size: var(--size);
+    padding: 0.25em;
+}
+
+p {
+    font-size: var(--size);
+}
+
+input[type="submit"] {
+    grid-column: 1 / 3;
+}
+
+div[role="form"] span.label {
+    align-self: center;
+}

@@ -1,0 +1,39 @@
+/* @import 'tailwindcss'; */
+
+@font-face {
+    font-family: phigros;
+    src: url("/cmdysj.ttf");
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #fafafa;
+    width: 100%;
+    font-family: phigros;
+    overflow: hidden;
+    user-select: none;
+}
+
+
+a {
+    text-decoration: none;
+    color: #6df;
+}
+
+a:hover {
+    text-decoration: underline;
+    color: #6fd;
+}
+
+span[role="link"] {
+    cursor: pointer;
+    color: #6df;
+}
+
+span[role="link"]:hover {
+    text-decoration: underline;
+    color: #6fd;
+}
