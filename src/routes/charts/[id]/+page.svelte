@@ -165,13 +165,18 @@ $effect(() => {
     }
 })
 
+let selectedLineName = $derived.by(() => {
+    // 显式访问 GlobalContext.selectedLineNumber，建立依赖
+    const lineNumber = GlobalContext.selectedLineNumber;
+    const line = player?.chart?.judgeLines?.[lineNumber];
+    return line?.name ?? "?";
+});
 
 /**
  * 处理滚轮事件。
  * @param event
  */
 function handleWheel(event: WheelEvent) {
-    event.preventDefault();
     if (event.ctrlKey) { // 不处理Ctrl
         return;
     }
@@ -181,7 +186,6 @@ function handleWheel(event: WheelEvent) {
 }
 
 function globalHandleWheel(event: WheelEvent) {
-    event.preventDefault();
     if (event.ctrlKey) { // 按下CTRL则认为在切换判定线
         GlobalContext.selectedLineNumber = (GlobalContext.selectedLineNumber + (event.deltaY > 0 ? 1 : -1) + data.chart.judgeLines.length) % data.chart.judgeLines.length;
         return;
@@ -341,7 +345,9 @@ updateTip();
             {#if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINES}
                 <JudgeLines chart={data.chart} layout={judgeLinesLayout} bind:this={judgeLinesManager}></JudgeLines>
             {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.NOTE}
+                {#if GlobalContext.selectedNote}
                 <NoteEditor target={GlobalContext.selectedNote}></NoteEditor>
+                {/if}
             {/if}
         </div>
     </div>
@@ -367,7 +373,7 @@ updateTip();
             <ArrowedInput
                 max={(player?.chart?.judgeLines?.length ?? 1) - 1} min={0}
                 bind:value={GlobalContext.selectedLineNumber}
-                suffix={`(${player?.chart?.judgeLines?.[GlobalContext.selectedLineNumber]?.name ?? "?"})`}
+                suffix={`(${selectedLineName})`}
                 loops
             />
             <Label small>判定线布局</Label>

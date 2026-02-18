@@ -32,25 +32,25 @@ let values: {
     judgeSize: number;
     tint: number;
     tintHitEffects: number;
-} = $state({
-        parentNode: target.parentNode,
+} = $state(target ? {
+    parentNode: target.parentNode,
 
-        type: target.type,
-        startTime: target.startTime,
-        endTime: target.endTime,
-        positionX: target.positionX,
-        speed: target.speed,
-        above: target.above,
-        isFake: target.isFake,
-        alpha: target.alpha,
-        yOffset: target.yOffset,
-        size: target.size,
-        visibleBeats: target.visibleBeats,
-        judgeSize: target.judgeSize,
-        tint: target.tint,
-        tintHitEffects: target.tintHitEffects,
+    type: target.type,
+    startTime: target.startTime,
+    endTime: target.endTime,
+    positionX: target.positionX,
+    speed: target.speed,
+    above: target.above,
+    isFake: target.isFake,
+    alpha: target.alpha,
+    yOffset: target.yOffset,
+    size: target.size,
+    visibleBeats: target.visibleBeats,
+    judgeSize: target.judgeSize,
+    tint: target.tint,
+    tintHitEffects: target.tintHitEffects,
 
-    });
+} : null);
 
 $effect(() => { // 如果用derived的话，响应式变量会是不可写的，所以得这么写才行
     values = {
@@ -106,6 +106,7 @@ operationList.addEventListener("needsupdate", (opev) => {
             break;
         case Op.NotePropChangeOperation:
             op = op as Op.NotePropChangeOperation<Op.NotePropName>;
+            // @ts-expect-error
             values[op.field] = target[op.field];
             break;
         case Op.NoteTimeChangeOperation:
