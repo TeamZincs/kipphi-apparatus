@@ -3,7 +3,8 @@ import type { JudgeLine } from "kipphi";
 import type { Snippet } from "svelte";
 import Self from "./JudgeLine.svelte";
 
-import { GlobalContext } from "./store.svelte";
+import { GlobalContext, operationList } from "./store.svelte";
+    import { JudgeLineRenameOperation } from "kipphi/operation";
 
 let {
     level = 0,
@@ -36,6 +37,7 @@ const values = $derived({
 let folded = $state(false);
 let root: HTMLDivElement = $state(null);
 
+let lineName = $state(target.name);
 
 $effect(() => {
     if (GlobalContext.selectedLineNumber === target.id) {
@@ -44,7 +46,6 @@ $effect(() => {
         while (cur && !cur.matches(".judgelines-manager")) {
             cur = cur.parentElement;
         }
-        console.log(cur);
         root.scrollIntoView({
             behavior: cur?.scrollTop <= 20 ? "instant" : "smooth",
             block: "center",
@@ -67,7 +68,9 @@ $effect(() => {
     bind:this={root}
     >
     <span class="id">{target.id}</span>
-    <span class="name">{target.name}</span>
+    <input class="name" bind:value={lineName} onclick={(e) => e.stopPropagation()}
+        onchange={() => operationList.do(new JudgeLineRenameOperation(target, lineName))}
+    >
     <span>x</span><span>{values.moveX?.toFixed?.(2)}</span>
     <span>y</span><span>{values.moveY?.toFixed?.(2)}</span>
     <span class:triangle={children?.length > 0} class:folded={folded}
