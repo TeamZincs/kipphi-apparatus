@@ -1,4 +1,5 @@
 /* @import 'tailwindcss'; */
+@import 'variables.css';
 
 @font-face {
     font-family: phigros;

@@ -1,0 +1,10 @@
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  
+  
+  <!-- 暂停状态（两个矩形） -->
+  <g>
+    <rect x="25" y="20" width="20" height="60" fill="#f8f9fa" />
+    <rect x="55" y="20" width="20" height="60" fill="#f8f9fa" />
+  </g>
+  
+</svg>

@@ -1,27 +1,5 @@
 import type { UnzipResult, UnzippedFile } from "./workers/unzip.worker";
-/*
-import { invoke } from "@tauri-apps/api/core";
 
-
-
-interface RawFile {
-    name: string;
-    data: number[]; // 我不明白，为什么tauri后端要返回number[]，而不是Uint8Array<ArrayBuffer>
-}
-
-export async function unzip(file: Blob) {
-    console.log(new Date);
-    const result = await invoke("unzip", {zipData: new Uint8Array(await file.arrayBuffer())});
-    console.log(new Date);
-    return (result as RawFile[]).map((fileData) => {
-        return {
-            name: fileData.name,
-            data: new Uint8Array(fileData.data)
-        }
-    }) as UnzipedFile[];
-}
-
-*/
 let worker: Worker;
 interface UnzipedFile {
     name: string;

@@ -13,3 +13,5 @@ vite.config.ts.timestamp-*
 audacity
 
 project-rules.json
+
+target/rust-analyzer

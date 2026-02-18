@@ -1,0 +1,41 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- 定义样式 -->
+  <style>
+    .grid-line {
+      stroke-width: 8;
+      stroke-linecap: round;
+      fill: none;
+    }
+    .grid-line.horizontal {
+      stroke: #f8f9fa;
+    }
+    .grid-line.vertical {
+      stroke: #f8f9fa;
+    }
+  </style>
+  
+  <!-- 水平线 -->
+  <g transform-origin="center" transform="scale(0.8, 0.8)">
+  <path class="grid-line horizontal" d="M20,100 H180" />
+  <path class="grid-line horizontal" d="M20,20 H180" />
+  <path class="grid-line horizontal" d="M20,180 H180" />
+  
+  <!-- 垂直线 -->
+  <path class="grid-line vertical" d="M100,20 V180" />
+  <path class="grid-line vertical" d="M20,20 V180" />
+  <path class="grid-line vertical" d="M180,20 V180" />
+  </g>
+  
+  <!-- 圆角处理（使用圆形覆盖拐角） -->
+  <g fill="#f8f9fa" display="none">
+  <circle cx="20" cy="20" r="4"/>
+  <circle cx="20" cy="100" r="4"/>
+  <circle cx="20" cy="180" r="4"/>
+  <circle cx="100" cy="20" r="4"/>
+  <circle cx="100" cy="100" r="4"/>
+  <circle cx="100" cy="180" r="4" />
+  <circle cx="180" cy="20" r="4" />
+  <circle cx="180" cy="100" r="4" />
+  <circle cx="180" cy="180" r="4" />
+  </g>
+</svg>

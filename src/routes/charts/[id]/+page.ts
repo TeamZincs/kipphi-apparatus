@@ -44,7 +44,10 @@ export const load: PageLoad = async (event) => {
         holdBodyImg: "/HoldBody.png",
         belowImg: "/Below.png",
         chordImg: "/Chord.png",
-        hitFxImg: "/hit_fx.png"
+        hitFxImg: "/hit_fx.png",
+        selectNoteImg: "/selectNote.png",
+        startNodeImg: "/South.png",
+        endNodeImg: "/North.png",
     };
 };
 

@@ -34,3 +34,9 @@ export function getExtensionFromName(filename: string) {
 export function getMimeTypeFromName(basicType:string, filename: string) {
     return basicType + "/" + getExtensionFromName(filename)
 }
+
+export function addListenerForElements<T extends keyof HTMLElementEventMap>(elements: HTMLElement[], type: T, fn: (event: HTMLElementEventMap[T]) => void) {
+    for (const ele of elements) {
+        ele.addEventListener(type, fn);
+    }
+}

@@ -71,5 +71,65 @@
     "alreadyWritten": "该谱面自创建以来已写了{mins}分钟。",
     "notKPA": "该谱面不是KPAJSON谱面，似乎是从别处导入的。",
     "hint": "删除的谱面将回收至{path}。"
+  },
+  "main": {
+    "sidebar": {
+      "timeDivisor": {
+        "term": "拍数分母",
+        "desc": "控制编辑器的时间线密度。"
+      },
+      "renderingOffset": {
+        "term": "音画偏移",
+        "desc": "控制画面渲染相对于音乐的偏移时间，蓝牙耳机用户通常需要设置更低的数值。"
+      },
+      "linenumber": "判定线序号",
+      "judgeLineLayout": {
+        "ordered": "按序平铺",
+        "tree": "树形布局",
+        "group": "分组布局"
+      }
+    },
+    "note": {
+      "type": "类型",
+      "time": "时间",
+      "positionX": "X轴位置",
+      "direction": "方向",
+      "above": "上方",
+      "below": "下方",
+      "speed": "速度指数",
+      "real": "真值",
+      "alpha": "不透明度",
+      "absoluteYOffset": "绝对Y值偏移",
+      "visibleBeats": "可视拍数",
+      "size": "宽度",
+      "tint": "染色",
+      "tintHitEffect": "打击特效染色",
+      "judgeSize": "判定区大小",
+      "setAsDefault": "设为默认",
+      "delete": "删除音符",
+
+      "warning-not-from-selected-line": "警告：这个Note不属于选中的判定线{line}。",
+      "warning-lone-note": "警告：这个Note不存在于谱面中。"
+    },
+    "player": {
+      "showsUI": "显示UI",
+      "showsLineID": "显示线号"
+    },
+    "notes": {
+      "showsNNN": {
+        "term": "展示吸附",
+        "desc": "在音符编辑区中以可吸附的时间线显示二级音符节点。它们通常是您曾经采过音的时间点。"
+      },
+      "NNList": {
+        "term": "音符节点列表",
+        "desc": "音符节点列表是音符节点的序列，它们包含同大类、同速度、同Y轴偏移范围的音符。\n*代表显示该判定线所有列表。"
+      },
+      "addNote": "添加音符",
+      "noteType": "音符类型"
+    }
+  },
+  "general": {
+    "pixel": "像素",
+    "preservesPitch": "原调"
   }
 }
