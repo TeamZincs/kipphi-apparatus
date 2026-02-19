@@ -140,6 +140,7 @@
     transition: background-color 0.2s ease;
     position: relative;
     font-size: 2.5vh;
+    padding-inline: 0.25em;
   }
   .wide {
     width: unset;

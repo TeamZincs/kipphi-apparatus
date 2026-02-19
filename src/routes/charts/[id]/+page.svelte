@@ -541,7 +541,9 @@ updateTip();
         display: flex;
         align-items: center;
         flex-direction: column;
+        gap: 3px;
 
+        scrollbar-width: none;
     }
 
 

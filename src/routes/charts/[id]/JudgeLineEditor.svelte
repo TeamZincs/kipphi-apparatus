@@ -8,6 +8,7 @@
     import { JudgeLine, Op } from "kipphi";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import type { UIName } from "kipphi";
+    import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
 
     const chart = operationList.chart;
 
@@ -83,6 +84,9 @@
             }
         }
     });
+
+
+    let showsUIAttach = $state(false);
 </script>
 
 
@@ -183,10 +187,15 @@
 </div>
 
 
-<Label small>{$_("main.judgeline.attachUI.term")}
+<Label small>
+    <span class="collapsible-button"
+        role="button"
+        class:folded={!showsUIAttach}
+        on:click={() => showsUIAttach = !showsUIAttach}></span>
+    {$_("main.judgeline.attachUI.term")}
     <Tooltip>{$_("main.judgeline.attachUI.desc")}</Tooltip>
 </Label>
-<div class="grid">
+<div class="grid" style:display={showsUIAttach ? "" : "none"}>
     {#each Object.entries(uis) as [uiName, uiJudgeLine], i}
             <Label small>{$_(`main.judgeline.attachUI.${uiName as UIName}`)}</Label>
             <TextSwitchButton wide
@@ -207,8 +216,10 @@
     {/each}
 </div>
 
-<style>
+<DestructiveButton text={$_("main.judgeline.delete")}/>
 
+<style lang="less" scoped>
+    @import "#/components/mixin.less";
     .flex-row {
         display: flex;
         flex-direction: row;
@@ -226,5 +237,11 @@
         grid-template-columns: 1fr 1fr;
         gap: 4px;
         align-items: center;
+        width: 100%;
+    }
+
+    .collapsible-button {
+        .collapsible-triangle;
+        border-top-color: white;
     }
 </style>

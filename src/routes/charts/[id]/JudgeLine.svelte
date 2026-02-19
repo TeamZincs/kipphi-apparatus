@@ -102,6 +102,8 @@ function handleClick() {
 
 <style scoped lang="less">
 
+@import '#/components/mixin.less';
+
 .judgeline-manager {
     display: grid;
     grid-template-columns: 2.8em repeat(2, 1fr 3fr);
@@ -135,15 +137,7 @@ function handleClick() {
 .triangle {
     grid-row: 3 / 4;
     grid-column: 1 / 2;
-    width: 0;
-    height: 0;
-    border-left: 0.5em solid transparent;
-    border-right: 0.5em solid transparent;
-    border-top: 1em solid black;
-
-    &.folded {
-        transform: rotate(-90deg);
-    }
+    .collapsible-triangle;
 }
 
 span {

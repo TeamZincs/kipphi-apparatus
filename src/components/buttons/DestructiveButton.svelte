@@ -10,13 +10,12 @@
 
 <button onclick={onclick}>{text}</button>
 
-<style>
+<style lang="less" scoped>
+    @import "#/components/mixin.less";
     button {
-        font-size: 4vh;
         background-color: red;
         color: white;
-        border-radius: 5px;
-        padding: 0.35em 0.5em;
-        font-size: 100%;
+        font-size: 2.5vh;
+        .wide-button;
     }
 </style>

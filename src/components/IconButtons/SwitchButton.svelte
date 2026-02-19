@@ -36,7 +36,8 @@
     {@render content(checked)}
 </div>
 
-<style>
+<style lang="less">
+@import "#/components/mixin.less";
 .icon-button {
     border-radius: 8px;
     width: 8vh;
@@ -45,11 +46,7 @@
     position: relative;
 }
 .wide {
-   width: auto;
-   padding-left: 1em;
-   padding-right: 1em;
-   height: 4.5vh;
-   border-radius: var(--border-radius);
+   .wide-button;
 }
 .icon-button.disabled {
     background-color: gray !important;

@@ -37,7 +37,7 @@ function getFontSize(str: string) {
         
         {#if bgText}<div class="bg" style:font-size={getFontSize(bgText)}>{bgText}</div>{/if}
         <div class="bigText"
-            style:color={on ? "#4c8" : "#f32"}
+            style:color={disabled ? "black" : (on ? "#4c8" : "#f32")}
             style:font-size={getFontSize(on ? onText : offText)}>{on ? onText : offText}</div>
     {/snippet}
 </SwitchButton>

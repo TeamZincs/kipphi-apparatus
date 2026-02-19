@@ -3,7 +3,34 @@
     border: var(--input-border-width) solid var(--input-border-color);
     border-radius: var(--border-radius);
     font-family: 'phigros';
+    padding-inline: 0.25em;
     &:focus {
         font-family: 'Consolas', monospace;
     }
 }
+
+
+.wide-button() {
+    
+   width: auto;
+   padding-left: 1em;
+   padding-right: 1em;
+   height: 4.5vh;
+   border-radius: var(--border-radius);
+
+}
+
+.collapsible-triangle() {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 0.5em solid transparent;
+    border-right: 0.5em solid transparent;
+    border-top: 1em solid black;
+
+    &.folded {
+        transform: rotate(-90deg);
+    }
+}
+
+

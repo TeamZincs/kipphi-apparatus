@@ -33,6 +33,7 @@
 </span>
 <style scoped lang="less">
     .tooltip {
+        font-size: 80%;
         display: inline-block;
         border-radius: 50%;
         border: 2px solid white;
@@ -41,10 +42,12 @@
         text-align: center;
         font-weight: bold;
         cursor: pointer;
+        opacity: 60%;
         &:hover {
             background-color: white;
             color: black;
             border-color: black;
+            opacity: 100%;
         }
     }
     .tooltip-content {

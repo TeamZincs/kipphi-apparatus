@@ -9,7 +9,9 @@
 span {
     color: white;
     font-size: 2.5vh;
+    font-weight: bold;
     &.small {
+        font-weight: normal;
         font-size: 2vh;
     }
 }

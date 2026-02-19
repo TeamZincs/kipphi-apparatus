@@ -25,10 +25,7 @@ function len(str: string) {
 
 </script>
 
-<div class="arrowed-input" class:labeled={!!label} class:has-suffix={!!suffix}>
-    {#if label}
-        <span class="label" title={title}>{label}</span>
-    {/if}
+<div class="arrowed-input" class:has-suffix={!!suffix}>
     <input type="number" step={step} bind:value onchange={check}>
     <span class="up" onclick={() => {value += step; check()}}>↑</span>
     <span class="down" onclick={() => {value -= step; check();}}>↓</span>
@@ -47,21 +44,11 @@ div.arrowed-input {
     font-size: 1.8vh;
     position: relative;
     margin-inline: auto;
+    gap: 2px;
 }
 
-div.labeled {
-    grid-template-rows: auto 1fr 1fr;
-}
 
-div.labeled input {
-    grid-row: 2 / 4;
-}
 
-div.labeled span.label {
-    grid-column: 1 / 3;
-    color: white;
-    font-size: 120%;
-}
 
 input {
     .input;
@@ -91,5 +78,6 @@ span {
     background-color: white;
     color: black;
     border-radius: 2px;
+    font-size: 80%;
 }
 </style>
