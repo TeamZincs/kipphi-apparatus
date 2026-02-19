@@ -23,6 +23,7 @@ import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, Pla
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
     import Tooltip from "#/components/Tooltip.svelte";
+    import JudgeLineEditor from "./JudgeLineEditor.svelte";
 
 
 let {
@@ -182,6 +183,8 @@ function handleWheel(event: WheelEvent) {
     }
     if (audio) {
         audio.currentTime += event.deltaY / 1000;
+        progressBar.value = audio.currentTime + '';
+        player.render();
     }
 }
 
@@ -235,6 +238,7 @@ onMount(async () => {
         operationList
     );
     notesEditor.target = chart.judgeLines[0];
+    notesEditor.showsNNNListAttachable = NotesEditorSettings.showsNNN;
     notesEditorCanvas.addEventListener("click", () => {
         GlobalContext.activeSidebar = Sidebar.NOTES;
     });
@@ -335,10 +339,15 @@ updateTip();
         <div class="sidebar-content">
             <PopupOption wide
                 options={
-                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT]
+                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE]
                 }
                 displayTexts={
-                    ["Lines", "Note", "Event"]
+                    [
+                        $_("main.secondary.lines"),
+                        $_("main.secondary.note"),
+                        $_("main.secondary.event"),
+                        $_("main.secondary.line")
+                    ]
                 }
                 bind:currentOption={GlobalContext.activeSecondarySidebar}
             ></PopupOption>
@@ -348,6 +357,8 @@ updateTip();
                 {#if GlobalContext.selectedNote}
                 <NoteEditor target={GlobalContext.selectedNote}></NoteEditor>
                 {/if}
+            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINE}
+                <JudgeLineEditor></JudgeLineEditor>
             {/if}
         </div>
     </div>

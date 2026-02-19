@@ -17,6 +17,10 @@ let APP_DATA_DIR: string;
 let CHART_DIR: string;
 let TRASH_DIR: string;
 
+/**
+ * 查询应用数据目录、谱面目录和谱面回收站目录。
+ * @returns 
+ */
 export async function queryMeta() {
     if (typeof APP_DATA_DIR === "string") {
          return { APP_DATA_DIR, CHART_DIR, TRASH_DIR };
@@ -130,6 +134,11 @@ export function parseRawInfoTxt(raw: Uint8Array | ArrayBuffer) {
     return parseInfoTxt(infoTxt);
 }
 
+
+/**
+ * 将一张谱面移入回收站。
+ * @param identifier 
+ */
 export async function disposeChart(identifier: string) {
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const TRASH_DIRECTORY = TRASH_DIR || (await queryMeta()).TRASH_DIR;

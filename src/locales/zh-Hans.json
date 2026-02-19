@@ -89,6 +89,12 @@
         "group": "分组布局"
       }
     },
+    "secondary": {
+      "lines": "判定线列表",
+      "note": "音符编辑",
+      "event": "事件编辑",
+      "line": "管理所选判定线"
+    },
     "note": {
       "type": "类型",
       "time": "时间",
@@ -110,6 +116,51 @@
 
       "warning-not-from-selected-line": "警告：这个Note不属于选中的判定线{line}。",
       "warning-lone-note": "警告：这个Note不存在于谱面中。"
+    },
+    "judgeline": {
+      "cover": {
+        "term": "遮罩",
+        "desc": "如设为真，音符在它所在一侧的对侧不会渲染。\n如需制作音符从判定线中冒出的效果，请设为真。"
+      },
+      "father": {
+        "term": "父线",
+        "desc": "可以使此判定线继承父线的坐标系。"
+      },
+      "anchor": {
+        "term": "锚点位置",
+        "desc": "控制判定线锚点相对于贴图的位置（实际上变化的是贴图位置）"
+      },
+      "group": {
+        "term": "判定线组",
+        "desc": "将判定线分组，仅影响编辑。\n非默认组的同组判定线会在音符和事件编辑区中一起渲染。"
+      },
+      "zOrder": {
+        "term": "Z轴顺序",
+        "desc": "控制判定线在Z轴上的顺序，值越大越靠前。"
+      },
+      "attachUI": {
+        "term": "UI绑定",
+        "desc": "将谱面UI组件（如谱面名字、连击数）绑定到判定线，使之跟随判定线移动。\n一个UI仅能绑定一条判定线，而一条判定线可以绑定多个UI。",
+        "name": "曲目名称",
+        "bar": "进度条",
+        "combo": "COMBO文本",
+        "combonumber": "连击数",
+        "level": "难度等级",
+        "pause": "暂停按钮",
+        "score": "分数",
+        "attach": "绑定",
+        "detach": "解绑",
+        "attachedTo": "已绑至{id}"
+      },
+      "rotatesWithFather": {
+        "term": "随父旋转",
+        "desc": "在启用父线的前提下，控制该判定线是否继承父线的角度。"
+      },
+      "texture": {
+        "term": "贴图",
+        "desc": "判定线贴图，默认贴图是白色矩形。"
+      },
+      "delete": "删除判定线"
     },
     "player": {
       "showsUI": "显示UI",

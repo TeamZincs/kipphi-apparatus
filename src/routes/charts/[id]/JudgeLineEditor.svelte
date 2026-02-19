@@ -1,0 +1,230 @@
+<script lang="ts">
+    import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
+    import ArrowedInput from "#/components/Inputs/ArrowedInput.svelte";
+    import Label from "#/components/Label.svelte";
+    import Tooltip from "#/components/Tooltip.svelte";
+    import { _ } from "#/i18n";
+    import { GlobalContext, operationList } from "./store.svelte";
+    import { JudgeLine, Op } from "kipphi";
+    import PopupOption from "#/components/PopupOption/PopupOption.svelte";
+    import type { UIName } from "kipphi";
+
+    const chart = operationList.chart;
+
+    let target = $derived(chart.judgeLines[GlobalContext.selectedLineNumber])
+
+    let values = $state({
+        cover: target.cover,
+        father: target.father ? target.father.id : -1,
+        anchor: target.anchor,
+        group: target.group.name,
+        zOrder: target.zOrder,
+        rotatesWithFather: target.rotatesWithFather
+    });
+    let uis: Record<UIName, JudgeLine> = $state({
+        "name": chart.nameAttach,
+        "bar": chart.barAttach,
+        "combo": chart.comboAttach,
+        "combonumber": chart.combonumberAttach,
+        "level": chart.levelAttach,
+        "pause": chart.pauseAttach,
+        "score": chart.scoreAttach
+    }) satisfies Record<UIName, JudgeLine>
+    $effect(() => {
+        values = {
+            cover: target.cover,
+            father: target.father ? target.father.id : -1,
+            anchor: target.anchor,
+            group: target.group.name,
+            zOrder: target.zOrder,
+            rotatesWithFather: target.rotatesWithFather
+        }
+        invalidFather = false;
+    });
+
+
+    let invalidFather = $state(false);
+    function checkFather() {
+        if (values.father === -1) {
+            invalidFather = false;
+            return null;
+        } else {
+            const toBeFather = chart.judgeLines[values.father];
+            if (!toBeFather) {
+                invalidFather = true;
+                return null;
+            }
+            invalidFather = JudgeLine.checkinterdependency(target, toBeFather);
+            return toBeFather;
+        }
+    }
+
+    operationList.addEventListener("needsupdate", (ev) => {
+        const clazz = ev.operation.constructor;
+        if (clazz.name.startsWith("JudgeLine")) {
+            values = {
+                cover: target.cover,
+                father: target.father ? target.father.id : -1,
+                anchor: target.anchor,
+                group: target.group.name,
+                zOrder: target.zOrder,
+                rotatesWithFather: target.rotatesWithFather
+            }
+        }
+        if (clazz.name === "UIDetachOperation" || clazz.name === "UIAttachOperation") {
+            uis = {
+                "name": chart.nameAttach,
+                "bar": chart.barAttach,
+                "combo": chart.comboAttach,
+                "combonumber": chart.combonumberAttach,
+                "level": chart.levelAttach,
+                "pause": chart.pauseAttach,
+                "score": chart.scoreAttach
+            }
+        }
+    });
+</script>
+
+
+<Label>JudgeLine</Label>
+
+<div class="grid">
+
+<Label small>{$_("main.judgeline.group.term")}
+    <Tooltip>{$_("main.judgeline.group.desc")}</Tooltip>
+</Label>
+<PopupOption wide
+    options={
+        chart.judgeLineGroups.map(group => group.name)
+    }
+    bind:currentOption={
+        () => values.group,
+        (value) => {
+            operationList.do(new Op.JudgeLineRegroupOperation(target, chart.judgeLineGroups.find(group => group.name === value)));
+        }
+    }
+></PopupOption>
+
+
+<Label small>{$_("main.judgeline.cover.term")}
+    <Tooltip>{$_("main.judgeline.cover.desc")}</Tooltip>
+</Label>
+<TextSwitchButton wide onText="Y" offText="N"
+    bind:checked={
+        () => values.cover,
+        (value) => {
+            operationList.do(new Op.JudgeLinePropChangeOperation(target, "cover", value));
+        }
+    }
+></TextSwitchButton>
+
+
+<Label small>{$_("main.judgeline.father.term")}
+    <Tooltip>{$_("main.judgeline.father.desc")}</Tooltip>
+</Label>
+<ArrowedInput max={chart.judgeLines.length - 1} min={0}
+    bind:value={
+        () => values.father,
+        (value) => {
+            values.father = value;
+            const toBeFather = checkFather();
+            if (!invalidFather) {
+                operationList.do(new Op.JudgeLineInheritanceChangeOperation(chart, target, toBeFather));
+            }
+        }
+    }
+    suffix={invalidFather ? "❌" : ""}
+/>
+
+<Label small>
+    {$_("main.judgeline.rotatesWithFather.term")}
+    <Tooltip>{$_("main.judgeline.rotatesWithFather.desc")}</Tooltip>
+</Label>
+<TextSwitchButton wide onText="Y" offText="N"
+    bind:checked={
+        () => values.rotatesWithFather,
+        (value) => {
+            operationList.do(new Op.JudgeLinePropChangeOperation(target, "rotatesWithFather", value));
+        }
+    }
+></TextSwitchButton>
+
+<Label small>
+    {$_("main.judgeline.anchor.term")}
+    <Tooltip>{$_("main.judgeline.anchor.desc")}</Tooltip>
+</Label>
+
+<div class="flex-column">
+    <ArrowedInput step={0.01} suffix="(x)" bind:value={
+        () => values.anchor[0],
+
+        (value) => {
+            operationList.do(new Op.JudgeLinePropChangeOperation(target, "anchor", [value, values.anchor[1]]));
+        }
+    }></ArrowedInput>
+    <ArrowedInput step={0.01} suffix="(y)" bind:value={
+        () => values.anchor[1],
+        (value) => {
+            operationList.do(new Op.JudgeLinePropChangeOperation(target, "anchor", [values.anchor[0], value]));
+        }
+    }></ArrowedInput>
+</div>
+
+<Label small>
+    {$_("main.judgeline.zOrder.term")}
+    <Tooltip>{$_("main.judgeline.zOrder.desc")}</Tooltip>
+</Label>
+<ArrowedInput step={1} bind:value={
+    () => values.zOrder,
+    (value) => {
+        operationList.do(new Op.JudgeLinePropChangeOperation(target, "zOrder", value));
+    }
+}></ArrowedInput>
+</div>
+
+
+<Label small>{$_("main.judgeline.attachUI.term")}
+    <Tooltip>{$_("main.judgeline.attachUI.desc")}</Tooltip>
+</Label>
+<div class="grid">
+    {#each Object.entries(uis) as [uiName, uiJudgeLine], i}
+            <Label small>{$_(`main.judgeline.attachUI.${uiName as UIName}`)}</Label>
+            <TextSwitchButton wide
+                offText={$_("main.judgeline.attachUI.detach")}
+                onText={uiJudgeLine ? $_("main.judgeline.attachUI.attachedTo", { values: {id: uiJudgeLine.id}}) : $_("main.judgeline.attachUI.attach")}
+                disabled={uiJudgeLine && uiJudgeLine !== target}
+                bind:checked={
+                    () => uiJudgeLine !== target,
+                    (c) => {
+                        if (c) {
+                            operationList.do(new Op.UIDetachOperation(chart, uiName as UIName))
+                        } else {
+                            operationList.do(new Op.UIAttachOperation(chart, target, uiName as UIName))
+                        }
+                    }
+                }
+            ></TextSwitchButton>
+    {/each}
+</div>
+
+<style>
+
+    .flex-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
+    }
+    .flex-column {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        align-items: center;
+    }
+</style>

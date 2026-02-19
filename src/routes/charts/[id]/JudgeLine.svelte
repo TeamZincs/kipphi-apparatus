@@ -3,7 +3,7 @@ import type { JudgeLine } from "kipphi";
 import type { Snippet } from "svelte";
 import Self from "./JudgeLine.svelte";
 
-import { GlobalContext, operationList } from "./store.svelte";
+import { GlobalContext, operationList, SecondarySidebar } from "./store.svelte";
     import { JudgeLineRenameOperation } from "kipphi/operation";
 
 let {
@@ -38,6 +38,7 @@ let folded = $state(false);
 let root: HTMLDivElement = $state(null);
 
 let lineName = $state(target.name);
+let displays = $derived(GlobalContext.selectedLineNumber === target.id)
 
 $effect(() => {
     if (GlobalContext.selectedLineNumber === target.id) {
@@ -52,19 +53,27 @@ $effect(() => {
             inline: "center"
         });
     }
-})
+});
+
+function handleClick() {
+    if (displays) { // 如果已经激活，则全局跳转到此判定线管理
+        GlobalContext.activeSecondarySidebar = SecondarySidebar.LINE
+    } else {
+        GlobalContext.selectedLineNumber = target.id
+    }
+}
 
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions-->
 <div class="judgeline-manager"
-    class:selected={GlobalContext.selectedLineNumber === target.id}
+    class:selected={displays}
     style:margin-left={level + "em"} 
     style:display={show ? "" : "none"}
     style:position={children?.length ? "sticky" : ""}
     style:z-index={children?.length ? 1 : 0}
     style:top={level * 3 + "em"}
-    onclick={() => {GlobalContext.selectedLineNumber = target.id}}
+    onclick={handleClick}
     bind:this={root}
     >
     <span class="id">{target.id}</span>

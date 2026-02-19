@@ -14,6 +14,7 @@ export const SecondarySidebar = {
     LINES: 0,
     NOTE: 1,
     EVENT: 2,
+    LINE: 3
 }
 
 
