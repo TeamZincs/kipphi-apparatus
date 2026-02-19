@@ -216,7 +216,11 @@
     {/each}
 </div>
 
-<DestructiveButton text={$_("main.judgeline.delete")}/>
+<DestructiveButton text={$_("main.judgeline.delete")}
+    onclick={() => {
+        operationList.do(new Op.JudgeLineDeleteOperation(chart, target));
+    }}
+/>
 
 <style lang="less" scoped>
     @import "#/components/mixin.less";
