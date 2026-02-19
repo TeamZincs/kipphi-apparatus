@@ -2,6 +2,7 @@
     let {
         primary = false,
         wide = false,
+        disabled = false,
         content,
         "class": className = "",
         checked = $bindable(false),
@@ -9,6 +10,7 @@
     }: {
         primary?: boolean;
         wide?: boolean;
+        disabled?: boolean;
         content: (on: boolean) => any;
         "class"?: string;
         checked?: boolean;
@@ -17,11 +19,14 @@
 </script>
 <!-- svelte-ignore a11y_interactive_supports_focus,a11y_click_events_have_key_events -->
 <div
-    class="icon-button {checked ? 'checked' : ''} {className}"
+    class="icon-button {className}"
     class:wide
     class:primary
+    class:checked
+    class:disabled
     role="button"
     onclick={() => {
+        if (disabled) return;
         checked = !checked;
         if (onChange) {
             onChange(checked);
@@ -45,6 +50,9 @@
    padding-right: 1em;
    height: 4.5vh;
    border-radius: var(--border-radius);
+}
+.icon-button.disabled {
+    background-color: gray !important;
 }
 
 .icon-button:hover {

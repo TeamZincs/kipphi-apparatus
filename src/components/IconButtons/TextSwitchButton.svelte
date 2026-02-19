@@ -9,6 +9,7 @@
         wide,
         "class": className = "",
         checked = $bindable(false),
+        disabled = false,
         onchange: onChange
     }: {
         bgText?: string;
@@ -17,6 +18,7 @@
         wide?: boolean;
         "class"?: string;
         checked?: boolean;
+        disabled?: boolean;
         onchange?: (checked: boolean) => void;
     } = $props();
 
@@ -30,7 +32,7 @@ function getFontSize(str: string) {
 
 </script>
 
-<SwitchButton wide={wide} primary class={className} bind:checked onchange={onChange}>
+<SwitchButton wide={wide} primary class={className} disabled={disabled} bind:checked onchange={onChange}>
     {#snippet content(on)}
         
         {#if bgText}<div class="bg" style:font-size={getFontSize(bgText)}>{bgText}</div>{/if}
@@ -53,12 +55,13 @@ function getFontSize(str: string) {
     .bigText {
         position: absolute;
         font-size: 5vh;
+        font-weight: bold;
         top: 0;
         right: 0;
         width: 100%;
         height: 100%;
         align-content: center;
         text-align: center;
-        text-shadow: 1px 1px 2px #222;
+        /* text-shadow: 1px 1px 2px #222; */
     }
 </style>
