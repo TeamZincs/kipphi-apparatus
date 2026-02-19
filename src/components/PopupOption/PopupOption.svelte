@@ -142,7 +142,8 @@
     font-size: 2.5vh;
   }
   .wide {
-    width: 15vh;
+    width: unset;
+    min-width: 15vh;
     height: 5vh;
   }
 
