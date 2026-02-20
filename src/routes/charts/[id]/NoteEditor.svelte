@@ -279,6 +279,7 @@ operationList.addEventListener("needsupdate", (opev) => {
         display: grid;
         grid-template-columns: auto 1fr;
         gap: 4px;
+        align-items: center;
         box-sizing: border-box;
     }
 </style>

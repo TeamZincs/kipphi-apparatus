@@ -8,11 +8,11 @@
 <style scoped lang="less">
 span {
     color: white;
-    font-size: 2.5vh;
+    font-size: var(--font-size-medium);
     font-weight: bold;
     &.small {
         font-weight: normal;
-        font-size: 2vh;
+        font-size: var(--font-size-small);
     }
 }
 </style>

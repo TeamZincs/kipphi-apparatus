@@ -139,7 +139,7 @@
     border-radius: 8px;
     transition: background-color 0.2s ease;
     position: relative;
-    font-size: 2.5vh;
+    font-size: var(--font-size-medium);
     padding-inline: 0.25em;
   }
   .wide {
@@ -168,7 +168,7 @@
     overflow-y: auto;
     scrollbar-width: none;
     background-color: white;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--box-shadow);
     border-radius: 8px;
     z-index: 1000;
     animation: slideIn 0.3s ease-out;
@@ -190,7 +190,7 @@
   }
 
   .option-item:hover {
-    background-color: #f5f5f5;
+    background-color: var(--color-selected-li);
   }
 
   .option-item.selected {

@@ -5,9 +5,11 @@ import { Chart, type ChartDataKPA, type ChartDataKPA2, type ChartDataRPE } from 
 import { queryMeta, readAFileInChart, type ChartMetadata } from "#/queryCharts";
 import type { PageLoad } from "./$types";
 import { getMimeTypeFromName } from "#/util";
+import { setID } from "./store.svelte";
 
 export const load: PageLoad = async (event) => {
     const chartId = event.params.id;
+    setID(chartId);
     const CHART_DIR = (await queryMeta()).CHART_DIR
     const filePath = await join(CHART_DIR, chartId, "metadata.json");
     const metadata = JSON.parse(await readTextFile(filePath)) as ChartMetadata;

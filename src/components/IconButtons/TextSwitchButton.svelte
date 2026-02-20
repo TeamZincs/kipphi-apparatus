@@ -27,7 +27,7 @@ function len(str: string) {
 }
 
 function getFontSize(str: string) {
-    return !wide ? 5 / str.length + "vh" : "2.5vh"
+    return !wide ? `calc(var(--font-size-medium) * 2 / ${str.length})` : "var(--font-size-medium)"
 }
 
 </script>

@@ -20,6 +20,8 @@ export const SecondarySidebar = {
 
 let notesEditor: NotesEditor;
 let eventSequenceEditors: EventSequenceEditors;
+export let chartId: string;
+export function setID(id: string) { chartId = id; }
 export let operationList: OperationList;
 export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationList) {
     notesEditor = ne;

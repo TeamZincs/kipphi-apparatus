@@ -37,24 +37,15 @@ let {
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
-    font-size: 1.8vh;
     margin-inline: auto;
     input {
         .input;
-        font-size: 1.6em;
+        font-size: var(--font-size-medium);
         min-width: 3em;
     }
 }
 
-.unit-input.labeled {
-    grid-template-rows: auto 1fr;
-    .label {
-        grid-row: 1;
-    }
-    .unit {
-        grid-column: 2 / 3;
-    }
-}
+
 
 .unit-input.united {
     grid-template-columns: 1fr auto;
@@ -63,14 +54,11 @@ let {
     }
 }
 
-.label, .unit {
+.unit {
     color: white;
 }
 
-.label {
-    font-size: 120%;
-    text-align: center;
-}
+
 
 .unit {
     font-size: 1.6em;

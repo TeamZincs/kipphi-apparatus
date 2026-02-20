@@ -3,4 +3,10 @@
     --input-border-color: #bbb;
     --input-border-width: 1px;
     --border-radius: 4px;
+    --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    --color-selected-li: #f5f5f5;
+
+    --font-size-medium: 2.5vh;
+    --font-size-small: 2vh;
+    --font-size-smaller: 1.5vh;
 }

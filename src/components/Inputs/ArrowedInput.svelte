@@ -41,7 +41,6 @@ div.arrowed-input {
     display: grid;
     grid-template-rows: 1fr 1fr;
     grid-template-columns: 1fr auto;
-    font-size: 1.8vh;
     position: relative;
     margin-inline: auto;
     gap: 2px;
@@ -52,7 +51,7 @@ div.arrowed-input {
 
 input {
     .input;
-    font-size: 1.6em;
+    font-size: var(--font-size-medium);
     min-width: 3em;
     grid-row: 1 / 3;
     border-radius: 4px;
@@ -62,7 +61,6 @@ input {
     position: absolute;
     right: 3vh;
     bottom: 0;
-    font-size: 2em;
     color: #888;
     pointer-events: none;
     user-select: none;
@@ -78,6 +76,6 @@ span {
     background-color: white;
     color: black;
     border-radius: 2px;
-    font-size: 80%;
+    font-size: var(--font-size-smaller);
 }
 </style>

@@ -41,7 +41,7 @@ function handleInput(e: Event) {
 
 .hex {
     font-family: 'Consolas', monospace;
-    font-size: 1.5em;
+    font-size: var(--font-size-smaller);
     color: white;
 }
 

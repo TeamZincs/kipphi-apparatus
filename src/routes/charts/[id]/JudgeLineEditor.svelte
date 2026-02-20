@@ -4,11 +4,13 @@
     import Label from "#/components/Label.svelte";
     import Tooltip from "#/components/Tooltip.svelte";
     import { _ } from "#/i18n";
-    import { GlobalContext, operationList } from "./store.svelte";
+    import { chartId, GlobalContext, operationList } from "./store.svelte";
     import { JudgeLine, Op } from "kipphi";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import type { UIName } from "kipphi";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
+    import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
+    import { getTextures, uploadTexture } from "#/queryCharts";
 
     const chart = operationList.chart;
 
@@ -153,11 +155,11 @@
     }
 ></TextSwitchButton>
 
+
 <Label small>
     {$_("main.judgeline.anchor.term")}
     <Tooltip>{$_("main.judgeline.anchor.desc")}</Tooltip>
 </Label>
-
 <div class="flex-column">
     <ArrowedInput step={0.01} suffix="(x)" bind:value={
         () => values.anchor[0],
@@ -172,6 +174,8 @@
             operationList.do(new Op.JudgeLinePropChangeOperation(target, "anchor", [values.anchor[0], value]));
         }
     }></ArrowedInput>
+
+
 </div>
 
 <Label small>
@@ -184,6 +188,22 @@
         operationList.do(new Op.JudgeLinePropChangeOperation(target, "zOrder", value));
     }
 }></ArrowedInput>
+
+<Label small>
+    {$_("main.judgeline.texture.term")}
+    <Tooltip>{$_("main.judgeline.texture.desc")}</Tooltip>
+</Label>
+<SuggestionInput getSuggestions={
+    async (input) => 
+    (await getTextures(chartId))
+        .map(e => e.name)
+        .filter(s => s.startsWith(input))
+}
+    value=""
+></SuggestionInput>
+
+<Label small>{$_("main.judgeline.upload")}</Label>
+<input type="file" style="min-width: 0" onchange={(e) => uploadTexture(chartId, (e.target as HTMLInputElement).files[0])}>
 </div>
 
 
@@ -191,7 +211,7 @@
     <span class="collapsible-button"
         role="button"
         class:folded={!showsUIAttach}
-        on:click={() => showsUIAttach = !showsUIAttach}></span>
+        onclick={() => showsUIAttach = !showsUIAttach}></span>
     {$_("main.judgeline.attachUI.term")}
     <Tooltip>{$_("main.judgeline.attachUI.desc")}</Tooltip>
 </Label>

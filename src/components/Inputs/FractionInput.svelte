@@ -69,7 +69,7 @@
     width: 2.5em;
     margin: auto;
     text-align: center;
-    font-size: 1.8vh;
+    font-size: var(--font-size-small);
     box-sizing: border-box;
 
   }

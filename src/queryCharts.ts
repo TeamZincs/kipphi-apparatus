@@ -1,6 +1,6 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, readTextFile, mkdir, readFile, writeFile, rename } from "@tauri-apps/plugin-fs";
-import { getExtensionFromName } from "#/util";
+import { getExtensionFromName, getMimeTypeFromName } from "#/util";
 import type { ChartDataKPA, ChartDataKPA2, ChartDataRPE } from "kipphi";
 
 export interface ChartMetadata {
@@ -148,3 +148,40 @@ export async function disposeChart(identifier: string) {
     const chartPath = await join(CHART_DIRECTORY, identifier);
     await rename(chartPath, await join(TRASH_DIRECTORY, identifier));
 }
+
+export async function getTextures(identifier: string) {
+    const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
+    const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
+    if (!await exists(texturesDir)) {
+        return [];
+    }
+    const textures = await readDir(texturesDir);
+
+    return textures.filter((texture) => texture.isFile && texture.name.match(/\.(png|jpg|jpeg|gif)$/i));
+}
+
+export async function uploadTexture(identifier: string, texture: File) {
+    const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
+    const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
+    if (!await exists(texturesDir)) {
+        await mkdir(texturesDir);
+    }
+    const texturePath = await join(texturesDir, texture.name);
+    await writeFile(texturePath, new Uint8Array(await texture.arrayBuffer()));
+}
+
+export async function fetchTexture(identifier: string, name: string): Promise<ImageBitmap> {
+    const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
+    const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
+    if (!await exists(texturesDir)) {
+        return null;
+    }
+    
+    const texturePath = await join(texturesDir, name);
+    if (!await exists(texturePath)) {
+        return null;
+    }
+    const blob = new Blob([await readFile(texturePath)], { type: getMimeTypeFromName("image", name) })
+    return await createImageBitmap(blob);
+}
+
