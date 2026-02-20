@@ -109,7 +109,11 @@ export interface I18nMapping {
 "main.judgeline.rotatesWithFather.desc": never;
 "main.judgeline.texture.term": never;
 "main.judgeline.texture.desc": never;
+"main.judgeline.texture.notFound": never;
 "main.judgeline.upload": never;
+"main.judgeline.select": never;
+"main.judgeline.uploadWarning": "dir";
+"main.judgeline.uploadSuccess": never;
 "main.judgeline.delete": never;
 "main.player.showsUI": never;
 "main.player.showsLineID": never;

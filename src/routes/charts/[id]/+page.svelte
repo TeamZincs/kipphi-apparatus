@@ -282,7 +282,7 @@ onMount(async () => {
     player.receive(chart, () => void 0);
 
 
-    EditorGlobalInit(notesEditor, eventSequenceEditors, operationList);
+    EditorGlobalInit(notesEditor, eventSequenceEditors, operationList, player);
     // 释放内存
     // data.chart = null;
 });
@@ -441,6 +441,7 @@ updateTip();
         <span id="tips">Tips: {Constants.tips[tipIndex]}</span>
     </div>
 </main>
+<div id="notifications"></div>
 
 <style lang="less">
     :root {

@@ -34,6 +34,17 @@ export async function queryMeta() {
     }
 }
 
+export async function getPathOf(chartIdentifier: string) {
+    const { CHART_DIR } = await queryMeta();
+    return await join(CHART_DIR, chartIdentifier);
+}
+
+export async function getTexturePathOf(chartIdentifier: string) {
+    return await join(await getPathOf(chartIdentifier), "textures");
+}
+
+
+
 
 export async function queryCharts() {
     const {APP_DATA_DIR, CHART_DIR} = await queryMeta();
@@ -149,7 +160,7 @@ export async function disposeChart(identifier: string) {
     await rename(chartPath, await join(TRASH_DIRECTORY, identifier));
 }
 
-export async function getTextures(identifier: string) {
+export async function getTextures(identifier: string): Promise<string[]> {
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
     if (!await exists(texturesDir)) {
@@ -157,7 +168,14 @@ export async function getTextures(identifier: string) {
     }
     const textures = await readDir(texturesDir);
 
-    return textures.filter((texture) => texture.isFile && texture.name.match(/\.(png|jpg|jpeg|gif)$/i));
+    const names = textures
+        .filter(texture => texture.isFile)
+        .map(file => file.name)
+        .filter(name => name.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i));
+    if (!names.includes("line.png")) {
+        names.push("line.png");
+    }
+    return names;
 }
 
 export async function uploadTexture(identifier: string, texture: File) {
@@ -173,15 +191,29 @@ export async function uploadTexture(identifier: string, texture: File) {
 export async function fetchTexture(identifier: string, name: string): Promise<ImageBitmap> {
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
-    if (!await exists(texturesDir)) {
-        return null;
+    if (await exists(texturesDir)) {
+        
+        const texturePath = await join(texturesDir, name);
+        if (await exists(texturePath)) {
+                    
+            const blob = new Blob([await readFile(texturePath)], { type: getMimeTypeFromName("image", name) })
+            return await createImageBitmap(blob);
+        }
     }
-    
-    const texturePath = await join(texturesDir, name);
-    if (!await exists(texturePath)) {
-        return null;
+    // 如果不能搜索到，则在此谱面根目录搜索
+    const thisChartDir = await join(CHART_DIRECTORY, identifier);
+    const texturePath = await join(thisChartDir, name);
+    if (await exists(texturePath)) {
+        const blob = new Blob([await readFile(texturePath)], { type: getMimeTypeFromName("image", name) })
+        try { // 移动到textures中
+            const texturesDir = await join(thisChartDir, "textures");
+            if (!await exists(texturesDir)) {
+                await mkdir(texturesDir);
+            }
+            const texturePath = await join(texturesDir, name);
+            await writeFile(texturePath, new Uint8Array(await blob.arrayBuffer()));
+        } catch {}
+        return await createImageBitmap(blob);
     }
-    const blob = new Blob([await readFile(texturePath)], { type: getMimeTypeFromName("image", name) })
-    return await createImageBitmap(blob);
 }
 

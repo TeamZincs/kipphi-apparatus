@@ -1,5 +1,6 @@
 import { type NotesEditor, type EventSequenceEditors, NotesEditorState } from "kipphi-canvas-editor"
 import { NNList, NoteType, type Op } from "kipphi";
+import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
 
 /** @enum */
@@ -17,16 +18,17 @@ export const SecondarySidebar = {
     LINE: 3
 }
 
-
+export let player: Player;
 let notesEditor: NotesEditor;
 let eventSequenceEditors: EventSequenceEditors;
 export let chartId: string;
 export function setID(id: string) { chartId = id; }
 export let operationList: OperationList;
-export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationList) {
+export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationList, player: Player) {
     notesEditor = ne;
     eventSequenceEditors = ece;
     operationList = ol;
+    player = player;
 }
 
 

@@ -158,9 +158,13 @@
       },
       "texture": {
         "term": "贴图",
-        "desc": "判定线贴图，默认贴图是白色矩形。"
+        "desc": "判定线贴图，默认贴图是白色矩形。",
+        "notFound": "未找到贴图"
       },
       "upload": "上传",
+      "select": "选择文件",
+      "uploadWarning": "文件名已被占用，上传将覆盖原有贴图。请见{dir}",
+      "uploadSuccess": "上传成功。",
       "delete": "删除判定线"
     },
     "player": {

@@ -1,16 +1,26 @@
+<script module lang="ts">
+
+    // 长生命周期
+    let showsUIAttach = $state(false);
+</script>
+
 <script lang="ts">
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import ArrowedInput from "#/components/Inputs/ArrowedInput.svelte";
     import Label from "#/components/Label.svelte";
     import Tooltip from "#/components/Tooltip.svelte";
     import { _ } from "#/i18n";
-    import { chartId, GlobalContext, operationList } from "./store.svelte";
+    import { chartId, GlobalContext, operationList, player } from "./store.svelte";
     import { JudgeLine, Op } from "kipphi";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import type { UIName } from "kipphi";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
-    import { getTextures, uploadTexture } from "#/queryCharts";
+    import { fetchTexture, getTexturePathOf, getTextures, uploadTexture } from "#/queryCharts";
+    import { notify } from "./notify.svelte";
+    import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
+    import Button from "#/components/buttons/Button.svelte";
+    import UploadButton from "#/components/buttons/UploadButton.svelte";
 
     const chart = operationList.chart;
 
@@ -22,7 +32,8 @@
         anchor: target.anchor,
         group: target.group.name,
         zOrder: target.zOrder,
-        rotatesWithFather: target.rotatesWithFather
+        rotatesWithFather: target.rotatesWithFather,
+        texture: target.texture
     });
     let uis: Record<UIName, JudgeLine> = $state({
         "name": chart.nameAttach,
@@ -40,7 +51,8 @@
             anchor: target.anchor,
             group: target.group.name,
             zOrder: target.zOrder,
-            rotatesWithFather: target.rotatesWithFather
+            rotatesWithFather: target.rotatesWithFather,
+            texture: target.texture
         }
         invalidFather = false;
     });
@@ -71,7 +83,8 @@
                 anchor: target.anchor,
                 group: target.group.name,
                 zOrder: target.zOrder,
-                rotatesWithFather: target.rotatesWithFather
+                rotatesWithFather: target.rotatesWithFather,
+                texture: target.texture
             }
         }
         if (clazz.name === "UIDetachOperation" || clazz.name === "UIAttachOperation") {
@@ -88,7 +101,8 @@
     });
 
 
-    let showsUIAttach = $state(false);
+    let texture: File = $state(null);
+    
 </script>
 
 
@@ -196,14 +210,55 @@
 <SuggestionInput getSuggestions={
     async (input) => 
     (await getTextures(chartId))
-        .map(e => e.name)
         .filter(s => s.startsWith(input))
 }
-    value=""
+    onchange={
+        async (t) => {
+            if ((await getTextures(chartId)).find(texture => texture === t)) {
+                operationList.do(new Op.JudgeLinePropChangeOperation(target, "texture", t));
+                if (t === "line.png") { // 默认贴图不需要从后端获得
+                    return;
+                }
+                player.textureMapping.set(t, await fetchTexture(chartId, t))
+            } else {
+                notify($_("main.judgeline.texture.notFound"), 'error');
+            }
+        }
+    }
+    value={values.texture}
 ></SuggestionInput>
 
-<Label small>{$_("main.judgeline.upload")}</Label>
-<input type="file" style="min-width: 0" onchange={(e) => uploadTexture(chartId, (e.target as HTMLInputElement).files[0])}>
+<ProgressiveButton
+    onclick={async () => {
+        if (!texture) {
+            notify($_("main.judgeline.select"), 'error');
+            return;
+        }
+        try {
+            await uploadTexture(chartId, texture);
+            // 完事了把input里面的files删了
+            texture = null;
+            notify($_("main.judgeline.uploadSuccess"), 'info');
+        } catch (e) {
+            if (e instanceof Error) {
+                notify(e.message, 'error');
+            } else {
+                notify('Unknown error', 'error');
+            }
+        }
+    }}
+>{$_("main.judgeline.upload")}</ProgressiveButton>
+<UploadButton bind:file={texture} onchange={
+    async (f) => {
+        if (!f) {
+            return;
+        }
+        const textures = await getTextures(chartId);
+        if (textures.find(texture => texture === f.name)) {
+            notify($_("main.judgeline.uploadWarning", { values: {dir: await getTexturePathOf(chartId)} }), 'warning');
+        }
+    }
+}></UploadButton>
 </div>
 
 

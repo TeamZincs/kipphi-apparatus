@@ -1,12 +1,13 @@
 <script lang="ts">
     let {
         getSuggestions,
-        value = $bindable()
+        value = $bindable(),
+        onchange
     }: {
         getSuggestions: (input: string) => Promise<string[]>,
-        value: string
+        value: string,
+        onchange?: (value: string) => void
     } = $props();
-
     let displaysSuggestions = $state(false);
     let suggestions = $state([] as string[])
     async function deliverSuggestions(e: Event) {
@@ -14,17 +15,32 @@
         console.log(suggestions)
         displaysSuggestions = true;
     }
+    let timer: number = null;
 </script>
 
 <div class="sugggestion-input-container">
 <input class="suggestion-input" type="text"
 bind:value
-oninput={deliverSuggestions} onfocusout={() => setTimeout(() => displaysSuggestions = false, 100)}>
+onchange={() => {
+    // 设置一个防抖，因为后面点击了一下li之前已经触发了一次input的onchange，那个时候的文本内容可能是不准确的
+    timer = setTimeout(() => {
+        console.log(value)
+        onchange?.(value)
+    }, 150)
+}}
+oninput={deliverSuggestions}
+onfocusout={() => setTimeout(() => displaysSuggestions = false, 100)}>
 {#if displaysSuggestions}
 <span class="suggestions-outer">
     <ul class="suggestions">
         {#each suggestions as suggestion}
-        <li class="suggestion" role="button" onclick={() => value = suggestion}>
+        <li class="suggestion" role="button" onclick={() => {
+            value = suggestion;
+            onchange?.(suggestion);
+            console.log("cto")
+            if (timer) clearTimeout(timer);
+            timer = null;
+        }}>
             {suggestion}
         </li>
         {/each}
