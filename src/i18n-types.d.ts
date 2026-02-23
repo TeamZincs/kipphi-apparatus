@@ -123,7 +123,24 @@ export interface I18nMapping {
 "main.notes.NNList.desc": never;
 "main.notes.addNote": never;
 "main.notes.noteType": never;
+"main.events.layerAndSeq": never;
+"main.events.layers.0": never;
+"main.events.layers.1": never;
+"main.events.layers.2": never;
+"main.events.layers.3": never;
+"main.events.layers.ex": never;
 "general.pixel": never;
-"general.preservesPitch": never
+"general.preservesPitch": never;
+"general.eventTypes.moveX": never;
+"general.eventTypes.moveY": never;
+"general.eventTypes.rotate": never;
+"general.eventTypes.scaleX": never;
+"general.eventTypes.scaleY": never;
+"general.eventTypes.alpha": never;
+"general.eventTypes.color": never;
+"general.eventTypes.text": never;
+"general.eventTypes.speed": never;
+"general.eventTypes.easing": never;
+"general.eventTypes.bpm": never
 }
 

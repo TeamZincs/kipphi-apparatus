@@ -18,12 +18,13 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLines.svelte";
 
-import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, PlayerSettings, NotesEditorSettings } from "./store.svelte";
+import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, PlayerSettings, NotesEditorSettings, EventSequenceEditorSettings } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
     import Tooltip from "#/components/Tooltip.svelte";
     import JudgeLineEditor from "./JudgeLineEditor.svelte";
+    import EventsSidebar from "./EventsSidebar.svelte";
 
 
 let {
@@ -165,6 +166,22 @@ $effect(() => {
         player.render();
     }
 })
+
+$effect(() => {
+    let type = EventSequenceEditorSettings.type;
+    if (!eventSequenceEditors) return;
+    eventSequenceEditors.activatedEditor = eventSequenceEditors[type];
+});
+
+$effect(() => {
+    let layer = EventSequenceEditorSettings.layer;
+    if (!eventSequenceEditors) return;
+    eventSequenceEditors.changeTarget({
+        layerID: layer
+    })
+})
+
+
 
 let selectedLineName = $derived.by(() => {
     // 显式访问 GlobalContext.selectedLineNumber，建立依赖
@@ -402,8 +419,9 @@ updateTip();
                 <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={PlayerSettings.showsLineID}/>
             {:else if GlobalContext.activeSidebar === Sidebar.NOTES}
                 <NotesSidebar/>
+            {:else if GlobalContext.activeSidebar === Sidebar.EVENTS}
+                <EventsSidebar/>
             {/if}
-
         </div>
     </div>
     <div id="footer">

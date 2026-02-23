@@ -1,5 +1,5 @@
 import { type NotesEditor, type EventSequenceEditors, NotesEditorState } from "kipphi-canvas-editor"
-import { NNList, NoteType, type Op } from "kipphi";
+import { EventType, NNList, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
 
@@ -24,11 +24,11 @@ let eventSequenceEditors: EventSequenceEditors;
 export let chartId: string;
 export function setID(id: string) { chartId = id; }
 export let operationList: OperationList;
-export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationList, player: Player) {
+export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationList, pl: Player) {
     notesEditor = ne;
     eventSequenceEditors = ece;
     operationList = ol;
-    player = player;
+    player = pl;
 }
 
 
@@ -53,4 +53,10 @@ export let NotesEditorSettings = $state({
     editChecked: false,
     showsNNN: false,
     noteType: NoteType.tap
+})
+
+export let EventSequenceEditorSettings = $state({
+    editChecked: false,
+    layer: "0" as "0" | "1" | "2" | "3" | "ex",
+    type: "moveX" as keyof typeof EventType
 })

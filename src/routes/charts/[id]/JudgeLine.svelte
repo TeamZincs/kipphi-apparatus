@@ -4,7 +4,7 @@ import type { Snippet } from "svelte";
 import Self from "./JudgeLine.svelte";
 
 import { GlobalContext, operationList, SecondarySidebar } from "./store.svelte";
-    import { JudgeLineRenameOperation } from "kipphi/operation";
+import { Op } from "kipphi";
 
 let {
     level = 0,
@@ -78,7 +78,7 @@ function handleClick() {
     >
     <span class="id">{target.id}</span>
     <input class="name" bind:value={lineName} onclick={(e) => e.stopPropagation()}
-        onchange={() => operationList.do(new JudgeLineRenameOperation(target, lineName))}
+        onchange={() => operationList.do(new Op.JudgeLineRenameOperation(target, lineName))}
     >
     <span>x</span><span>{values.moveX?.toFixed?.(2)}</span>
     <span>y</span><span>{values.moveY?.toFixed?.(2)}</span>

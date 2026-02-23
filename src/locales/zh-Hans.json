@@ -182,10 +182,33 @@
       },
       "addNote": "添加音符",
       "noteType": "音符类型"
+    },
+    "events": {
+      "layerAndSeq": "事件层与序列",
+      "layers": {
+        "0": "默认层",
+        "1": "普1层",
+        "2": "普2层",
+        "3": "普3层",
+        "ex": "特殊/扩展层"
+      }
     }
   },
   "general": {
     "pixel": "像素",
-    "preservesPitch": "原调"
+    "preservesPitch": "原调",
+    "eventTypes": {
+      "moveX": "X轴移动",
+      "moveY": "Y轴移动",
+      "rotate": "旋转",
+      "scaleX": "X轴缩放",
+      "scaleY": "Y轴缩放",
+      "alpha": "不透明度",
+      "color": "颜色",
+      "text": "文本",
+      "speed": "流速",
+      "easing": "缓动",
+      "bpm": "BPM"
+    }
   }
 }
