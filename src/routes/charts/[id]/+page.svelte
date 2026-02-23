@@ -220,6 +220,12 @@ document.addEventListener("keydown", (event) => {
         }
         GlobalContext.previousActiveSecondarySidebar = GlobalContext.activeSecondarySidebar;
         GlobalContext.activeSecondarySidebar = SecondarySidebar.LINES;
+    } else if (event.key === " ") {
+        if (isPlaying) {
+            player.pause();
+        } else {
+            player.play();
+        }
     }
 });
 document.addEventListener("keyup", (event) => {
@@ -232,9 +238,6 @@ document.addEventListener("keyup", (event) => {
 onMount(async () => {
     await tick();
     const chart = data.chart;
-    playerCanvas.addEventListener("click", () => {
-        player.play();
-    })
     player = new Player(
         playerCanvas,
         audioProcessor,
