@@ -129,6 +129,8 @@ export interface I18nMapping {
 "main.events.layers.2": never;
 "main.events.layers.3": never;
 "main.events.layers.ex": never;
+"main.events.timeSpan": never;
+"main.events.addNodePair": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;
@@ -141,6 +143,7 @@ export interface I18nMapping {
 "general.eventTypes.text": never;
 "general.eventTypes.speed": never;
 "general.eventTypes.easing": never;
-"general.eventTypes.bpm": never
+"general.eventTypes.bpm": never;
+"general.beat": never
 }
 

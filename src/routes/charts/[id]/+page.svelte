@@ -3,7 +3,7 @@ import { Player, AudioProcessor, Images } from "kipphi-player";
 import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
 import type { PageData } from "./$types";
 import { onMount, tick, onDestroy } from "svelte";
-import { Chart, Op as O } from "kipphi";
+import { Chart, EventType, Op as O } from "kipphi";
 
 import { _ } from "#/i18n";
 
@@ -25,6 +25,8 @@ import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, Pla
     import Tooltip from "#/components/Tooltip.svelte";
     import JudgeLineEditor from "./JudgeLineEditor.svelte";
     import EventsSidebar from "./EventsSidebar.svelte";
+    import { EventCurveEditorState } from "kipphi-canvas-editor/eventCurveEditor";
+    import { event } from "@tauri-apps/api";
 
 
 let {
@@ -166,21 +168,46 @@ $effect(() => {
         player.render();
     }
 })
-
+// 编辑器类型切换
 $effect(() => {
     let type = EventSequenceEditorSettings.type;
     if (!eventSequenceEditors) return;
+    // @ts-expect-error TSC又在发什么颠
     eventSequenceEditors.activatedEditor = eventSequenceEditors[type];
-});
+    EventSequenceEditorSettings.editChecked = eventSequenceEditors.activatedEditor.state === EventCurveEditorState.edit
 
+});
+// 层切换
 $effect(() => {
     let layer = EventSequenceEditorSettings.layer;
     if (!eventSequenceEditors) return;
     eventSequenceEditors.changeTarget({
         layerID: layer
     })
-})
+});
+// 时间跨度
+$effect(() => {
+    let timeSpan = EventSequenceEditorSettings.timeSpan;
+    if (!eventSequenceEditors) return;
+    for (const key of ["alpha", "moveX", "moveY", "rotate", "speed",
+       "scaleX", "scaleY", "text", "color",
+       "bpm", "easing"] satisfies (keyof typeof EventType)[]) {
+        eventSequenceEditors[key].timeSpan = timeSpan;
+    }
+    eventSequenceEditors.draw();
+});
+// 编辑切换
+$effect(() => {
+    let editChecked = EventSequenceEditorSettings.editChecked;
 
+    if (!eventSequenceEditors) return;
+    const activatedEditor = eventSequenceEditors.activatedEditor
+    if (editChecked) {
+        activatedEditor.state = EventCurveEditorState.edit;
+    } else {
+        activatedEditor.state = EventCurveEditorState.select;
+    }
+})
 
 
 let selectedLineName = $derived.by(() => {

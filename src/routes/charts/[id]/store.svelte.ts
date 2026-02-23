@@ -58,5 +58,6 @@ export let NotesEditorSettings = $state({
 export let EventSequenceEditorSettings = $state({
     editChecked: false,
     layer: "0" as "0" | "1" | "2" | "3" | "ex",
-    type: "moveX" as keyof typeof EventType
+    type: "moveX" as keyof typeof EventType,
+    timeSpan: 4
 })

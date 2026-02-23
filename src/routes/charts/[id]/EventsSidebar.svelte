@@ -4,6 +4,8 @@
     import { EventType, type ExtendedEventTypeName } from "kipphi";
     import { EventSequenceEditorSettings, GlobalContext } from "./store.svelte";
     import { _ } from "#/i18n";
+    import UnitInput from "#/components/Inputs/UnitInput.svelte";
+    import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
 
 
     let options = $derived(
@@ -35,4 +37,9 @@
     bind:currentOption={EventSequenceEditorSettings.type}
 ></PopupOption>
 
+<Label small>{$_("main.events.timeSpan")}</Label>
+<UnitInput bind:value={EventSequenceEditorSettings.timeSpan} unit={$_("general.beat")}></UnitInput>
 
+
+<TextSwitchButton wide bgText={$_("main.events.addNodePair")}
+    onText="+" offText="-" bind:checked={EventSequenceEditorSettings.editChecked}/>
