@@ -1,5 +1,7 @@
-<script lang="ts">
+<script lang="ts" generics="T">
   import Portal from 'svelte-portal';
+
+
 
   let {
     options = [],
@@ -8,12 +10,12 @@
     currentOption = $bindable(),
     onchange
   }: {
-    options: any[];
+    options: T[];
     wide?: boolean;
     displayTexts?: string[];
-    currentOption: any;
-    onchange?: (option: any) => void;
-  } = $props();
+    currentOption: T;
+    onchange?: (option: T) => void;
+  } & (T extends string ? {}: {displayTexts: string[]}) = $props();
 
   // 内部用索引管理选中状态，与 currentOption 同步
   let currentIndex = $state(0);
@@ -26,7 +28,13 @@
     if (options[currentIndex] !== currentOption) {
       currentIndex = options.indexOf(currentOption);
       if (currentIndex === -1) {
-        currentIndex = options.findIndex(o => tupleEq(o, $state.snapshot(currentOption)));
+        if (Array.isArray(currentOption)) {
+
+          currentIndex = options.findIndex(o => tupleEq(o as any[], $state.snapshot(currentOption) as any[]));
+        } else {
+          currentIndex = 0
+          currentOption = options[0]
+        }
       }
     }
   });
