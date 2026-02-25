@@ -19,8 +19,8 @@ export const SecondarySidebar = {
 }
 
 export let player: Player;
-let notesEditor: NotesEditor;
-let eventSequenceEditors: EventSequenceEditors;
+export let notesEditor: NotesEditor;
+export let eventSequenceEditors: EventSequenceEditors;
 export let chartId: string;
 export function setID(id: string) { chartId = id; }
 export let operationList: OperationList;
@@ -56,6 +56,7 @@ export let NotesEditorSettings = $state({
 })
 
 let _useEasing = $state(1);
+let _templateName = $state("");
 
 export let EventSequenceEditorSettings = $state({
     editChecked: false,
@@ -68,5 +69,11 @@ export let EventSequenceEditorSettings = $state({
     set useEasing(value) {
         _useEasing = value;
         eventSequenceEditors.useEasing = easingArray[value];
+    },
+    get templateName() {
+        return _templateName;
+    },
+    set templateName(value) {
+        _templateName = value;
     }
 });

@@ -135,6 +135,14 @@ export interface I18nMapping {
 "main.events.layers.ex": never;
 "main.events.timeSpan": never;
 "main.events.addNodePair": never;
+"main.events.encapsule": never;
+"main.events.templateName": never;
+"main.events.templateNameEmpty": never;
+"main.events.templateNameOccupied": never;
+"main.events.encapsuleErr.noContinuous": never;
+"main.events.encapsuleErr.notBelongToSourceSequence": never;
+"main.events.encapsuleErr.zeroDelta": never;
+"main.events.noNodeSelected": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;

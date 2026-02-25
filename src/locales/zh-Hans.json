@@ -199,7 +199,17 @@
         "ex": "特殊层(ex)"
       },
       "timeSpan": "时间跨度",
-      "addNodePair": "添加节点对"
+      "addNodePair": "添加节点对",
+      "encapsule": "封装",
+      "templateName": "模板名",
+      "templateNameEmpty": "请填写模板名",
+      "templateNameOccupied": "该模板名已被使用",
+      "encapsuleErr": {
+        "noContinuous": "节点对不连续",
+        "notBelongToSourceSequence": "节点不属于源序列",
+        "zeroDelta": "数值变化量为0.封装的模板缓动需要非零数值变化量，请检查头尾的蓝节点。"
+      },
+      "noNodeSelected": "未选中任何节点。"
     }
   },
   "general": {
