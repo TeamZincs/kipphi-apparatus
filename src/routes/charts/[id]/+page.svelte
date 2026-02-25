@@ -208,13 +208,14 @@ $effect(() => {
     } else {
         activatedEditor.state = EventCurveEditorState.select;
     }
-})
+});
+
 
 
 let selectedLineName = $derived.by(() => {
     // 显式访问 GlobalContext.selectedLineNumber，建立依赖
     const lineNumber = GlobalContext.selectedLineNumber;
-    const line = player?.chart?.judgeLines?.[lineNumber];
+    const line = data.chart.judgeLines[lineNumber];
     return line?.name ?? "?";
 });
 

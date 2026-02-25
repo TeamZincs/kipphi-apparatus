@@ -1,5 +1,5 @@
 import { type NotesEditor, type EventSequenceEditors, NotesEditorState } from "kipphi-canvas-editor"
-import { EventType, NNList, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
+import { easingArray, EventType, NNList, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
 
@@ -55,10 +55,18 @@ export let NotesEditorSettings = $state({
     noteType: NoteType.tap
 })
 
+let _useEasing = $state(1);
+
 export let EventSequenceEditorSettings = $state({
     editChecked: false,
     layer: "0" as "0" | "1" | "2" | "3" | "ex",
     type: "moveX" as keyof typeof EventType,
     timeSpan: 4,
-    useEasing: 1
-})
+    get useEasing() {
+        return _useEasing
+    },
+    set useEasing(value) {
+        _useEasing = value;
+        eventSequenceEditors.useEasing = easingArray[value];
+    }
+});
