@@ -7,7 +7,7 @@
 
 <style scoped lang="less">
 span {
-    color: white;
+    color: var(--color-foreground);
     font-size: var(--font-size-medium);
     font-weight: bold;
     &.small {

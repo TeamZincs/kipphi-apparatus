@@ -6,6 +6,7 @@
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
+    import EasingBox from "./EasingBox.svelte";
 
 
     let options = $derived(
@@ -43,3 +44,5 @@
 
 <TextSwitchButton wide bgText={$_("main.events.addNodePair")}
     onText="+" offText="-" bind:checked={EventSequenceEditorSettings.editChecked}/>
+
+<EasingBox bind:value={EventSequenceEditorSettings.easing}></EasingBox>

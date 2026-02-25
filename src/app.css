@@ -18,6 +18,10 @@ html {
     user-select: none;
 }
 
+:root {
+    --color-foreground: black;
+}
+
 
 a {
     text-decoration: none;

@@ -41,8 +41,8 @@ export let GlobalContext =  $state({
 
     selectedNote: null,
 
-    timeDivisor: 4
-})
+    timeDivisor: 4,
+});
 
 export let PlayerSettings = $state({
     showsUI: true,
@@ -59,5 +59,6 @@ export let EventSequenceEditorSettings = $state({
     editChecked: false,
     layer: "0" as "0" | "1" | "2" | "3" | "ex",
     type: "moveX" as keyof typeof EventType,
-    timeSpan: 4
+    timeSpan: 4,
+    useEasing: 1
 })

@@ -4,6 +4,7 @@
 // 导出类型以便其他地方使用
 export interface I18nMapping {
     "chartIndex.noCharts": never;
+"chartIndex.nav.settings": never;
 "chartIndex.nav.create": never;
 "chartIndex.nav.import": never;
 "chartIndex.nav.export": never;
@@ -13,6 +14,9 @@ export interface I18nMapping {
 "chartIndex.charts.deleteSuccess": "name";
 "chartIndex.charts.export": never;
 "chartIndex.licenseDeclaration": never;
+"settings.language": never;
+"settings.useRpeEasingId": never;
+"settings.useRpeEasingIdWarning": never;
 "create.title": never;
 "create.name": never;
 "create.bpm": never;

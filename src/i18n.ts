@@ -1,4 +1,4 @@
-import { register, init, getLocaleFromNavigator, format } from "svelte-i18n";
+import { register, init, getLocaleFromNavigator, format, locale } from "svelte-i18n";
 import type {I18nMapping} from "./i18n-types";
 
 // 以下内容复制自svelte-i18n的源代码，旨在提供模块增强
@@ -20,6 +20,7 @@ import type {I18nMapping} from "./i18n-types";
 
 import { type Readable } from 'svelte/store';
 import { type FormatXMLElementFn } from 'intl-messageformat';
+import { KPASettings } from "./settings.svelte";
 
 
 
@@ -36,17 +37,24 @@ type MessageFormatter = <T extends keyof I18nMapping>(id: T | MessageObject<T>, 
 // 以上复制的代码到此结束。
 // The copied code ends here.
 
-
+const localeLangNames = {
+    "zh-Hans": "简体中文",
+    "zh-Hant": "繁體中文",
+    "en": "English"
+}
 
 
 // register("en", () => import("./locales/en.json"));
 register("zh-Hans", () => import("./locales/zh-Hans.json"));
+register("zh-Hant", () => import("./locales/zh-Hant.json"));
+register("en", () => import("./locales/en.json"));
+
 
 init({
     fallbackLocale: "zh-Hans",
-    initialLocale: getLocaleFromNavigator()
+    initialLocale: KPASettings.lang
 });
 
 const myFormat = format as Readable<MessageFormatter>;
 
-export { myFormat as _ }
+export { myFormat as _, locale, localeLangNames }

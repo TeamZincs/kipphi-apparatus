@@ -104,6 +104,7 @@ $effect(() => {
 $effect(() => {
     audio.preservesPitch = preservesPitch;
 });
+
 $effect(() => {
     let timeDivisor = GlobalContext.timeDivisor; // 确保建立依赖追踪
     if (player) {
@@ -496,6 +497,7 @@ updateTip();
         --player-height: 85vh;
         --bottom-bar-height: 12vh;
         --bottom-tips-height: 3vh;
+        --color-foreground: white;
     }
     .container {
         display: grid;

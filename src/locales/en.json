@@ -1,0 +1,223 @@
+{
+  "chartIndex": {
+    "noCharts": "No charts yet. Create one now!",
+    "nav": {
+      "settings": "Settings",
+      "create": "Create Chart",
+      "import": "Import Chart",
+      "export": "Export Chart"
+    },
+    "charts": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Are you sure you want to delete chart {name}?",
+      "deleteSuccess": "Chart {name} has been deleted.",
+      "export": "Export"
+    },
+    "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware."
+  },
+  "settings": {
+    "language": "Language",
+    "useRpeEasingId": "Use RPE Easing ID",
+    "useRpeEasingIdWarning": "Using RPE Easing ID will disable EaseInOutQuint and EaseInOutExpo."
+  },
+  "create": {
+    "title": "Create Chart",
+    "name": "Track Name",
+    "bpm": "Base BPM",
+    "composer": "Composer",
+    "create": "Create",
+    "alert": {
+      "name": "Please enter the track name",
+      "bpm": "Please enter the correct base BPM"
+    },
+    "success": "Chart created successfully. Redirecting to the chart in 3 seconds."
+  },
+  "import": {
+    "title": "Import Chart",
+    "formathint": "You can import charts using PEZ/ZIP packages, or upload the chart (compatible with RPEJSON), music, and illustration separately.",
+    "retail": "Use Separate Files",
+    "archive": "Use Chart Package",
+    "chart": "Chart File",
+    "alert": {
+      "chart": "Please provide a chart file",
+      "archive": "Please provide a chart archive (.pez/.zip)",
+      "imcompleteMeta": "Incomplete metadata",
+      "incompleteArchive": "Incomplete archive, missing: {missing}",
+      "unzipFailed": "Unzip failed. Please check if the file is corrupted or in the correct format."
+    }
+  },
+  "form": {
+    
+    "hint": "Chart identifier is used to index charts. Please use easy-to-remember English + numeric names (preferably without spaces)",
+    "id": "Chart Identifier",
+    "music": "Music File",
+    "illustration": "Illustration File",
+    "chartsLocation": "Chart list is located at {location}",
+    "idState": {
+      
+      "occupied": "This identifier is already in use",
+      "available": "This identifier is available",
+      "empty": "Please enter an identifier",
+      "invalid": "This identifier contains illegal characters"
+    },
+    "alert": {
+      "music": "Please provide a music file",
+      "illustration": "Please provide an illustration file",
+      "unknownImageType": "Unknown image type: {filename}",
+      "unknownAudioType": "Unknown audio type: {filename}",
+      "folderOccupied": "This folder is already in use but was not previously recognized as a chart: {folder}"
+    }
+  },
+  "delete": {
+    "confirm": "Are you sure you want to delete chart {name}, identifier: {id}?",
+    "success": "Chart {name} has been deleted.",
+    "notFound": "You have entered a chart that does not exist.",
+    "delete": "Delete",
+    "alreadyWritten": "You have been working on this chart for {mins} minutes since its creation.",
+    "notKPA": "This chart is not a KPAJSON chart. It appears to have been imported from elsewhere.",
+    "hint": "Deleted charts will be moved to {path}."
+  },
+  "main": {
+    "sidebar": {
+      "timeDivisor": {
+        "term": "Time Divisor",
+        "desc": "Controls the timeline density of the editor."
+      },
+      "renderingOffset": {
+        "term": "Audio-Visual Offset",
+        "desc": "Controls the rendering offset relative to the music. Bluetooth headphone users usually need to set a lower value."
+      },
+      "linenumber": "Judge Line Number",
+      "judgeLineLayout": {
+        "ordered": "Ordered",
+        "tree": "Tree",
+        "group": "Grouped"
+      }
+    },
+    "secondary": {
+      "lines": "Lines",
+      "note": "Note Editor",
+      "event": "Event Editor",
+      "line": "Manage Selected Line"
+    },
+    "note": {
+      "type": "Type",
+      "time": "Time",
+      "positionX": "X Position",
+      "direction": "Direction",
+      "above": "Above",
+      "below": "Below",
+      "speed": "Speed Factor",
+      "real": "Real Value",
+      "alpha": "Opacity",
+      "absoluteYOffset": "Absolute Y Offset",
+      "visibleBeats": "Visible Beats",
+      "size": "Width",
+      "tint": "Tint",
+      "tintHitEffect": "Hit Effect Tint",
+      "judgeSize": "Judgement Area Size",
+      "setAsDefault": "Set as Default",
+      "delete": "Delete",
+
+      "warning-not-from-selected-line": "Warning: This Note does not belong to the selected judge line {line}.",
+      "warning-lone-note": "Warning: This Note does not exist in the chart."
+    },
+    "judgeline": {
+      "cover": {
+        "term": "Cover",
+        "desc": "If set to true, notes will not render on the opposite side of where they are located.\nSet to true if you want to create the effect of notes emerging from the judge line."
+      },
+      "father": {
+        "term": "Father Line",
+        "desc": "Allows this judge line to inherit the coordinate system of the father line."
+      },
+      "anchor": {
+        "term": "Anchor Position",
+        "desc": "Controls the position of the judge line anchor relative to the texture (actually changes the texture position)"
+      },
+      "group": {
+        "term": "Judge Line Group",
+        "desc": "Groups judge lines. Only affects editing.\nJudge lines in the same non-default group will be rendered together in the note and event editing areas."
+      },
+      "zOrder": {
+        "term": "Z Order",
+        "desc": "Controls the order of the judge line on the Z axis. Higher values are closer to the front."
+      },
+      "attachUI": {
+        "term": "UI Binding",
+        "desc": "Bind chart UI components (such as chart name, combo count) to the judge line so they move with the judge line.\nA UI can only be bound to one judge line, but a judge line can bind multiple UIs.",
+        "name": "Track Name",
+        "bar": "Progress Bar",
+        "combo": "COMBO Text",
+        "combonumber": "Combo Count",
+        "level": "Difficulty Level",
+        "pause": "Pause Button",
+        "score": "Score",
+        "attach": "Attach",
+        "detach": "Detach",
+        "attachedTo": "Attached to {id}"
+      },
+      "rotatesWithFather": {
+        "term": "Rotate with Father",
+        "desc": "When father line is enabled, controls whether this judge line inherits the angle of the father line."
+      },
+      "texture": {
+        "term": "Texture",
+        "desc": "Judge line texture. The default texture is a white rectangle.",
+        "notFound": "Texture not found"
+      },
+      "upload": "Upload",
+      "select": "Select",
+      "uploadWarning": "Filename is already in use. Upload will overwrite the existing texture. See {dir}",
+      "uploadSuccess": "Upload successful.",
+      "delete": "Delete"
+    },
+    "player": {
+      "showsUI": "Show UI",
+      "showsLineID": "Show Line Number"
+    },
+    "notes": {
+      "showsNNN": {
+        "term": "Show Snap",
+        "desc": "Displays secondary note nodes as snap-able timelines in the note editing area. They are typically the time points where you have previously tapped notes."
+      },
+      "NNList": {
+        "term": "Note Node List",
+        "desc": "Note node list is a sequence of note nodes. They contain notes of the same major category, speed, and Y offset range.\n* represents displaying all lists of the judge line."
+      },
+      "addNote": "Add Note",
+      "noteType": "Note Type"
+    },
+    "events": {
+      "layerAndSeq": "Event Layer and Sequence",
+      "layers": {
+        "0": "Default Layer (0)",
+        "1": "Normal 1 (1)",
+        "2": "Normal 2 (2)",
+        "3": "Normal 3 (3)",
+        "ex": "Special Layer (ex)"
+      },
+      "timeSpan": "Time Span",
+      "addNodePair": "Add Node Pair"
+    }
+  },
+  "general": {
+    "pixel": "pixel",
+    "preservesPitch": "PrsvPtch",
+    "eventTypes": {
+      "moveX": "MoveX",
+      "moveY": "MoveY",
+      "rotate": "Rotate",
+      "scaleX": "ScaleX",
+      "scaleY": "ScaleY",
+      "alpha": "Opacity",
+      "color": "Color",
+      "text": "Text",
+      "speed": "Speed",
+      "easing": "Easing",
+      "bpm": "BPM"
+    },
+    "beat": "beat"
+  }
+}

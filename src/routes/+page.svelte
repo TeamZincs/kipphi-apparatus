@@ -10,6 +10,7 @@
 
 <main class="container">
   <Navigator>
+    <a href="./settings" class="nav-button">{$_("chartIndex.nav.settings")}</a>
     <a href="./create" class="nav-button">{$_("chartIndex.nav.create")}</a>
     <a href="./import" class="nav-button">{$_("chartIndex.nav.import")}</a>
   </Navigator>

@@ -2,6 +2,7 @@
   "chartIndex": {
     "noCharts": "还没有谱面，快去创建一个！",
     "nav": {
+      "settings": "设置",
       "create": "创建谱面",
       "import": "导入谱面",
       "export": "导出谱面"
@@ -14,6 +15,11 @@
       "export": "导出谱面"
     },
     "licenseDeclaration": "虽然本软件使用MIT许可证，但作者不鼓励、支持其付费再分发，请知悉。"
+  },
+  "settings": {
+    "language": "语言",
+    "useRpeEasingId": "使用RPE缓动ID",
+    "useRpeEasingIdWarning": "使用RPE缓动ID将无法使用EaseInOutQuint和EaseInOutExpo。"
   },
   "create": {
     "title": "创建谱面",
@@ -80,7 +86,7 @@
       },
       "renderingOffset": {
         "term": "音画偏移",
-        "desc": "控制画面渲染相对于音乐的偏移时间，蓝牙耳机用户通常需要设置更低的数值。"
+        "desc": "控制画面渲染相对于音乐/音效的偏移时间，蓝牙耳机用户通常需要设置更低的数值。\n注意：这并不是我们通常说的“谱面偏移量”。请在“谱面信息”中编辑偏移量。"
       },
       "linenumber": "判定线序号",
       "judgeLineLayout": {

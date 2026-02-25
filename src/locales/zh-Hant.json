@@ -1,0 +1,223 @@
+{
+  "chartIndex": {
+    "noCharts": "還沒有譜面，快去創建一個！",
+    "nav": {
+      "settings": "設置",
+      "create": "創建譜面",
+      "import": "導入譜面",
+      "export": "導出譜面"
+    },
+    "charts": {
+      "edit": "進入編輯",
+      "delete": "刪除譜面",
+      "deleteConfirm": "確定刪除譜面{name}？",
+      "deleteSuccess": "譜面{name}已刪除。",
+      "export": "導出譜面"
+    },
+    "licenseDeclaration": "雖然本軟件使用MIT許可證，但作者不鼓勵、支持其付費再分發，請知悉。"
+  },
+  "settings": {
+    "language": "語言",
+    "useRpeEasingId": "使用RPE緩動ID",
+    "useRpeEasingIdWarning": "使用RPE緩動ID將無法使用EaseInOutQuint和EaseInOutExpo。"
+  },
+  "create": {
+    "title": "創建譜面",
+    "name": "曲目名稱",
+    "bpm": "基準BPM",
+    "composer": "曲師",
+    "create": "創建",
+    "alert": {
+      "name": "請填寫曲目名稱",
+      "bpm": "請正確填寫基準BPM"
+    },
+    "success": "譜面創建成功，3秒後跳轉至該譜面。"
+  },
+  "import": {
+    "title": "導入譜面",
+    "formathint": "導入譜面可用PEZ/ZIP包，亦可將譜面（兼容RPEJSON）、音樂、曲繪分別上傳。",
+    "retail": "使用散文件",
+    "archive": "使用譜包",
+    "chart": "譜面文件",
+    "alert": {
+      "chart": "請提供譜面文件",
+      "archive": "請提供譜面壓縮包（.pez/.zip）",
+      "imcompleteMeta": "元數據不完整",
+      "incompleteArchive": "壓縮包不完整，缺少：{missing}",
+      "unzipFailed": "解壓縮失敗，請檢查文件是否損壞或格式是否正確。"
+    }
+  },
+  "form": {
+    
+    "hint": "譜面標識符用於索引譜面，請盡量使用易於記憶的純英文+數字名稱（最好不要包含空格）",
+    "id": "譜面標識符",
+    "music": "音樂文件",
+    "illustration": "曲繪文件",
+    "chartsLocation": "譜面列表位於{location}",
+    "idState": {
+      
+      "occupied": "該標識符已被使用",
+      "available": "該標識符可用",
+      "empty": "請填寫標識符",
+      "invalid": "該標識符含有非法字符"
+    },
+    "alert": {
+      "music": "請提供音樂文件",
+      "illustration": "請提供曲繪文件",
+      "unknownImageType": "未知的圖像類型：{filename}",
+      "unknownAudioType": "未知的音頻類型：{filename}",
+      "folderOccupied": "該文件夾已被使用，但先前未被識別為譜面：{folder}"
+    }
+  },
+  "delete": {
+    "confirm": "確定刪除譜面{name}，標識符：{id}嗎？",
+    "success": "譜面{name}已刪除。",
+    "notFound": "您進入了一個不存在的譜面。",
+    "delete": "刪除",
+    "alreadyWritten": "該譜面自創建以來已寫了{mins}分鐘。",
+    "notKPA": "該譜面不是KPAJSON譜面，似乎是從別處導入的。",
+    "hint": "刪除的譜面將回收至{path}。"
+  },
+  "main": {
+    "sidebar": {
+      "timeDivisor": {
+        "term": "拍數分母",
+        "desc": "控制編輯器的時間線密度。"
+      },
+      "renderingOffset": {
+        "term": "音畫偏移",
+        "desc": "控制畫面渲染相對於音樂的偏移時間，藍牙耳機用戶通常需要設置更低的數值。"
+      },
+      "linenumber": "判定線序號",
+      "judgeLineLayout": {
+        "ordered": "按序平鋪",
+        "tree": "樹形佈局",
+        "group": "分組佈局"
+      }
+    },
+    "secondary": {
+      "lines": "判定線列表",
+      "note": "音符編輯",
+      "event": "事件編輯",
+      "line": "管理所選判定線"
+    },
+    "note": {
+      "type": "類型",
+      "time": "時間",
+      "positionX": "X軸位置",
+      "direction": "方向",
+      "above": "上方",
+      "below": "下方",
+      "speed": "速度指數",
+      "real": "真值",
+      "alpha": "不透明度",
+      "absoluteYOffset": "絕對Y值偏移",
+      "visibleBeats": "可視拍數",
+      "size": "寬度",
+      "tint": "染色",
+      "tintHitEffect": "打擊特效染色",
+      "judgeSize": "判定區大小",
+      "setAsDefault": "設為默認",
+      "delete": "刪除音符",
+
+      "warning-not-from-selected-line": "警告：這個Note不屬於選中的判定線{line}。",
+      "warning-lone-note": "警告：這個Note不存在於譜面中。"
+    },
+    "judgeline": {
+      "cover": {
+        "term": "遮罩",
+        "desc": "如設為真，音符在它所在一側的對側不會渲染。\n如需製作音符從判定線中冒出的效果，請設為真。"
+      },
+      "father": {
+        "term": "父線",
+        "desc": "可以使此判定線繼承父線的坐標系。"
+      },
+      "anchor": {
+        "term": "錨點位置",
+        "desc": "控制判定線錨點相對於貼圖的位置（實際上變化的是貼圖位置）"
+      },
+      "group": {
+        "term": "判定線組",
+        "desc": "將判定線分組，僅影響編輯。\n非默認組的同組判定線會在音符和事件編輯區中一起渲染。"
+      },
+      "zOrder": {
+        "term": "Z軸順序",
+        "desc": "控制判定線在Z軸上的順序，值越大越靠前。"
+      },
+      "attachUI": {
+        "term": "UI綁定",
+        "desc": "將譜面UI組件（如譜面名字、連擊數）綁定到判定線，使之跟隨判定線移動。\n一個UI僅能綁定一條判定線，而一條判定線可以綁定多個UI。",
+        "name": "曲目名稱",
+        "bar": "進度條",
+        "combo": "COMBO文本",
+        "combonumber": "連擊數",
+        "level": "難度等級",
+        "pause": "暫停按鈕",
+        "score": "分數",
+        "attach": "綁定",
+        "detach": "解綁",
+        "attachedTo": "已綁至{id}"
+      },
+      "rotatesWithFather": {
+        "term": "隨父旋轉",
+        "desc": "在啟用父線的前提下，控制該判定線是否繼承父線的角度。"
+      },
+      "texture": {
+        "term": "貼圖",
+        "desc": "判定線貼圖，默認貼圖是白色矩形。",
+        "notFound": "未找到貼圖"
+      },
+      "upload": "上傳",
+      "select": "選擇文件",
+      "uploadWarning": "文件名已被佔用，上傳將覆蓋原有貼圖。請見{dir}",
+      "uploadSuccess": "上傳成功。",
+      "delete": "刪除判定線"
+    },
+    "player": {
+      "showsUI": "顯示UI",
+      "showsLineID": "顯示線號"
+    },
+    "notes": {
+      "showsNNN": {
+        "term": "展示吸附",
+        "desc": "在音符編輯區中以可吸附的時間線顯示二級音符節點。它們通常是您曾經采過音的時間點。"
+      },
+      "NNList": {
+        "term": "音符節點列表",
+        "desc": "音符節點列表是音符節點的序列，它們包含同大類、同速度、同Y軸偏移範圍的音符。\n*代表顯示該判定線所有列表。"
+      },
+      "addNote": "添加音符",
+      "noteType": "音符類型"
+    },
+    "events": {
+      "layerAndSeq": "事件層與序列",
+      "layers": {
+        "0": "默認層(0)",
+        "1": "普1層(1)",
+        "2": "普2層(2)",
+        "3": "普3層(3)",
+        "ex": "特殊層(ex)"
+      },
+      "timeSpan": "時間跨度",
+      "addNodePair": "添加節點對"
+    }
+  },
+  "general": {
+    "pixel": "像素",
+    "preservesPitch": "原調",
+    "eventTypes": {
+      "moveX": "X軸移動",
+      "moveY": "Y軸移動",
+      "rotate": "旋轉",
+      "scaleX": "X軸縮放",
+      "scaleY": "Y軸縮放",
+      "alpha": "不透明度",
+      "color": "顏色",
+      "text": "文本",
+      "speed": "流速",
+      "easing": "緩動",
+      "bpm": "BPM"
+    },
+    "beat": "拍"
+  }
+}

@@ -16,7 +16,12 @@
             
             // 显示在tooltip元素下方，子元素右侧对齐父元素右侧
             top = rect.bottom + 8;
-            left = rect.right - contentRect.width;
+            const newLeft = rect.right - contentRect.width;
+            if (newLeft < 0) {
+                left = rect.right;
+            } else {
+                left = newLeft;
+            }
         }
     });
 </script>
@@ -36,15 +41,15 @@
         font-size: 80%;
         display: inline-block;
         border-radius: 50%;
-        border: 2px solid white;
+        border: 2px solid var(--color-foreground);
         width: 1.5em;
-        color: white;
+        color: var(--color-foreground);
         text-align: center;
         font-weight: bold;
         cursor: pointer;
         opacity: 60%;
         &:hover {
-            background-color: white;
+            background-color: var(--color-foreground);
             color: black;
             border-color: black;
             opacity: 100%;
@@ -54,7 +59,7 @@
         position: fixed;
         width: max-content;
         z-index: 1;
-        background-color: white;
+        background-color: var(--color-foreground);
         border-radius: var(--border-radius);
         color: black;
         padding: var(--border-radius);
