@@ -428,9 +428,9 @@ updateTip();
             <UnitInput
                 unit="s"
                 bind:value={renderingOffset}/>
-            <Label small>{$_("main.sidebar.linenumber") + ` (${player?.chart?.judgeLines?.length ?? 0})`}</Label>
+            <Label small>{$_("main.sidebar.linenumber") + ` (${data.chart.judgeLines.length ?? 0})`}</Label>
             <ArrowedInput
-                max={(player?.chart?.judgeLines?.length ?? 1) - 1} min={0}
+                max={(data.chart.judgeLines.length ?? 1) - 1} min={0}
                 bind:value={GlobalContext.selectedLineNumber}
                 suffix={`(${selectedLineName})`}
                 loops

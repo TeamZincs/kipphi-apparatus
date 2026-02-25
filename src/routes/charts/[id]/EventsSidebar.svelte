@@ -45,4 +45,4 @@
 <TextSwitchButton wide bgText={$_("main.events.addNodePair")}
     onText="+" offText="-" bind:checked={EventSequenceEditorSettings.editChecked}/>
 
-<EasingBox bind:value={EventSequenceEditorSettings.easing}></EasingBox>
+<EasingBox bind:value={EventSequenceEditorSettings.useEasing}></EasingBox>
