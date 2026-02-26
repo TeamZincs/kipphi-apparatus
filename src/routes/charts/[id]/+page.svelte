@@ -3,7 +3,7 @@ import { Player, AudioProcessor, Images } from "kipphi-player";
 import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
 import type { PageData } from "./$types";
 import { onMount, tick, onDestroy } from "svelte";
-import { Chart, EventType, Op as O } from "kipphi";
+import { Chart, EventType, Op as O, type ExtendedEventTypeName } from "kipphi";
 
 import { _ } from "#/i18n";
 
@@ -254,6 +254,16 @@ document.addEventListener("keydown", (event) => {
             player.pause();
         } else {
             player.play();
+        }
+    } else if (event.key === "Tab") {
+        if (GlobalContext.activeSidebar === Sidebar.EVENTS) {
+            const offset = event.shiftKey ? -1 : 1;
+            const curType = EventSequenceEditorSettings.type;
+            const NORMALS = ["moveX", "moveY", "rotate", "alpha", "speed", "easing"] as Exclude<keyof typeof EventType, ExtendedEventTypeName>[]
+            const EXTENDED = ["scaleX", "scaleY", "text", "color", "bpm"] as ExtendedEventTypeName[]
+            EventSequenceEditorSettings.type = EventSequenceEditorSettings.layer === "ex"
+                ? EXTENDED[(EXTENDED.indexOf(curType) + offset + EXTENDED.length) % EXTENDED.length] ?? EXTENDED[0]
+                : NORMALS[(NORMALS.indexOf(curType) + offset + NORMALS.length) % NORMALS.length] ?? NORMALS[0]
         }
     }
 });
