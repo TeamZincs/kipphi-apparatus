@@ -42,7 +42,7 @@
                     operationList.chart,
                     line
                 ),
-                new Op.JudgeLineRegroupOperation(
+                Op.JudgeLineRegroupOperation.lazy(
                     line,
                     target
                 )
