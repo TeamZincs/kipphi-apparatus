@@ -21,6 +21,7 @@ import type {I18nMapping} from "./i18n-types";
 import { type Readable } from 'svelte/store';
 import { type FormatXMLElementFn } from 'intl-messageformat';
 import { KPASettings } from "./settings.svelte";
+import { setLocale as KPCESetLocale } from "kipphi-canvas-editor/messages";
 
 
 
@@ -56,5 +57,9 @@ init({
 });
 
 const myFormat = format as Readable<MessageFormatter>;
+
+locale.subscribe(lang => {
+    KPCESetLocale(lang);
+})
 
 export { myFormat as _, locale, localeLangNames }
