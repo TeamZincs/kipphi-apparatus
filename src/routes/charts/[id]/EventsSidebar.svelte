@@ -57,7 +57,6 @@
 <input type="text" class="template-name"
 placeholder={$_("main.events.templateName")}
 bind:value={EventSequenceEditorSettings.templateName}>
-{/if}
 
 <ProgressiveButton onclick={
     () => {
@@ -87,6 +86,7 @@ bind:value={EventSequenceEditorSettings.templateName}>
         }
     }
 }>{$_("main.events.encapsule")}</ProgressiveButton>
+{/if}
 
 <style lang="less">
     @import "#/components/mixin.less";
