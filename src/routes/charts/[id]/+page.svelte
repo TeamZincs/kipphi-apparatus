@@ -16,7 +16,7 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import ArrowedInput from "#/components/Inputs/ArrowedInput.svelte";
     import Label from "#/components/Label.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
-    import JudgeLines from "./JudgeLines.svelte";
+    import JudgeLines from "./JudgeLinesManager.svelte";
 
 import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, PlayerSettings, NotesEditorSettings, EventSequenceEditorSettings } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
@@ -411,7 +411,7 @@ updateTip();
                 bind:currentOption={GlobalContext.activeSecondarySidebar}
             ></PopupOption>
             {#if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINES}
-                <JudgeLines chart={data.chart} layout={judgeLinesLayout} bind:this={judgeLinesManager}></JudgeLines>
+                <JudgeLines chart={data.chart} bind:this={judgeLinesManager}></JudgeLines>
             {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.NOTE}
                 {#if GlobalContext.selectedNote}
                 <NoteEditor target={GlobalContext.selectedNote}></NoteEditor>

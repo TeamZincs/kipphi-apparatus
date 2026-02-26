@@ -6,11 +6,14 @@
 </script>
 
 <script lang="ts">
-import type { Chart, JudgeLine } from "kipphi";
-import JudgeLinePalette from "./JudgeLine.svelte";
+import type { Chart, JudgeLine,  } from "kipphi";
+import { JudgeLineGroup as KPJudgeLineGroup } from "kipphi";
+import JudgeLinePalette from "./JudgeLineManager.svelte";
 
 import { _ } from "#/i18n";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
+    import JudgeLineGroup from "./JudgeLineGroup.svelte";
+    import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
 
 
 let {
@@ -19,11 +22,16 @@ let {
     chart: Chart;
 } = $props();
 
-let _judgeLinePalettes: JudgeLinePalette[] = $state([]);
+let _judgeLinePalettes: (JudgeLinePalette | JudgeLineGroup)[] = $state([]);
 let judgeLinePalettes = $derived(_judgeLinePalettes.filter(Boolean));
 
+let newGroupName = $state("");
 
 let key = $state(0);
+let judgeLineGroups = $state([...chart.judgeLineGroups])
+$effect(() => {
+    judgeLineGroups = [...chart.judgeLineGroups];
+})
 
 export function ForceReflow() {
     key++;
@@ -57,11 +65,27 @@ export function update() {
                 bind:this={_judgeLinePalettes[i]}/>
         {/each}
     {:else if layout === GROUPED}
-    <!-- TODO -->
+        {#each judgeLineGroups as group, i}
+            <JudgeLineGroup target={group} bind:this={_judgeLinePalettes[i]}/>
+        {/each}
+        <div class="flex-row">
+        <input type="text" placeholder="New group name" bind:value={newGroupName}/>
+        <ProgressiveButton onclick={
+            () => {
+                const group = new KPJudgeLineGroup(newGroupName);
+                chart.judgeLineGroups.push(group);
+                judgeLineGroups = [...chart.judgeLineGroups];
+                // 暂时不做删除组，创建组是非操作，不入栈
+
+            }
+        }>+</ProgressiveButton>
+        </div>
+        
     {/if}
 </div>
 
-<style>
+<style scoped lang="less">
+@import "#/components/mixin.less";
 
 .judgelines-manager {
     display: flex;
@@ -78,4 +102,16 @@ export function update() {
     scrollbar-width: none;
 }
 
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    input {
+        .input();
+        font-size: var(--font-size-small);
+        height: 100%;
+        box-sizing: border-box;
+    }
+}
 </style>

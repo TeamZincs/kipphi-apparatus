@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { JudgeLine } from "kipphi";
 import type { Snippet } from "svelte";
-import Self from "./JudgeLine.svelte";
+import Self from "./JudgeLineManager.svelte";
 
 import { GlobalContext, operationList, SecondarySidebar } from "./store.svelte";
 import { Op } from "kipphi";
