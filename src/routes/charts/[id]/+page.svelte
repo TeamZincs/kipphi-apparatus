@@ -446,15 +446,6 @@ updateTip();
                 suffix={`(${selectedLineName})`}
                 loops
             />
-            <Label small>判定线布局</Label>
-            <PopupOption wide
-                displayTexts={[
-                    $_("main.sidebar.judgeLineLayout.ordered"),
-                    $_("main.sidebar.judgeLineLayout.tree"),
-                    $_("main.sidebar.judgeLineLayout.group")]}
-                options={[0b001, 0b010, 0b100]}
-                bind:currentOption={judgeLinesLayout}
-                ></PopupOption>
             {#if GlobalContext.activeSidebar === Sidebar.DEFAULT}
                 <Label>Player</Label>
                 <TextSwitchButton wide bgText={$_("main.player.showsUI")} onText="Y" offText="N" bind:checked={PlayerSettings.showsUI}/>

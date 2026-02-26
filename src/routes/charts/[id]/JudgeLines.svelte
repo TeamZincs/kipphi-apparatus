@@ -1,17 +1,22 @@
+<script module lang="ts">
+    const ORDERED = 0b001;
+    const TREE = 0b010;
+    const GROUPED = 0b100;
+    let layout = $state(ORDERED);
+</script>
+
 <script lang="ts">
 import type { Chart, JudgeLine } from "kipphi";
 import JudgeLinePalette from "./JudgeLine.svelte";
 
-const ORDERED = 0b001;
-const TREE = 0b010;
-const GROUPED = 0b100;
+import { _ } from "#/i18n";
+    import PopupOption from "#/components/PopupOption/PopupOption.svelte";
+
 
 let {
-    layout,
     chart
 }: {
     chart: Chart;
-    layout: number;
 } = $props();
 
 let _judgeLinePalettes: JudgeLinePalette[] = $state([]);
@@ -29,6 +34,14 @@ export function update() {
 }
 </script>
 
+<PopupOption wide
+    displayTexts={[
+        $_("main.sidebar.judgeLineLayout.ordered"),
+        $_("main.sidebar.judgeLineLayout.tree"),
+        $_("main.sidebar.judgeLineLayout.group")]}
+    options={[ORDERED, TREE, GROUPED]}
+    bind:currentOption={layout}
+    ></PopupOption>
 <div class="judgelines-manager" data-key={key}>
     {#if layout === ORDERED}
         {#each (chart.judgeLines) as judgeLine, i}
@@ -43,6 +56,8 @@ export function update() {
                 children={[...judgeLine.children].sort((a, b) => a.id - b.id)}
                 bind:this={_judgeLinePalettes[i]}/>
         {/each}
+    {:else if layout === GROUPED}
+    <!-- TODO -->
     {/if}
 </div>
 

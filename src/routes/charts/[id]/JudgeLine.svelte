@@ -109,7 +109,7 @@ function handleClick() {
     grid-template-columns: 2.8em repeat(2, 1fr 3fr);
     grid-template-rows: auto 1fr 1fr auto;
     grid-gap: 0.1em;
-    font-size: 1.4vh;
+    font-size: var(--font-size-smaller);
     padding: 0.5em;
     width: 100%;
     background-color: #ddd;
@@ -126,7 +126,7 @@ function handleClick() {
 
 .id {
     grid-row: 1 / 3;
-    font-size: 180%;
+    font-size: var(--font-size-small);
 }
 
 .name {
