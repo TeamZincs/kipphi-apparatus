@@ -173,6 +173,9 @@
       "uploadSuccess": "上传成功。",
       "delete": "删除判定线"
     },
+    "lines": {
+      "name": "新组名"
+    },
     "player": {
       "showsUI": "显示UI",
       "showsLineID": "显示线号"

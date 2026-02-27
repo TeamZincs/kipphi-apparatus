@@ -69,7 +69,7 @@ export function update() {
             <JudgeLineGroup target={group} bind:this={_judgeLinePalettes[i]}/>
         {/each}
         <div class="flex-row">
-        <input type="text" placeholder="New group name" bind:value={newGroupName}/>
+        <input type="text" placeholder={$_("main.lines.name")} bind:value={newGroupName}/>
         <ProgressiveButton onclick={
             () => {
                 const group = new KPJudgeLineGroup(newGroupName);

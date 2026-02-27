@@ -119,6 +119,7 @@ export interface I18nMapping {
 "main.judgeline.uploadWarning": "dir";
 "main.judgeline.uploadSuccess": never;
 "main.judgeline.delete": never;
+"main.lines.name": never;
 "main.player.showsUI": never;
 "main.player.showsLineID": never;
 "main.notes.showsNNN.term": never;
