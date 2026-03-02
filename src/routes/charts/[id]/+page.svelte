@@ -27,6 +27,7 @@ import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, Pla
     import EventsSidebar from "./EventsSidebar.svelte";
     import { EventCurveEditorState } from "kipphi-canvas-editor/eventCurveEditor";
     import { event } from "@tauri-apps/api";
+    import EventEditor from "./EventEditor.svelte";
 
 
 let {
@@ -250,6 +251,9 @@ document.addEventListener("keydown", (event) => {
         GlobalContext.previousActiveSecondarySidebar = GlobalContext.activeSecondarySidebar;
         GlobalContext.activeSecondarySidebar = SecondarySidebar.LINES;
     } else if (event.key === " ") {
+        if (document.hasFocus()) {
+            return;
+        }
         if (isPlaying) {
             player.pause();
         } else {
@@ -331,7 +335,11 @@ onMount(async () => {
     });
     notesEditor.addEventListener("noteselected", (ev) => {
         GlobalContext.selectedNote = ev.note;
-        GlobalContext.activeSecondarySidebar = SecondarySidebar.NOTE
+        GlobalContext.activeSecondarySidebar = SecondarySidebar.NOTE;
+    });
+    eventSequenceEditors.addEventListenerForAll("nodeselected", (ev) => {
+        GlobalContext.selectedNode = ev.node;
+        GlobalContext.activeSecondarySidebar = SecondarySidebar.EVENT;
     })
     player.renderingOffset = renderingOffset;
     // @ts-expect-error 仅供调试
@@ -415,6 +423,10 @@ updateTip();
             {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.NOTE}
                 {#if GlobalContext.selectedNote}
                 <NoteEditor target={GlobalContext.selectedNote}></NoteEditor>
+                {/if}
+            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.EVENT}
+                {#if GlobalContext.selectedNode}
+                <EventEditor></EventEditor>
                 {/if}
             {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINE}
                 <JudgeLineEditor></JudgeLineEditor>

@@ -6,7 +6,7 @@
 </script>
 
 <script lang="ts">
-import type { Chart, JudgeLine,  } from "kipphi";
+import type { Chart, JudgeLine  } from "kipphi";
 import { JudgeLineGroup as KPJudgeLineGroup } from "kipphi";
 import JudgeLinePalette from "./JudgeLineManager.svelte";
 

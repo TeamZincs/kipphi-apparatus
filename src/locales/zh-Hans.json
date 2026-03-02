@@ -123,6 +123,24 @@
       "warning-not-from-selected-line": "警告：这个Note不属于选中的判定线{line}。",
       "warning-lone-note": "警告：这个Note不存在于谱面中。"
     },
+    "event": {
+      "startNode": "起始节点",
+      "endNode": "结束节点",
+      "time": "时间",
+      "value": "值",
+      "evaluator": "求值器",
+      "easing": "缓动",
+      "evaluators": {
+        "eased": "缓动求值器",
+        "expression": "表达式求值器",
+        "macro": "宏求值器"
+      },
+      "easings": {
+        "normal": "普通缓动",
+        "template": "模板缓动",
+        "bezier": "贝塞尔缓动"
+      }
+    },
     "judgeline": {
       "cover": {
         "term": "遮罩",

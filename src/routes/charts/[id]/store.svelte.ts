@@ -1,5 +1,5 @@
 import { type NotesEditor, type EventSequenceEditors, NotesEditorState } from "kipphi-canvas-editor"
-import { easingArray, EventType, NNList, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
+import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
 
@@ -39,7 +39,8 @@ export let GlobalContext =  $state({
     /** 上一次激活的次级侧边栏，用于ctrl切线后还原 */
     previousActiveSecondarySidebar: SecondarySidebar.LINES,
 
-    selectedNote: null,
+    selectedNote: null as Note,
+    selectedNode: null as EventStartNode<any> | EventEndNode<any>,
 
     timeDivisor: 4,
 });
