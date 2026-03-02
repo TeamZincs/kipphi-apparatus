@@ -1,7 +1,9 @@
 <script module lang="ts">
+type Points = [number, number, number, number];
+
 let easingId = $state(1);
 let templateEasingName = $state("");
-let bezierEasingPoints = $state([0, 0, 1, 1]);
+let bezierEasingPoints: Points = $state([0, 0, 1, 1]);
 
 let evaluatorType: EvaluatorType = $state(EvaluatorType.eased);
 let easingType: EasingType = $state(EasingType.normal)
@@ -33,6 +35,7 @@ const TEMPLATE = EasingType.template;
     import EasingBox from "./EasingBox.svelte";
     import { notify } from "./notify.svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
+    import BezierEditor from "./BezierEditor.svelte";
 
     function getStartNode(node: EventStartNode<any> | EventEndNode<any>) {
         return node instanceof EventEndNode ? node.previous : node;
@@ -123,6 +126,12 @@ const TEMPLATE = EasingType.template;
                 values.valueType,
                 values.interpretedAs
             )
+        ))
+    }
+    function setBezierEasing() {
+        operationList.do(new Op.EventNodeEvaluatorChangeOperation(
+            getStartNode(target),
+            operationList.chart.getEasedEvaluator(new BezierEasing([bezierEasingPoints[0], bezierEasingPoints[1]], [bezierEasingPoints[2], bezierEasingPoints[3]]), values.valueType, values.interpretedAs)
         ))
     }
 </script>
@@ -244,21 +253,25 @@ const TEMPLATE = EasingType.template;
                     }
                 }></EasingBox>
                 {:else if option === BEZIER}
-                <input type="text" value={bezierEasingPoints.join(" ")} onchange={
+                <input type="text" value={bezierEasingPoints.map((n) => n.toFixed(2)).join(" ")} onchange={
                     (e) => {
                         const that = e.target as HTMLInputElement;
                         const arr = that.value.trim().split(/\s+/);
                         if (arr.length === 4) {
-                            bezierEasingPoints = arr.map(parseFloat);
-                            operationList.do(new Op.EventNodeEvaluatorChangeOperation(
-                                getStartNode(target),
-                                operationList.chart.getEasedEvaluator(new BezierEasing([bezierEasingPoints[0], bezierEasingPoints[1]], [bezierEasingPoints[2], bezierEasingPoints[3]]), values.valueType, values.interpretedAs)
-                            ))
+                            bezierEasingPoints = arr.map(parseFloat) as Points;
+                            setBezierEasing();
                         } else {
                             return;
                         }
                     }
                 }>
+                <BezierEditor bind:value={
+                    () => bezierEasingPoints,
+                    (v) => {
+                        bezierEasingPoints = v;
+                        setBezierEasing();
+                    }
+                }></BezierEditor>
                 {:else if option === TEMPLATE}
                 <SuggestionInput bind:value={templateEasingName} getSuggestions={getSuggestions} onchange={setTemplateEasing}></SuggestionInput>
                 {/if}
