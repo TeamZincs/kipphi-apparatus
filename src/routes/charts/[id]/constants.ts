@@ -83,5 +83,6 @@ export default {
         ["你说的对，但是《Air Ticket Extend》是由SWORDNEW...SWORDGAME.EXE自主研发的一款文字剧情冒险游戏，中间的忘了，揭开『科学』『魔法』的真相。"],
 
     ].flat(),
-    TIP_INTERVAL: 10_000
+    TIP_INTERVAL: 10_000,
+    AUTOSAVE_INTERVAL: 10_000
 }

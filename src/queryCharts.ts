@@ -1,7 +1,7 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
-import { exists, readDir, readTextFile, mkdir, readFile, writeFile, rename } from "@tauri-apps/plugin-fs";
+import { exists, readDir, readTextFile, mkdir, readFile, writeFile, rename, writeTextFile } from "@tauri-apps/plugin-fs";
 import { getExtensionFromName, getMimeTypeFromName } from "#/util";
-import type { ChartDataKPA, ChartDataKPA2, ChartDataRPE } from "kipphi";
+import { Chart, type ChartDataKPA, type ChartDataKPA2, type ChartDataRPE } from "kipphi";
 
 export interface ChartMetadata {
     title: string;
@@ -82,6 +82,78 @@ export async function queryCharts() {
     return chartInfos;
 }
 
+export async function queryChartMeta(chartId: string) {
+    const CHART_DIR = (await queryMeta()).CHART_DIR
+    const filePath = await join(CHART_DIR, chartId, "metadata.json");
+    const metadata = JSON.parse(await readTextFile(filePath)) as ChartMetadata;
+    return metadata;
+}
+
+export async function saveChartMeta(chartId: string, metadata: ChartMetadata) {
+    const CHART_DIR = (await queryMeta()).CHART_DIR;
+    const filePath = await join(CHART_DIR, chartId, "metadata.json");
+    await writeTextFile(filePath, JSON.stringify(metadata, null, 2));
+}
+
+
+export async function saveChart(chartId: string, chart: Chart) {
+    const chartMeta = await queryChartMeta(chartId);
+    const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
+    const chartStr = JSON.stringify(chart.dumpKPA());
+
+    const dateStr = new Date().toISOString()
+        .replace(/\:/g, "-")
+        .replace(/\./g, "_")
+        .replace(/T/g, " ")
+        .replace(/Z/g, "");
+    const chartPath = `chart.${dateStr}.kpa2.json`;
+
+    if (chartMeta.type === "KPA2") {
+        chartMeta.chart = chartPath;
+    } else {
+        chartMeta.chart = chartPath;
+        chartMeta.type = "KPA2";
+    }
+    
+    await saveChartMeta(chartId, chartMeta);
+    const filePath = await join(CHART_DIRECTORY, chartId, chartPath);
+    console.log("Chart saved to", filePath);
+    await writeTextFile(filePath, chartStr);
+}
+
+interface ChartStruct {
+    chart: Chart;
+    music: Blob;
+    illustration: Blob;
+}
+
+export async function getChart(chartId: string): Promise<ChartStruct> {
+    const metadata = await queryChartMeta(chartId);
+    const chartPath = await join(CHART_DIR, chartId, metadata.chart);
+    const chartType = metadata.type;
+    const musicPath = metadata.music;
+    const illustrationPath = metadata.illustration;
+    const chartData = JSON.parse(await readTextFile(chartPath)) as ChartDataRPE | ChartDataKPA | ChartDataKPA2;
+    const chart = chartType === "RPE"
+        ? Chart.fromRPEJSON(chartData as ChartDataRPE, metadata.durationSecs)
+        : Chart.fromKPAJSON(chartData as ChartDataKPA | ChartDataKPA2);
+    const music = await readAFileInChart(
+        chartId,
+        musicPath,
+        getMimeTypeFromName("audio", musicPath)
+    );
+    const illustration = await readAFileInChart(
+        chartId,
+        illustrationPath,
+        getMimeTypeFromName("image", illustrationPath)
+    );
+    return {
+        chart,
+        music,
+        illustration,
+    }
+}
+
 export async function readAFileInChart(identifier: string, filename: string, mimeType: string) {
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     return new Blob(
@@ -100,6 +172,8 @@ export async function saveAFileToChart(identifier: string, filename: string, blo
     const filePath = await join(CHART_DIRECTORY, identifier, filename);
     await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
 }
+
+
 
 export function parseInfoTxt(infoTxt: string) {
     const lines = infoTxt.split("\n");

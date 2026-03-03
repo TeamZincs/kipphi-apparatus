@@ -7,6 +7,8 @@ import { Chart, EventType, Op as O, type ExtendedEventTypeName } from "kipphi";
 
 import { _ } from "#/i18n";
 
+import AutoSaveRunner from "./autosaveRunner";
+
 import PlayButton from "#/components/IconButtons/PlayButton.svelte";
 import GridSwitch from "#/components/IconButtons/GridSwitch.svelte";
 import PopupOption from "#/components/PopupOption/PopupOption.svelte";
@@ -322,7 +324,7 @@ onMount(async () => {
             notesEditor.draw(player.renderingBeats);
             eventSequenceEditors.draw(player.renderingBeats);
         }
-        judgeLinesManager?.update()
+        judgeLinesManager?.update();
     });
     operationList.addEventListener("needsupdate", () => {
         player.render();
@@ -332,6 +334,9 @@ onMount(async () => {
         if (isNaN(chart.maxCombo)) {
             chart.countMaxCombo();
         }
+    });
+    operationList.addEventListener("firstmodified", (ev) => {
+        chart.modified = true;
     });
     notesEditor.addEventListener("noteselected", (ev) => {
         GlobalContext.selectedNote = ev.note;
@@ -347,6 +352,9 @@ onMount(async () => {
     // @ts-expect-error 仅供调试
     window.operationList = operationList;
     player.receive(chart, () => void 0);
+
+    AutoSaveRunner.init(chart);
+    AutoSaveRunner.run();
 
 
     EditorGlobalInit(notesEditor, eventSequenceEditors, operationList, player);
@@ -365,6 +373,7 @@ onDestroy(() => {
     if (player) {
         player.pause();
     }
+    AutoSaveRunner.stop();
     // 清理编辑器
     if (notesEditor) {
         // 如果有清理方法，调用它
