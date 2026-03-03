@@ -5,9 +5,9 @@ let {
     value = $bindable(),
     unit,
     label,
-    title
-}:  { value: number, unit?: string | Snippet, label?: string | Snippet, title?: string } = $props();
-
+    title,
+    step = 0.001
+}:  { value: number, unit?: string | Snippet, label?: string | Snippet, title?: string, step?: number } = $props();
 </script>
 
 <div class="unit-input" class:labeled={!!label} class:united={!!unit}>
@@ -18,7 +18,7 @@ let {
             {@render label()}
         {/if}
     {/if}
-    <input type="number" step="0.001" bind:value>
+    <input type="number" step={step} bind:value>
     {#if unit}
         <span class="unit">
             {#if typeof unit === "string"}

@@ -35,7 +35,7 @@
                     $_("delete.hint", {values: {path: data.meta.TRASH_DIR}})
                 }
             </p>
-            <DestructiveButton onclick={deleteChart} variant="destructive">{$_("delete.delete")}</DestructiveButton>
+            <DestructiveButton onclick={deleteChart}>{$_("delete.delete")}</DestructiveButton>
         {:else}
             <p>{$_("delete.notFound")}</p>
         {/if}

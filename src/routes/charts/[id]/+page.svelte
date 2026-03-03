@@ -30,6 +30,7 @@ import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, Pla
     import { EventCurveEditorState } from "kipphi-canvas-editor/eventCurveEditor";
     import { event } from "@tauri-apps/api";
     import EventEditor from "./EventEditor.svelte";
+    import ChartInfoEditor from "./ChartInfoEditor.svelte";
 
 
 let {
@@ -415,14 +416,15 @@ updateTip();
         <div class="sidebar-content">
             <PopupOption wide
                 options={
-                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE]
+                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE, SecondarySidebar.CHART]
                 }
                 displayTexts={
                     [
                         $_("main.secondary.lines"),
                         $_("main.secondary.note"),
                         $_("main.secondary.event"),
-                        $_("main.secondary.line")
+                        $_("main.secondary.line"),
+                        $_("main.secondary.chart")
                     ]
                 }
                 bind:currentOption={GlobalContext.activeSecondarySidebar}
@@ -439,6 +441,8 @@ updateTip();
                 {/if}
             {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINE}
                 <JudgeLineEditor></JudgeLineEditor>
+            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.CHART}
+                <ChartInfoEditor></ChartInfoEditor>
             {/if}
         </div>
     </div>

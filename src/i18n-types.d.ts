@@ -68,6 +68,7 @@ export interface I18nMapping {
 "main.secondary.note": never;
 "main.secondary.event": never;
 "main.secondary.line": never;
+"main.secondary.chart": never;
 "main.note.type": never;
 "main.note.time": never;
 "main.note.positionX": never;
@@ -156,6 +157,15 @@ export interface I18nMapping {
 "main.events.encapsuleErr.notBelongToSourceSequence": never;
 "main.events.encapsuleErr.zeroDelta": never;
 "main.events.noNodeSelected": never;
+"main.chart.info": never;
+"main.chart.id": never;
+"main.chart.title": never;
+"main.chart.charter": never;
+"main.chart.illustrator": never;
+"main.chart.composer": never;
+"main.chart.offset": never;
+"main.chart.level": never;
+"main.chart.save": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;

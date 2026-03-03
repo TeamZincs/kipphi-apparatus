@@ -1,21 +1,17 @@
 <script lang="ts">
+    import type { Snippet } from "svelte";
+    import Button from "./Button.svelte";
+
     let {
         onclick,
-        text
+        children,
+        disabled = false
     }: {
         onclick: (event: MouseEvent) => void,
-        text: string
+        children: Snippet,
+        disabled?: boolean
     } = $props()
 </script>
 
-<button onclick={onclick}>{text}</button>
+<Button onclick={onclick} children={children} variant="destructive" disabled={disabled}></Button>
 
-<style lang="less" scoped>
-    @import "#/components/mixin.less";
-    button {
-        background-color: red;
-        color: white;
-        font-size: 2.5vh;
-        .wide-button;
-    }
-</style>

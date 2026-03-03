@@ -15,7 +15,8 @@ export const SecondarySidebar = {
     LINES: 0,
     NOTE: 1,
     EVENT: 2,
-    LINE: 3
+    LINE: 3,
+    CHART: 4
 }
 
 export let player: Player;

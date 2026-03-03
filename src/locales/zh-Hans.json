@@ -232,6 +232,19 @@
         "zeroDelta": "数值变化量为0.封装的模板缓动需要非零数值变化量，请检查头尾的蓝节点。"
       },
       "noNodeSelected": "未选中任何节点。"
+    },
+    "chart": {
+      "info": "谱面信息",
+      "id": "谱面标识符",
+
+      "title": "标题",
+      "charter": "谱师",
+      "illustrator": "画师",
+      "composer": "曲师",
+      "offset": "偏移量",
+      "level": "难度等级",
+
+      "save": "保存谱面"
     }
   },
   "general": {
