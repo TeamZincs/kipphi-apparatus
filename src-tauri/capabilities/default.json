@@ -5,23 +5,15 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default",
     "fs:allow-exists",
-    "fs:allow-read-file",
-    "fs:allow-read-dir",
-    "fs:read-all",
     "fs:allow-appdata-read-recursive",
-    "fs:allow-appdata-write-recursive"
-  ],
-  "restrictions": {
-    "fs": {
-      "scope": {
-        "allow": [
-          "$APPDATA/**",
-          "$HOME/**"
-        ]
-      }
+    "fs:allow-appdata-write-recursive",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "$APPDATA/charts/**" }
+      ]
     }
-  }
+  ]
 }
 

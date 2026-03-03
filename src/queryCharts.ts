@@ -42,13 +42,13 @@ export async function queryMeta() {
     }
 }
 
-export async function getPathOf(chartIdentifier: string) {
+export async function getPathOfChart(chartIdentifier: string) {
     const { CHART_DIR } = await queryMeta();
     return await join(CHART_DIR, chartIdentifier);
 }
 
 export async function getTexturePathOf(chartIdentifier: string) {
-    return await join(await getPathOf(chartIdentifier), "textures");
+    return await join(await getPathOfChart(chartIdentifier), "textures");
 }
 
 

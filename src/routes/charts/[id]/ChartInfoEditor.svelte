@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { openPath as tauriOpenPath } from "@tauri-apps/plugin-opener"
+
     import Label from "#/components/Label.svelte";
     import { _ } from "#/i18n";
     import { Chart, Op } from "kipphi";
@@ -7,6 +9,8 @@
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import { onSave, saveChart } from "./save";
     import { notify } from "./notify.svelte";
+    import Button from "#/components/buttons/Button.svelte";
+    import { getPathOfChart } from "#/queryCharts";
 
     const target = operationList.chart;
     let values = $state({
@@ -79,6 +83,12 @@
         handleChange("offset")
     }/>
 </div>
+
+<Button onclick={
+    async () => {
+        tauriOpenPath(await getPathOfChart(chartId));
+    }
+}>{$_("main.chart.openInExplorer")}</Button>
 
 <textarea placeholder={$_("main.chart.summary")} spellcheck="false" bind:value={message}></textarea>
 <ProgressiveButton disabled={!values.modified} onclick={
