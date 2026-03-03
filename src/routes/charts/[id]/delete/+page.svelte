@@ -28,7 +28,7 @@
                     },
                 })}<br>
                 {    data.inKPA
-                ? $_("delete.alreadyWritten", {values: {mins: data.time ?? 0}})
+                ? $_("delete.alreadyWritten", {values: {mins: Math.round(data.time / 60) ?? 0}})
                 : $_("delete.notKPA")
                 }<br>
                 {
