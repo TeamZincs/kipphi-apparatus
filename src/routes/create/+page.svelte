@@ -77,7 +77,17 @@
             }
           },
         ],
-        endValue: defaultValue as EventValueESType
+        final: {
+          start: defaultValue as EventValueESType,
+          startTime: [1, 0, 1],
+          evaluator: {
+            type: EvaluatorType.eased,
+            easing: {
+              type: EasingType.normal,
+              identifier: 1
+            }
+          }
+        }
       };
       eventNodeSequenceData.push(data);
       return id;
@@ -125,6 +135,9 @@
       wrapperEasings: [],
       
       templateEasings: [],
+      macroEvaluators: [],
+      timeMacros: [],
+      valueMacros: [],
       eventNodeSequences: eventNodeSequenceData,
       orphanLines,
       bpmList,
