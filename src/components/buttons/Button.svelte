@@ -40,14 +40,23 @@
         &.progressive {
             background-color: #007bff;
             color: white;
+            &:hover {
+                background-color: #0069d9;
+            }
         }
         &.destructive {
             background-color: #dc3545;
             color: white;
+            &:hover {
+                background-color: #c82333;
+            }
         }
         &.disabled {
             pointer-events: none;
             filter: grayscale(0.9);
+        }
+        &:hover {
+            background-color: #eee;
         }
     }
 </style>
