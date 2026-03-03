@@ -12,6 +12,14 @@ export interface ChartMetadata {
     durationSecs: number;
 }
 
+export interface ChartHistoryEntry {
+    time: number;
+    summary: string;
+    filename: string;
+}
+
+type ChartHistory = ChartHistoryEntry[];
+
 
 let APP_DATA_DIR: string;
 let CHART_DIR: string;
@@ -89,31 +97,70 @@ export async function queryChartMeta(chartId: string) {
     return metadata;
 }
 
+export async function queryChartHistory(chartId: string): Promise<ChartHistory> {
+    const CHART_DIR = (await queryMeta()).CHART_DIR;
+    const filePath = await join(CHART_DIR, chartId, "history.json");
+    if (!await exists(filePath)) {
+        return null;
+    }
+    const fileContent = await readTextFile(filePath);
+    try {
+        const history = JSON.parse(fileContent) as ChartHistory;
+        if (!Array.isArray(history)) {
+            return null;
+        }
+        return history;
+    } catch (e) {
+        if (e instanceof SyntaxError) {
+            console.error("History file is not a valid JSON:", fileContent)
+            return null;
+        }
+        throw e;
+    }
+}
+
 export async function saveChartMeta(chartId: string, metadata: ChartMetadata) {
     const CHART_DIR = (await queryMeta()).CHART_DIR;
     const filePath = await join(CHART_DIR, chartId, "metadata.json");
     await writeTextFile(filePath, JSON.stringify(metadata, null, 2));
 }
 
+async function saveChartHistoryEntry(chartId: string, entry: ChartHistoryEntry) {
+    const CHART_DIR = (await queryMeta()).CHART_DIR;
+    const filePath = await join(CHART_DIR, chartId, "history.json");
+    let history = await queryChartHistory(chartId);
+    if (history) {
+        history.push(entry);
+    } else {
+        history = [entry];
+    }
 
-export async function saveChart(chartId: string, chart: Chart) {
+    await writeTextFile(filePath, JSON.stringify(history, null, 2));
+}
+
+export async function saveChart(chartId: string, chart: Chart, summary: string) {
     const chartMeta = await queryChartMeta(chartId);
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const chartStr = JSON.stringify(chart.dumpKPA());
 
-    const dateStr = new Date().toISOString()
+    const date = new Date();
+    const dateStr = date.toISOString()
         .replace(/\:/g, "-")
         .replace(/\./g, "_")
         .replace(/T/g, " ")
         .replace(/Z/g, "");
     const chartPath = `chart.${dateStr}.kpa2.json`;
+    chartMeta.chart = chartPath;
 
-    if (chartMeta.type === "KPA2") {
-        chartMeta.chart = chartPath;
-    } else {
-        chartMeta.chart = chartPath;
+    if (chartMeta.type !== "KPA2") {
         chartMeta.type = "KPA2";
     }
+
+    await saveChartHistoryEntry(chartId, {
+        summary,
+        filename: chartPath,
+        time: date.getTime()
+    });
     
     await saveChartMeta(chartId, chartMeta);
     const filePath = await join(CHART_DIRECTORY, chartId, chartPath);

@@ -14,12 +14,29 @@
       "deleteSuccess": "谱面{name}已删除。",
       "export": "导出谱面"
     },
-    "licenseDeclaration": "虽然本软件使用MIT许可证，但作者不鼓励、支持其付费再分发，请知悉。"
+    "licenseDeclaration": "虽然本软件使用MIT许可证，但作者不鼓励、支持其付费再分发，请知悉。",
+    "subscribe": "请收藏我们的网址：https://pgrfm.miraheze.org/！"
   },
   "settings": {
     "language": "语言",
     "useRpeEasingId": "使用RPE缓动ID",
-    "useRpeEasingIdWarning": "使用RPE缓动ID将无法使用EaseInOutQuint和EaseInOutExpo。"
+    "useRpeEasingIdWarning": "使用RPE缓动ID将无法使用EaseInOutQuint和EaseInOutExpo。",
+    "autosaveEnabled": "启用自动保存",
+    "autosaveComment": "自动保存只会保存修改过的谱面，每次自动保存增加一次制谱时间。\n（也就是说，如果挂机，自动保存不会塞满你的硬盘，也不会统计这部分时间）" ,
+    "autosaveInterval": "自动保存间隔",
+    "hotkey": "热键",
+    "joke": "骗你的，热键不支持定制化，这只是教程（笑",
+    "hotkeys": {
+      "playpause": "播放/暂停",
+      "placeNode": "（事件序列编辑器）放置事件节点对",
+      "placeNote": "（音符配置编辑器）放置音符（蓝黄红长）",
+      "toLines": "切换至判定线列表",
+      "scrollTime": "滚动时间轴",
+      "switchLine": "切换判定线",
+      "save": "保存谱面",
+      "switchSeq": "切换下个序列",
+      "switchSeqPrev": "切换上个序列"
+    }
   },
   "create": {
     "title": "创建谱面",
@@ -244,7 +261,10 @@
       "offset": "偏移量",
       "level": "难度等级",
 
-      "save": "保存谱面"
+      "save": "保存谱面",
+      "noMessage": "写个提交摘要吧，简单总结自己修改了谱面的什么，方便版本查找",
+      "saveSuccess": "谱面已成功保存。",
+      "summary": "写谱摘要"
     }
   },
   "general": {
@@ -263,6 +283,7 @@
       "easing": "缓动",
       "bpm": "BPM"
     },
-    "beat": "拍"
+    "beat": "拍",
+    "wheel": "滚轮"
   }
 }

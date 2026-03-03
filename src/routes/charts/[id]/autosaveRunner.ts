@@ -1,6 +1,7 @@
 import type { Chart } from "kipphi";
 import Constants from "./constants";
 import { saveChart } from "./save";
+import { KPASettings } from "#/settings.svelte";
 
 export default class AutoSaveRunner {
     static chart: Chart;
@@ -16,8 +17,8 @@ export default class AutoSaveRunner {
             if (this.chart.modified === false) {
                 return;
             }
-            saveChart(this.chart);
-        }, Constants.AUTOSAVE_INTERVAL)
+            saveChart(this.chart, "Autosave " + new Date().toLocaleString());
+        }, KPASettings.autosaveInterval)
     }
     static stop() {
         clearInterval(this.timeout);

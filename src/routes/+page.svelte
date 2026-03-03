@@ -16,6 +16,7 @@
   </Navigator>
   <div id="content">
     <p>{$_("chartIndex.licenseDeclaration")}</p>
+    <p>{$_("chartIndex.subscribe")}</p>
     {#if data.chartInfos.length > 0}
       <ul id="charts">
         {#each data.chartInfos as chart}

@@ -84,5 +84,5 @@ export default {
 
     ].flat(),
     TIP_INTERVAL: 10_000,
-    AUTOSAVE_INTERVAL: 10_000
+    AUTOSAVE_INTERVAL: 60_000
 }

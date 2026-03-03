@@ -14,9 +14,24 @@ export interface I18nMapping {
 "chartIndex.charts.deleteSuccess": "name";
 "chartIndex.charts.export": never;
 "chartIndex.licenseDeclaration": never;
+"chartIndex.subscribe": never;
 "settings.language": never;
 "settings.useRpeEasingId": never;
 "settings.useRpeEasingIdWarning": never;
+"settings.autosaveEnabled": never;
+"settings.autosaveComment": never;
+"settings.autosaveInterval": never;
+"settings.hotkey": never;
+"settings.joke": never;
+"settings.hotkeys.playpause": never;
+"settings.hotkeys.placeNode": never;
+"settings.hotkeys.placeNote": never;
+"settings.hotkeys.toLines": never;
+"settings.hotkeys.scrollTime": never;
+"settings.hotkeys.switchLine": never;
+"settings.hotkeys.save": never;
+"settings.hotkeys.switchSeq": never;
+"settings.hotkeys.switchSeqPrev": never;
 "create.title": never;
 "create.name": never;
 "create.bpm": never;
@@ -166,6 +181,9 @@ export interface I18nMapping {
 "main.chart.offset": never;
 "main.chart.level": never;
 "main.chart.save": never;
+"main.chart.noMessage": never;
+"main.chart.saveSuccess": never;
+"main.chart.summary": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;
@@ -179,6 +197,7 @@ export interface I18nMapping {
 "general.eventTypes.speed": never;
 "general.eventTypes.easing": never;
 "general.eventTypes.bpm": never;
-"general.beat": never
+"general.beat": never;
+"general.wheel": never
 }
 

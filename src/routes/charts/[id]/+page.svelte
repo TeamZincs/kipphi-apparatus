@@ -31,6 +31,7 @@ import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, Pla
     import { event } from "@tauri-apps/api";
     import EventEditor from "./EventEditor.svelte";
     import ChartInfoEditor from "./ChartInfoEditor.svelte";
+    import { KPASettings } from "#/settings.svelte";
 
 
 let {
@@ -354,8 +355,10 @@ onMount(async () => {
     window.operationList = operationList;
     player.receive(chart, () => void 0);
 
-    AutoSaveRunner.init(chart);
-    AutoSaveRunner.run();
+    if (KPASettings.autosaveEnabled) {
+        AutoSaveRunner.init(chart);
+        AutoSaveRunner.run();
+    }
 
 
     EditorGlobalInit(notesEditor, eventSequenceEditors, operationList, player);
@@ -374,7 +377,9 @@ onDestroy(() => {
     if (player) {
         player.pause();
     }
-    AutoSaveRunner.stop();
+    if (KPASettings.autosaveEnabled) {
+        AutoSaveRunner.stop();
+    }
     // 清理编辑器
     if (notesEditor) {
         // 如果有清理方法，调用它

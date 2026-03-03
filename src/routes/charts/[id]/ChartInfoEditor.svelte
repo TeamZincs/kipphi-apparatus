@@ -6,6 +6,7 @@
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import { onSave, saveChart } from "./save";
+    import { notify } from "./notify.svelte";
 
     const target = operationList.chart;
     let values = $state({
@@ -17,6 +18,9 @@
         level: target.level,
         modified: target.modified
     });
+
+    let message = $state("");
+
     operationList.addEventListener("do", (op) => {
         if (op.operation.constructor.name.startsWith("Chart")) {
             values = {
@@ -75,9 +79,21 @@
         handleChange("offset")
     }/>
 </div>
+
+<textarea placeholder={$_("main.chart.summary")} spellcheck="false" bind:value={message}></textarea>
 <ProgressiveButton disabled={!values.modified} onclick={
     () => {
-        saveChart(target);
+        if (!message) {
+            notify($_("main.chart.noMessage"), 'error');
+            return;
+        }
+        try {
+            saveChart(target, message);
+            message = ""
+            notify($_("main.chart.saveSuccess"), 'info');
+        } catch (e) {
+            notify(e instanceof Error ? e.message : String(e), 'error');
+        }
     }
 }>{$_("main.chart.save")}</ProgressiveButton>
 
@@ -92,5 +108,11 @@
     input {
         .input();
         font-size: var(--font-size-medium);
+    }
+    textarea {
+        font-size: var(--font-size-small);
+        width: 100%;
+        box-sizing: border-box;
+        .input()
     }
 </style>

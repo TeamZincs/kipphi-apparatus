@@ -1,24 +1,32 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
 
-let {
-    value = $bindable(),
-    unit,
-    label,
-    title,
-    step = 0.001
-}:  { value: number, unit?: string | Snippet, label?: string | Snippet, title?: string, step?: number } = $props();
+    let {
+        value = $bindable(),
+        unit,
+        label,
+        title,
+        step = 0.001,
+        disabled = false,
+    }: {
+        value: number;
+        unit?: string | Snippet;
+        label?: string | Snippet;
+        title?: string;
+        step?: number;
+        disabled?: boolean;
+    } = $props();
 </script>
 
 <div class="unit-input" class:labeled={!!label} class:united={!!unit}>
     {#if label}
         {#if typeof label === "string"}
-            <span class="label" title={title}>{label}</span>
+            <span class="label" {title}>{label}</span>
         {:else}
             {@render label()}
         {/if}
     {/if}
-    <input type="number" step={step} bind:value>
+    <input type="number" {step} bind:value={value} {disabled} />
     {#if unit}
         <span class="unit">
             {#if typeof unit === "string"}
@@ -31,37 +39,31 @@ let {
 </div>
 
 <style scoped lang="less">
-    
-@import "#/components/mixin.less";
-.unit-input {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-    margin-inline: auto;
-    input {
-        .input;
-        font-size: var(--font-size-medium);
-        min-width: 3em;
+    @import "#/components/mixin.less";
+    .unit-input {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        margin-inline: auto;
+        input {
+            .input;
+            font-size: var(--font-size-medium);
+            min-width: 3em;
+        }
     }
-}
 
-
-
-.unit-input.united {
-    grid-template-columns: 1fr auto;
-    .label {
-        grid-column: 1 / 3;
+    .unit-input.united {
+        grid-template-columns: 1fr auto;
+        .label {
+            grid-column: 1 / 3;
+        }
     }
-}
 
-.unit {
-    color: white;
-}
+    .unit {
+        color: white;
+    }
 
-
-
-.unit {
-    font-size: 1.6em;
-}
-
+    .unit {
+        font-size: 1.6em;
+    }
 </style>
