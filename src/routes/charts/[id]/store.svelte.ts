@@ -16,7 +16,8 @@ export const SecondarySidebar = {
     NOTE: 1,
     EVENT: 2,
     LINE: 3,
-    CHART: 4
+    CHART: 4,
+    MULTI_NODE: 5
 }
 
 export let player: Player;
@@ -32,8 +33,10 @@ export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationLi
     player = pl;
 }
 
+let _useEasing = $state(1);
+let _templateName = $state("");
 
-export let GlobalContext =  $state({
+const createGlobalContext = () => ({
     selectedLineNumber: 0,
     activeSidebar: Sidebar.DEFAULT,
     activeSecondarySidebar: SecondarySidebar.LINES,
@@ -43,24 +46,29 @@ export let GlobalContext =  $state({
     selectedNote: null as Note,
     selectedNode: null as EventStartNode<any> | EventEndNode<any>,
 
+    selectedNodes: null as Set<EventStartNode<any>>,
+
     timeDivisor: 4,
 });
 
-export let PlayerSettings = $state({
+export let GlobalContext = $state(createGlobalContext());
+
+const createPlayerSettings = () => ({
     showsUI: true,
     showsLineID: false
 })
 
-export let NotesEditorSettings = $state({
+export let PlayerSettings = $state(createPlayerSettings());
+
+const createNotesEditorSettings = () => ({
     editChecked: false,
     showsNNN: false,
     noteType: NoteType.tap
 })
 
-let _useEasing = $state(1);
-let _templateName = $state("");
+export let NotesEditorSettings = $state(createNotesEditorSettings());
 
-export let EventSequenceEditorSettings = $state({
+const createEventSequenceEditorSettings = () => ({
     editChecked: false,
     layer: "0" as "0" | "1" | "2" | "3" | "ex",
     type: "moveX" as keyof typeof EventType,
@@ -78,4 +86,13 @@ export let EventSequenceEditorSettings = $state({
     set templateName(value) {
         _templateName = value;
     }
-});
+})
+
+export let EventSequenceEditorSettings = $state(createEventSequenceEditorSettings());
+
+export function restoreStates() {
+    GlobalContext = createGlobalContext();
+    PlayerSettings = createPlayerSettings();
+    NotesEditorSettings = createNotesEditorSettings();
+    EventSequenceEditorSettings = createEventSequenceEditorSettings();
+}
