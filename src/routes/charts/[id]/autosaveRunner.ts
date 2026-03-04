@@ -18,7 +18,7 @@ export default class AutoSaveRunner {
                 return;
             }
             saveChart(this.chart, "Autosave " + new Date().toLocaleString());
-        }, KPASettings.autosaveInterval)
+        }, KPASettings.autosaveInterval * 1000)
     }
     static stop() {
         clearInterval(this.timeout);
