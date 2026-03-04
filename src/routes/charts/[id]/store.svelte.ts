@@ -119,6 +119,14 @@ notesShowsNNN.subscribe(v => {
         notesEditor.draw();
     }
 });
+// 特喵的codebuddy，居然忘了帮我写这个
+notesNoteType.subscribe(v => {
+    if (!notesEditor) return;
+    if (notesEditor.noteType !== v) {
+        notesEditor.noteType = v;
+        notesEditor.draw();
+    }
+});
 
 // === EventSequenceEditorSettings 订阅 ===
 eventsEditChecked.subscribe(v => {
