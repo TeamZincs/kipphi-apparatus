@@ -20,7 +20,7 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLinesManager.svelte";
 
-import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNode, selectedNodes, timeDivisor } from "./store.svelte";
+import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes, timeDivisor } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
@@ -32,6 +32,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import EventEditor from "./EventEditor.svelte";
     import ChartInfoEditor from "./ChartInfoEditor.svelte";
     import MultiNodeEditor from "./MultiNodeEditor.svelte";
+    import MultiNoteEditor from "./MultiNoteEditor.svelte";
     import { KPASettings } from "#/settings.svelte";
 
 
@@ -255,6 +256,10 @@ onMount(async () => {
         selectedNote.set(ev.note);
         activeSecondarySidebar.set(SecondarySidebar.NOTE);
     });
+    notesEditor.addEventListener("notescopeselected", (ev) => {
+        selectedNotes.set(ev.notes);
+        activeSecondarySidebar.set(SecondarySidebar.MULTI_NOTE);
+    });
     eventSequenceEditors.addEventListenerForAll("nodeselected", (ev) => {
         selectedNode.set(ev.node);
         activeSecondarySidebar.set(SecondarySidebar.EVENT);
@@ -337,7 +342,7 @@ updateTip();
         <div class="sidebar-content">
             <PopupOption wide
                 options={
-                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE, SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE]
+                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE, SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE]
                 }
                 displayTexts={[
                     $_("main.secondary.lines"),
@@ -345,7 +350,8 @@ updateTip();
                     $_("main.secondary.event"),
                     $_("main.secondary.line"),
                     $_("main.secondary.chart"),
-                    $_("main.secondary.multiNode")
+                    $_("main.secondary.multiNode"),
+                    $_("main.secondary.multiNote")
                 ]}
                 bind:currentOption={$activeSecondarySidebar}
             ></PopupOption>
@@ -366,6 +372,10 @@ updateTip();
             {:else if $activeSecondarySidebar === SecondarySidebar.MULTI_NODE}
                 {#if $selectedNodes && $selectedNodes.size > 0}
                     <MultiNodeEditor target={$selectedNodes}></MultiNodeEditor>
+                {/if}
+            {:else if $activeSecondarySidebar === SecondarySidebar.MULTI_NOTE}
+                {#if $selectedNotes && $selectedNotes.size > 0}
+                    <MultiNoteEditor target={$selectedNotes}></MultiNoteEditor>
                 {/if}
             {/if}
         </div>

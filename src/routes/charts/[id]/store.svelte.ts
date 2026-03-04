@@ -18,7 +18,8 @@ export const SecondarySidebar = {
     EVENT: 2,
     LINE: 3,
     CHART: 4,
-    MULTI_NODE: 5
+    MULTI_NODE: 5,
+    MULTI_NOTE: 6
 }
 
 export let player: Player;
@@ -42,6 +43,7 @@ export const activeSecondarySidebar = writable(SecondarySidebar.LINES);
 export const previousActiveSecondarySidebar = writable(SecondarySidebar.LINES);
 
 export const selectedNote = writable<Note | null>(null);
+export const selectedNotes = writable<Set<Note> | null>(null);
 export const selectedNode = writable<EventStartNode<any> | EventEndNode<any> | null>(null);
 export const selectedNodes = writable<Set<EventStartNode<any>> | null>(null);
 export const timeDivisor = writable(4);
@@ -165,6 +167,7 @@ export function restoreStates() {
     previousActiveSecondarySidebar.set(SecondarySidebar.LINES);
 
     selectedNote.set(null);
+    selectedNotes.set(null);
     selectedNode.set(null);
     selectedNodes.set(null);
     timeDivisor.set(4);

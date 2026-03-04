@@ -118,7 +118,8 @@
       "event": "事件编辑",
       "line": "管理所选判定线",
       "chart": "谱面信息",
-      "multiNode": "多节点编辑"
+      "multiNode": "多节点编辑",
+      "multiNote": "多音符编辑"
     },
     "note": {
       "type": "类型",
@@ -266,6 +267,17 @@
       "snippetHelp": "帮助",
       "snippetFillCurve": "填充曲线",
       "each": "每个"
+    },
+    "multiNote": {
+      "title": "多音符编辑 ({count} 个音符来自 {lines} 条判定线)",
+      "warning-different-lines": "警告：选中的音符来自不同的判定线，但 '填充' 功能只会填充到选中判定线的音符中。",
+      "delete": "删除",
+      "reverse": "反转",
+      "execute": "执行",
+      "eachNote": "每个音符",
+      "snippets": "代码片段",
+      "fillEachNeighbors": "在相邻音符之间填充，步长为：",
+      "fill": "填充"
     },
     "chart": {
       "info": "谱面信息",

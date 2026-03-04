@@ -85,6 +85,7 @@ export interface I18nMapping {
 "main.secondary.line": never;
 "main.secondary.chart": never;
 "main.secondary.multiNode": never;
+"main.secondary.multiNote": never;
 "main.note.type": never;
 "main.note.time": never;
 "main.note.positionX": never;
@@ -187,6 +188,15 @@ export interface I18nMapping {
 "main.multiNode.snippetHelp": never;
 "main.multiNode.snippetFillCurve": never;
 "main.multiNode.each": never;
+"main.multiNote.title": "count" | "lines";
+"main.multiNote.warning-different-lines": never;
+"main.multiNote.delete": never;
+"main.multiNote.reverse": never;
+"main.multiNote.execute": never;
+"main.multiNote.eachNote": never;
+"main.multiNote.snippets": never;
+"main.multiNote.fillEachNeighbors": never;
+"main.multiNote.fill": never;
 "main.chart.info": never;
 "main.chart.id": never;
 "main.chart.title": never;
