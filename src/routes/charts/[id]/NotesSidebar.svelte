@@ -1,7 +1,7 @@
 <script lang="ts">
     import Label from "#/components/Label.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
-    import { GlobalContext, notesEditChecked, notesShowsNNN, notesNoteType, operationList } from "./store.svelte";
+    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList } from "./store.svelte";
 
     import { _ } from "#/i18n";
     import Tooltip from "#/components/Tooltip.svelte";
@@ -9,7 +9,7 @@
     import { onMount } from "svelte";
     import { NoteType, type NNList } from "kipphi";
 
-    let judgeLine = $derived(operationList.chart.judgeLines[GlobalContext.selectedLineNumber]);
+    let judgeLine = $derived(operationList.chart.judgeLines[$selectedLineNumber]);
     let options = $state.raw([]);
     const ALL_OPTION: [string, NNList] = ["*", null]
     let currentOption = $state.raw(ALL_OPTION);

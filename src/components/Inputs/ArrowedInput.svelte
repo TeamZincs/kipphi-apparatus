@@ -14,9 +14,17 @@ let {
     step?: number
 } = $props();
 
+let val = $state(value);
+$effect(() => {
+    if (val !== value) {
+        val = value;
+    }
+})
+
 function check() {
-    if (max !== undefined && value > max) value = loops ? min : max;
-    if (min !== undefined && value < min) value = loops ? max : min;
+    if (max !== undefined && val > max) value = loops ? min : max;
+    else if (min !== undefined && val < min) value = loops ? max : min
+    else value = val;
 }
 
 function len(str: string) {
@@ -26,9 +34,9 @@ function len(str: string) {
 </script>
 
 <div class="arrowed-input" class:has-suffix={!!suffix}>
-    <input type="number" step={step} bind:value onchange={check}>
-    <span class="up" onclick={() => {value += step; check()}}>↑</span>
-    <span class="down" onclick={() => {value -= step; check();}}>↓</span>
+    <input type="number" step={step} bind:value={val} onchange={check}>
+    <span class="up" onclick={() => {val += step; check()}}>↑</span>
+    <span class="down" onclick={() => {val -= step; check();}}>↓</span>
     {#if suffix}
         <span class="suffix" style={`font-size:${Math.min(5 / len(suffix), 2)}em; line-height:${3 / Math.min(5 / len(suffix), 2)}em`}>{suffix}</span>
     {/if}

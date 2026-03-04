@@ -2,7 +2,7 @@
     import Label from "#/components/Label.svelte";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { EventType, type ExtendedEventTypeName } from "kipphi";
-    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, GlobalContext, operationList, useEasing, templateName } from "./store.svelte";
+    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, operationList, useEasing, templateName } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";

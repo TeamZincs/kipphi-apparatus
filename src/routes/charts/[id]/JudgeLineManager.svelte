@@ -3,7 +3,7 @@ import type { JudgeLine } from "kipphi";
 import type { Snippet } from "svelte";
 import Self from "./JudgeLineManager.svelte";
 
-import { GlobalContext, operationList, SecondarySidebar } from "./store.svelte";
+import { selectedLineNumber, activeSecondarySidebar, SecondarySidebar } from "./store.svelte";
 import { Op } from "kipphi";
 
 let {
@@ -38,10 +38,10 @@ let folded = $state(false);
 let root: HTMLDivElement = $state(null);
 
 let lineName = $state(target.name);
-let displays = $derived(GlobalContext.selectedLineNumber === target.id)
+let displays = $derived($selectedLineNumber === target.id)
 
 $effect(() => {
-    if (GlobalContext.selectedLineNumber === target.id) {
+    if ($selectedLineNumber === target.id) {
         // 滚动前先检测一下，root往上找祖先，如果祖先的scrollTop为0则不平滑滚动
         let cur: HTMLElement = root;
         while (cur && !cur.matches(".judgelines-manager")) {
@@ -57,9 +57,9 @@ $effect(() => {
 
 function handleClick() {
     if (displays) { // 如果已经激活，则全局跳转到此判定线管理
-        GlobalContext.activeSecondarySidebar = SecondarySidebar.LINE
+        activeSecondarySidebar.set(SecondarySidebar.LINE)
     } else {
-        GlobalContext.selectedLineNumber = target.id
+        selectedLineNumber.set(target.id)
     }
 }
 

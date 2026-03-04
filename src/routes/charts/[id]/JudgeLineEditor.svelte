@@ -10,7 +10,7 @@
     import Label from "#/components/Label.svelte";
     import Tooltip from "#/components/Tooltip.svelte";
     import { _ } from "#/i18n";
-    import { chartId, GlobalContext, operationList, player } from "./store.svelte";
+    import { chartId, selectedLineNumber, operationList, player } from "./store.svelte";
     import { JudgeLine, Op } from "kipphi";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import type { UIName } from "kipphi";
@@ -24,7 +24,7 @@
 
     const chart = operationList.chart;
 
-    let target = $derived(chart.judgeLines[GlobalContext.selectedLineNumber])
+    let target = $derived(chart.judgeLines[$selectedLineNumber])
 
     let values = $state({
         cover: target.cover,

@@ -2,7 +2,7 @@
 import Label from "#/components/Label.svelte";
 import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { NoteNode, NoteType, Op, type Note } from "kipphi";
-    import { GlobalContext, operationList } from "./store.svelte";
+    import { selectedLineNumber, operationList, timeDivisor } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import ArrowedInput from "#/components/Inputs/ArrowedInput.svelte";
@@ -132,9 +132,9 @@ operationList.addEventListener("needsupdate", (opev) => {
 <span style:color="red">{
     $_("main.note.warning-lone-note")
 }</span>
-{:else if parentLine.id !== GlobalContext.selectedLineNumber}
+{:else if parentLine.id !== $selectedLineNumber}
 <span style:color="yellow">{
-    $_("main.note.warning-not-from-selected-line", { values: { line: GlobalContext.selectedLineNumber }})
+    $_("main.note.warning-not-from-selected-line", { values: { line: $selectedLineNumber }})
 }</span>
 {/if}
 <Label small>{$_("main.note.type")}</Label>
@@ -225,7 +225,7 @@ operationList.addEventListener("needsupdate", (opev) => {
     unit="px"
 ></UnitInput>
 <Label small>{$_("main.note.visibleBeats")}</Label>
-<ArrowedInput step={1 / GlobalContext.timeDivisor}
+<ArrowedInput step={1 / $timeDivisor}
     bind:value={
         () => values.visibleBeats,
         (v) => operationList.do(new Op.NotePropChangeOperation(target, "visibleBeats", v))

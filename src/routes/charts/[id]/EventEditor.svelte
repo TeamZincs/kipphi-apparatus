@@ -26,7 +26,7 @@ const TEMPLATE = EasingType.template;
 <script lang="ts">
     import Label from "#/components/Label.svelte";
     import { EventSequenceEditor } from "kipphi-canvas-editor";
-    import { GlobalContext, operationList } from "./store.svelte";
+    import { selectedNode, operationList } from "./store.svelte";
     import { EasedEvaluator, easingArray, EventEndNode, EventStartNode, NodeType, Op, type EventValueESType, EventValueType, InterpreteAs, TextEasedEvaluator, NormalEasing, TemplateEasing, BezierEasing, EvaluatorType, EasingType, ExpressionEvaluator } from "kipphi";
     import { _ } from "#/i18n";
     import FractionInput from "#/components/Inputs/FractionInput.svelte";
@@ -77,7 +77,7 @@ const TEMPLATE = EasingType.template;
         }
     }
 
-    let target = $derived(GlobalContext.selectedNode);
+    let target = $derived($selectedNode);
     let values = $state(getValues());
     evaluatorType = values.evaluator instanceof EasedEvaluator ? EASED : EXPRESSION;
 

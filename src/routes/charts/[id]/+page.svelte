@@ -20,7 +20,7 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLinesManager.svelte";
 
-import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID } from "./store.svelte";
+import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNode, selectedNodes, timeDivisor } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
@@ -112,37 +112,14 @@ $effect(() => {
 });
 
 $effect(() => {
-    let timeDivisor = GlobalContext.timeDivisor; // 确保建立依赖追踪
-    if (player) {
-        notesEditor.timeDivisor = timeDivisor;
-        eventSequenceEditors.timeDivisor = timeDivisor;
-        notesEditor.draw();
-        eventSequenceEditors.draw();
-    }
-});
-$effect(() => {
     renderingOffset; // 确保建立依赖追踪
     if (player) {
         player.renderingOffset = renderingOffset;
     }
 });
 
-$effect(() => {
-    let selectedLineNumber = GlobalContext.selectedLineNumber;
-    if (player) {
-        player.greenLine = selectedLineNumber;
-        notesEditor.target = player.chart.judgeLines[selectedLineNumber];
-        eventSequenceEditors.changeTarget({
-            judgeLine: player.chart.judgeLines[selectedLineNumber]
-        });
-        notesEditor.draw();
-        eventSequenceEditors.draw();
-    }
-});
-
 let selectedLineName = $derived.by(() => {
-    // 显式访问 GlobalContext.selectedLineNumber，建立依赖
-    const lineNumber = GlobalContext.selectedLineNumber;
+    const lineNumber = $selectedLineNumber;
     const line = data.chart.judgeLines[lineNumber];
     return line?.name ?? "?";
 });
@@ -164,7 +141,7 @@ function handleWheel(event: WheelEvent) {
 
 function globalHandleWheel(event: WheelEvent) {
     if (event.ctrlKey) { // 按下CTRL则认为在切换判定线
-        GlobalContext.selectedLineNumber = (GlobalContext.selectedLineNumber + (event.deltaY > 0 ? 1 : -1) + data.chart.judgeLines.length) % data.chart.judgeLines.length;
+        selectedLineNumber.set(($selectedLineNumber + (event.deltaY > 0 ? 1 : -1) + data.chart.judgeLines.length) % data.chart.judgeLines.length);
         return;
     }
 }
@@ -172,11 +149,11 @@ function globalHandleWheel(event: WheelEvent) {
 document.addEventListener("wheel", globalHandleWheel);
 document.addEventListener("keydown", (event) => {
     if (event.key === "Control") {
-        if (GlobalContext.activeSecondarySidebar === SecondarySidebar.LINES) {
+        if ($activeSecondarySidebar === SecondarySidebar.LINES) {
             return;
         }
-        GlobalContext.previousActiveSecondarySidebar = GlobalContext.activeSecondarySidebar;
-        GlobalContext.activeSecondarySidebar = SecondarySidebar.LINES;
+        previousActiveSecondarySidebar.set($activeSecondarySidebar);
+        activeSecondarySidebar.set(SecondarySidebar.LINES);
     } else if (event.key === " ") {
         if (document.hasFocus()) {
             return;
@@ -187,7 +164,7 @@ document.addEventListener("keydown", (event) => {
             player.play();
         }
     } else if (event.key === "Tab") {
-        if (GlobalContext.activeSidebar === Sidebar.EVENTS) {
+        if ($activeSidebar === Sidebar.EVENTS) {
             const offset = event.shiftKey ? -1 : 1;
             const currentType = $eventsType;
             const currentLayer = $eventsLayer;
@@ -203,7 +180,7 @@ document.addEventListener("keydown", (event) => {
 });
 document.addEventListener("keyup", (event) => {
     if (event.key === "Control") {
-        GlobalContext.activeSecondarySidebar = GlobalContext.previousActiveSecondarySidebar;
+        activeSecondarySidebar.set($previousActiveSecondarySidebar);
     }
 });
 
@@ -241,13 +218,13 @@ onMount(async () => {
     notesEditor.target = chart.judgeLines[0];
     notesEditor.showsNNNListAttachable = false;
     notesEditorCanvas.addEventListener("click", () => {
-        GlobalContext.activeSidebar = Sidebar.NOTES;
+        activeSidebar.set(Sidebar.NOTES);
     });
     eventSequenceEditorCanvas.addEventListener("click", () => {
-        GlobalContext.activeSidebar = Sidebar.EVENTS;
+        activeSidebar.set(Sidebar.EVENTS);
     })
     playerCanvas.addEventListener("click", () => {
-        GlobalContext.activeSidebar = Sidebar.DEFAULT;
+        activeSidebar.set(Sidebar.DEFAULT);
     })
     eventSequenceEditors = new EventSequenceEditors(
         eventSequenceEditorCanvas,
@@ -275,16 +252,16 @@ onMount(async () => {
         chart.modified = true;
     });
     notesEditor.addEventListener("noteselected", (ev) => {
-        GlobalContext.selectedNote = ev.note;
-        GlobalContext.activeSecondarySidebar = SecondarySidebar.NOTE;
+        selectedNote.set(ev.note);
+        activeSecondarySidebar.set(SecondarySidebar.NOTE);
     });
     eventSequenceEditors.addEventListenerForAll("nodeselected", (ev) => {
-        GlobalContext.selectedNode = ev.node;
-        GlobalContext.activeSecondarySidebar = SecondarySidebar.EVENT;
+        selectedNode.set(ev.node);
+        activeSecondarySidebar.set(SecondarySidebar.EVENT);
     });
     eventSequenceEditors.addEventListenerForAll("nodescopeselected", (ev) => {
-        GlobalContext.selectedNodes = ev.nodes;
-        GlobalContext.activeSecondarySidebar = SecondarySidebar.MULTI_NODE;
+        selectedNodes.set(ev.nodes);
+        activeSecondarySidebar.set(SecondarySidebar.MULTI_NODE);
     })
     player.renderingOffset = renderingOffset;
     // @ts-expect-error 仅供调试
@@ -370,25 +347,25 @@ updateTip();
                     $_("main.secondary.chart"),
                     $_("main.secondary.multiNode")
                 ]}
-                bind:currentOption={GlobalContext.activeSecondarySidebar}
+                bind:currentOption={$activeSecondarySidebar}
             ></PopupOption>
-            {#if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINES}
+            {#if $activeSecondarySidebar === SecondarySidebar.LINES}
                 <JudgeLines chart={data.chart} bind:this={judgeLinesManager}></JudgeLines>
-            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.NOTE}
-                {#if GlobalContext.selectedNote}
-                <NoteEditor target={GlobalContext.selectedNote}></NoteEditor>
+            {:else if $activeSecondarySidebar === SecondarySidebar.NOTE}
+                {#if $selectedNote}
+                <NoteEditor target={$selectedNote}></NoteEditor>
                 {/if}
-            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.EVENT}
-                {#if GlobalContext.selectedNode}
+            {:else if $activeSecondarySidebar === SecondarySidebar.EVENT}
+                {#if $selectedNode}
                 <EventEditor></EventEditor>
                 {/if}
-            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINE}
+            {:else if $activeSecondarySidebar === SecondarySidebar.LINE}
                 <JudgeLineEditor></JudgeLineEditor>
-            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.CHART}
+            {:else if $activeSecondarySidebar === SecondarySidebar.CHART}
                 <ChartInfoEditor></ChartInfoEditor>
-            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.MULTI_NODE}
-                {#if GlobalContext.selectedNodes && GlobalContext.selectedNodes.size > 0}
-                    <MultiNodeEditor target={GlobalContext.selectedNodes}></MultiNodeEditor>
+            {:else if $activeSecondarySidebar === SecondarySidebar.MULTI_NODE}
+                {#if $selectedNodes && $selectedNodes.size > 0}
+                    <MultiNodeEditor target={$selectedNodes}></MultiNodeEditor>
                 {/if}
             {/if}
         </div>
@@ -402,7 +379,7 @@ updateTip();
                 <Tooltip>{$_("main.sidebar.timeDivisor.desc")}</Tooltip>
             </Label>
             <ArrowedInput
-                bind:value={GlobalContext.timeDivisor}
+                bind:value={$timeDivisor}
                 />
             <Label small>
                 {$_("main.sidebar.renderingOffset.term")}
@@ -414,17 +391,17 @@ updateTip();
             <Label small>{$_("main.sidebar.linenumber") + ` (${data.chart.judgeLines.length ?? 0})`}</Label>
             <ArrowedInput
                 max={(data.chart.judgeLines.length ?? 1) - 1} min={0}
-                bind:value={GlobalContext.selectedLineNumber}
+                bind:value={$selectedLineNumber}
                 suffix={`(${selectedLineName})`}
                 loops
             />
-            {#if GlobalContext.activeSidebar === Sidebar.DEFAULT}
+            {#if $activeSidebar === Sidebar.DEFAULT}
                 <Label>Player</Label>
                 <TextSwitchButton wide bgText={$_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$playerShowsUI}/>
                 <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$playerShowsLineID}/>
-            {:else if GlobalContext.activeSidebar === Sidebar.NOTES}
+            {:else if $activeSidebar === Sidebar.NOTES}
                 <NotesSidebar/>
-            {:else if GlobalContext.activeSidebar === Sidebar.EVENTS}
+            {:else if $activeSidebar === Sidebar.EVENTS}
                 <EventsSidebar/>
             {/if}
         </div>

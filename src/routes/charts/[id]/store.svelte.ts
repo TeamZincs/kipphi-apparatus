@@ -34,22 +34,17 @@ export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationLi
     player = pl;
 }
 
-const createGlobalContext = () => ({
-    selectedLineNumber: 0,
-    activeSidebar: Sidebar.DEFAULT,
-    activeSecondarySidebar: SecondarySidebar.LINES,
-    /** 上一次激活的次级侧边栏，用于ctrl切线后还原 */
-    previousActiveSecondarySidebar: SecondarySidebar.LINES,
+// GlobalContext - 每个属性独立的 writable store
+export const selectedLineNumber = writable(0);
+export const activeSidebar = writable(Sidebar.DEFAULT);
+export const activeSecondarySidebar = writable(SecondarySidebar.LINES);
+/** 上一次激活的次级侧边栏，用于ctrl切线后还原 */
+export const previousActiveSecondarySidebar = writable(SecondarySidebar.LINES);
 
-    selectedNote: null as Note,
-    selectedNode: null as EventStartNode<any> | EventEndNode<any>,
-
-    selectedNodes: null as Set<EventStartNode<any>>,
-
-    timeDivisor: 4,
-});
-
-export let GlobalContext = $state(createGlobalContext());
+export const selectedNote = writable<Note | null>(null);
+export const selectedNode = writable<EventStartNode<any> | EventEndNode<any> | null>(null);
+export const selectedNodes = writable<Set<EventStartNode<any>> | null>(null);
+export const timeDivisor = writable(4);
 
 // PlayerSettings - 每个属性独立的 writable store
 export const playerShowsUI = writable(true);
@@ -69,6 +64,26 @@ export const eventsTimeSpan = writable(4);
 // useEasing 和 templateName 作为独立的 writable stores
 export const useEasing = writable(1);
 export const templateName = writable("");
+
+// === GlobalContext 订阅 ===
+selectedLineNumber.subscribe(v => {
+    if (!player) return;
+    player.greenLine = v;
+    notesEditor.target = player.chart.judgeLines[v];
+    eventSequenceEditors.changeTarget({
+        judgeLine: player.chart.judgeLines[v]
+    });
+    notesEditor.draw();
+    eventSequenceEditors.draw();
+});
+
+timeDivisor.subscribe(v => {
+    if (!notesEditor || !eventSequenceEditors) return;
+    notesEditor.timeDivisor = v;
+    eventSequenceEditors.timeDivisor = v;
+    notesEditor.draw();
+    eventSequenceEditors.draw();
+});
 
 // === PlayerSettings 订阅 ===
 playerShowsUI.subscribe(v => {
@@ -144,7 +159,15 @@ useEasing.subscribe(v => {
 });
 
 export function restoreStates() {
-    Object.assign(GlobalContext, createGlobalContext());
+    selectedLineNumber.set(0);
+    activeSidebar.set(Sidebar.DEFAULT);
+    activeSecondarySidebar.set(SecondarySidebar.LINES);
+    previousActiveSecondarySidebar.set(SecondarySidebar.LINES);
+
+    selectedNote.set(null);
+    selectedNode.set(null);
+    selectedNodes.set(null);
+    timeDivisor.set(4);
 
     playerShowsUI.set(true);
     playerShowsLineID.set(false);

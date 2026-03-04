@@ -1,6 +1,6 @@
 <script lang="ts">
     import { easingArray, easingMap, rpeEasingArray } from "kipphi";
-    import { GlobalContext } from "./store.svelte";
+    // import { GlobalContext } from "./store.svelte";
     import { untrack } from "svelte";
     import { KPASettings } from "#/settings.svelte";
 
