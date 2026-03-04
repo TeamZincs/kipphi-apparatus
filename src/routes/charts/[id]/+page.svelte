@@ -34,6 +34,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import MultiNodeEditor from "./MultiNodeEditor.svelte";
     import MultiNoteEditor from "./MultiNoteEditor.svelte";
     import { KPASettings } from "#/settings.svelte";
+    import { notify } from "./notify.svelte";
 
 
 let {
@@ -92,6 +93,7 @@ let eventSequenceEditorCanvas: HTMLCanvasElement;
 let player: Player = null;
 let notesEditor: NotesEditor;
 let eventSequenceEditors: EventSequenceEditors;
+// svelte-ignore non_reactive_update
 let judgeLinesManager: JudgeLines;
 let progressBar: HTMLInputElement;
 let playButton: PlayButton;
@@ -149,13 +151,15 @@ function globalHandleWheel(event: WheelEvent) {
 
 document.addEventListener("wheel", globalHandleWheel);
 document.addEventListener("keydown", (event) => {
-    if (event.key === "Control") {
+    switch (event.key) {
+    case "Control":
         if ($activeSecondarySidebar === SecondarySidebar.LINES) {
             return;
         }
         previousActiveSecondarySidebar.set($activeSecondarySidebar);
         activeSecondarySidebar.set(SecondarySidebar.LINES);
-    } else if (event.key === " ") {
+        break;
+    case " ":
         if (document.hasFocus()) {
             return;
         }
@@ -164,7 +168,8 @@ document.addEventListener("keydown", (event) => {
         } else {
             player.play();
         }
-    } else if (event.key === "Tab") {
+        break;
+    case "Tab":
         if ($activeSidebar === Sidebar.EVENTS) {
             const offset = event.shiftKey ? -1 : 1;
             const currentType = $eventsType;
@@ -177,6 +182,13 @@ document.addEventListener("keydown", (event) => {
                     : NORMALS[(NORMALS.indexOf(currentType) + offset + NORMALS.length) % NORMALS.length] ?? NORMALS[0]
             );
         }
+        break;
+    case "z":
+        operationList.undo();
+        break;
+    case "y":
+        operationList.redo();
+        break;
     }
 });
 document.addEventListener("keyup", (event) => {
@@ -191,7 +203,7 @@ window.addEventListener("beforeunload", (e) => {
         e.returnValue = '';
         return '';
     }
-})
+});
 
 
 onMount(async () => {
@@ -252,6 +264,12 @@ onMount(async () => {
     operationList.addEventListener("firstmodified", (ev) => {
         chart.modified = true;
     });
+    operationList.addEventListener("undo", (e) => {
+        notify("Undo: " + e.operation.constructor.name, "info");
+    })
+    operationList.addEventListener("redo", (e) => {
+        notify("Redo: " + e.operation.constructor.name, "info");
+    })
     notesEditor.addEventListener("noteselected", (ev) => {
         selectedNote.set(ev.note);
         activeSecondarySidebar.set(SecondarySidebar.NOTE);
@@ -267,7 +285,7 @@ onMount(async () => {
     eventSequenceEditors.addEventListenerForAll("nodescopeselected", (ev) => {
         selectedNodes.set(ev.nodes);
         activeSecondarySidebar.set(SecondarySidebar.MULTI_NODE);
-    })
+    });
     player.renderingOffset = renderingOffset;
     // @ts-expect-error 仅供调试
     window.player = player;
