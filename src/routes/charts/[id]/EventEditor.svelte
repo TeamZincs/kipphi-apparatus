@@ -23,6 +23,7 @@ const TEMPLATE = EasingType.template;
 
 </script>
 
+<!-- svelte-ignore state_referenced_locally -->
 <script lang="ts">
     import Label from "#/components/Label.svelte";
     import { EventSequenceEditor } from "kipphi-canvas-editor";
@@ -36,6 +37,7 @@ const TEMPLATE = EasingType.template;
     import { notify } from "./notify.svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
     import BezierEditor from "./BezierEditor.svelte";
+    import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
 
     function getStartNode(node: EventStartNode<any> | EventEndNode<any>) {
         return node instanceof EventEndNode ? node.previous : node;
@@ -138,7 +140,7 @@ const TEMPLATE = EasingType.template;
 
 <Label>
     {values.isEnd ? $_("main.event.endNode") : $_("main.event.startNode")}
-    ({values.parentSeq.id})
+    ({values.parentSeq?.id})
 </Label>
 
 <div class="grid">
@@ -282,6 +284,14 @@ const TEMPLATE = EasingType.template;
         {/if}
     {/snippet}
 </RadioTabs>
+
+<DestructiveButton
+    onclick={
+        () => {
+            operationList.do(new Op.EventNodePairRemoveOperation(getStartNode(target)));
+        }
+    }
+>{$_("main.event.delete")}</DestructiveButton>
 
 <style lang="less" scoped>
     @import "#/components/mixin.less";

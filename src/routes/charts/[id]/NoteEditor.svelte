@@ -9,6 +9,7 @@ import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import FractionInput from "#/components/Inputs/FractionInput.svelte";
     import ColorInput from "#/components/Inputs/ColorInput.svelte";
+    import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
 
 let {
     target
@@ -127,7 +128,7 @@ operationList.addEventListener("needsupdate", (opev) => {
 
 </script>
 
-<Label>Note (from #{values.parentNode.parentSeq.parentLine.id}.{values.parentNode.parentSeq.id})</Label>
+<Label>Note (from #{values.parentNode?.parentSeq.parentLine.id}.{values.parentNode?.parentSeq.id})</Label>
 {#if !values.parentNode}
 <span style:color="red">{
     $_("main.note.warning-lone-note")
@@ -262,6 +263,11 @@ operationList.addEventListener("needsupdate", (opev) => {
     }
 ></ColorInput>
 </div>
+<DestructiveButton
+    onclick={
+        () => operationList.do(new Op.NoteDeleteOperation(target))
+    }
+>{$_("main.note.delete")}</DestructiveButton>
 
 <style scoped lang="less">
     .time-input {

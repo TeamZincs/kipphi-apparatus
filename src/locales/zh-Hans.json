@@ -161,7 +161,8 @@
         "normal": "普通缓动",
         "template": "模板缓动",
         "bezier": "贝塞尔缓动"
-      }
+      },
+      "delete": "删除节点对"
     },
     "judgeline": {
       "cover": {

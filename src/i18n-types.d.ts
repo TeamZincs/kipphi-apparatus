@@ -119,6 +119,7 @@ export interface I18nMapping {
 "main.event.easings.normal": never;
 "main.event.easings.template": never;
 "main.event.easings.bezier": never;
+"main.event.delete": never;
 "main.judgeline.cover.term": never;
 "main.judgeline.cover.desc": never;
 "main.judgeline.father.term": never;
