@@ -2,21 +2,20 @@
     import Label from "#/components/Label.svelte";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { EventType, type ExtendedEventTypeName } from "kipphi";
-    import { eventSequenceEditors, EventSequenceEditorSettings, GlobalContext, operationList } from "./store.svelte";
+    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, GlobalContext, operationList, useEasing, templateName } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import EasingBox from "./EasingBox.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
-    import { EventSequenceEditors } from "kipphi-canvas-editor";
+    import { EventSequenceEditor } from "kipphi-canvas-editor/eventCurveEditor";
     import { notify } from "./notify.svelte";
     import { EncapsuleOperation } from "../../../../../kipphi/packages/package-kipphi/operation";
-    import { EventSequenceEditor } from "kipphi-canvas-editor/eventCurveEditor";
+    import { eventSequenceEditors } from "./store.svelte";
     import { KPAError } from "../../../../../kipphi/packages/package-kipphi/env";
 
-
     let options = $derived(
-        EventSequenceEditorSettings.layer === 'ex'
+        $eventsLayer === 'ex'
         ? ["scaleX", "scaleY", "text", "color"] satisfies ExtendedEventTypeName[]
         : ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "bpm"] satisfies Exclude<keyof typeof EventType, ExtendedEventTypeName>[])
     let texts = $derived(options.map(name => $_(`general.eventTypes.${name}`)))
@@ -36,31 +35,31 @@
             $_("main.events.layers.ex")
         ]
     }
-    bind:currentOption={EventSequenceEditorSettings.layer}
+    bind:currentOption={$eventsLayer}
 ></PopupOption>
 
 <PopupOption wide
     options={options} displayTexts={texts}
-    bind:currentOption={EventSequenceEditorSettings.type}
+    bind:currentOption={$eventsType}
 ></PopupOption>
 
 <Label small>{$_("main.events.timeSpan")}</Label>
-<UnitInput bind:value={EventSequenceEditorSettings.timeSpan} unit={$_("general.beat")}></UnitInput>
+<UnitInput bind:value={$eventsTimeSpan} unit={$_("general.beat")}></UnitInput>
 
 
 <TextSwitchButton wide bgText={$_("main.events.addNodePair")}
-    onText="+" offText="-" bind:checked={EventSequenceEditorSettings.editChecked}/>
+    onText="+" offText="-" bind:checked={$eventsEditChecked}/>
 
-<EasingBox bind:value={EventSequenceEditorSettings.useEasing}></EasingBox>
+<EasingBox bind:value={$useEasing}></EasingBox>
 
-{#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY"].includes(EventSequenceEditorSettings.type)}
+{#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY"].includes($eventsType)}
 <input type="text" class="template-name"
 placeholder={$_("main.events.templateName")}
-bind:value={EventSequenceEditorSettings.templateName}>
+bind:value={$templateName}>
 
 <ProgressiveButton onclick={
     () => {
-        const name = EventSequenceEditorSettings.templateName;
+        const name = $templateName;
         if (name === "") {
             return notify($_("main.events.templateNameEmpty"), "error");
         }

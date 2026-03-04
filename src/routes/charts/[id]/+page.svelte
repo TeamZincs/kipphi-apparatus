@@ -20,7 +20,7 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLinesManager.svelte";
 
-import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, PlayerSettings, NotesEditorSettings, EventSequenceEditorSettings, restoreStates, operationList } from "./store.svelte";
+import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
@@ -140,84 +140,6 @@ $effect(() => {
     }
 });
 
-$effect(() => {
-    let checked = NotesEditorSettings.editChecked;
-    if (checked && notesEditor) {
-        notesEditor.state = NotesEditorState.edit;
-    } else if (notesEditor) {
-        notesEditor.state = NotesEditorState.select;
-    }
-});
-
-$effect(() => {
-    let showsNNN = NotesEditorSettings.showsNNN;
-    if (!notesEditor) return;
-    if (notesEditor.showsNNNListAttachable !== showsNNN) {
-        notesEditor.showsNNNListAttachable = showsNNN;
-        notesEditor.draw();
-    }
-});
-
-$effect(() => {
-    let showsUI = PlayerSettings.showsUI;
-    if (!player) return;
-    if (player.showsInfo !== showsUI) { // 我也不知道为什么加了这个判断才能避免无限递归
-        player.showsInfo = showsUI;
-        player.render();
-    }
-})
-
-$effect(() => {
-    let showsLineID = PlayerSettings.showsLineID;
-    if (!player) return;
-    if (player.showsLineID !== showsLineID) {
-        player.showsLineID = showsLineID;
-        player.render();
-    }
-})
-// 编辑器类型切换
-$effect(() => {
-    let type = EventSequenceEditorSettings.type;
-    if (!eventSequenceEditors) return;
-    // @ts-expect-error TSC又在发什么颠
-    eventSequenceEditors.activatedEditor = eventSequenceEditors[type];
-    EventSequenceEditorSettings.editChecked = eventSequenceEditors.activatedEditor.state === EventCurveEditorState.edit
-
-});
-// 层切换
-$effect(() => {
-    let layer = EventSequenceEditorSettings.layer;
-    if (!eventSequenceEditors) return;
-    eventSequenceEditors.changeTarget({
-        layerID: layer
-    })
-});
-// 时间跨度
-$effect(() => {
-    let timeSpan = EventSequenceEditorSettings.timeSpan;
-    if (!eventSequenceEditors) return;
-    for (const key of ["alpha", "moveX", "moveY", "rotate", "speed",
-       "scaleX", "scaleY", "text", "color",
-       "bpm", "easing"] satisfies (keyof typeof EventType)[]) {
-        eventSequenceEditors[key].timeSpan = timeSpan;
-    }
-    eventSequenceEditors.draw();
-});
-// 编辑切换
-$effect(() => {
-    let editChecked = EventSequenceEditorSettings.editChecked;
-
-    if (!eventSequenceEditors) return;
-    const activatedEditor = eventSequenceEditors.activatedEditor
-    if (editChecked) {
-        activatedEditor.state = EventCurveEditorState.edit;
-    } else {
-        activatedEditor.state = EventCurveEditorState.select;
-    }
-});
-
-
-
 let selectedLineName = $derived.by(() => {
     // 显式访问 GlobalContext.selectedLineNumber，建立依赖
     const lineNumber = GlobalContext.selectedLineNumber;
@@ -267,12 +189,15 @@ document.addEventListener("keydown", (event) => {
     } else if (event.key === "Tab") {
         if (GlobalContext.activeSidebar === Sidebar.EVENTS) {
             const offset = event.shiftKey ? -1 : 1;
-            const curType = EventSequenceEditorSettings.type;
+            const currentType = $eventsType;
+            const currentLayer = $eventsLayer;
             const NORMALS = ["moveX", "moveY", "rotate", "alpha", "speed", "easing"] as Exclude<keyof typeof EventType, ExtendedEventTypeName>[]
             const EXTENDED = ["scaleX", "scaleY", "text", "color", "bpm"] as ExtendedEventTypeName[]
-            EventSequenceEditorSettings.type = EventSequenceEditorSettings.layer === "ex"
-                ? EXTENDED[(EXTENDED.indexOf(curType) + offset + EXTENDED.length) % EXTENDED.length] ?? EXTENDED[0]
-                : NORMALS[(NORMALS.indexOf(curType) + offset + NORMALS.length) % NORMALS.length] ?? NORMALS[0]
+            eventsType.set(
+                currentLayer === "ex"
+                    ? EXTENDED[(EXTENDED.indexOf(currentType as ExtendedEventTypeName) + offset + EXTENDED.length) % EXTENDED.length] ?? EXTENDED[0]
+                    : NORMALS[(NORMALS.indexOf(currentType) + offset + NORMALS.length) % NORMALS.length] ?? NORMALS[0]
+            );
         }
     }
 });
@@ -314,7 +239,7 @@ onMount(async () => {
         operationList
     );
     notesEditor.target = chart.judgeLines[0];
-    notesEditor.showsNNNListAttachable = NotesEditorSettings.showsNNN;
+    notesEditor.showsNNNListAttachable = false;
     notesEditorCanvas.addEventListener("click", () => {
         GlobalContext.activeSidebar = Sidebar.NOTES;
     });
@@ -495,8 +420,8 @@ updateTip();
             />
             {#if GlobalContext.activeSidebar === Sidebar.DEFAULT}
                 <Label>Player</Label>
-                <TextSwitchButton wide bgText={$_("main.player.showsUI")} onText="Y" offText="N" bind:checked={PlayerSettings.showsUI}/>
-                <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={PlayerSettings.showsLineID}/>
+                <TextSwitchButton wide bgText={$_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$playerShowsUI}/>
+                <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$playerShowsLineID}/>
             {:else if GlobalContext.activeSidebar === Sidebar.NOTES}
                 <NotesSidebar/>
             {:else if GlobalContext.activeSidebar === Sidebar.EVENTS}

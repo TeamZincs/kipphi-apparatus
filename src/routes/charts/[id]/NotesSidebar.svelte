@@ -1,7 +1,7 @@
 <script lang="ts">
     import Label from "#/components/Label.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
-    import { GlobalContext, NotesEditorSettings, operationList } from "./store.svelte";
+    import { GlobalContext, notesEditChecked, notesShowsNNN, notesNoteType, operationList } from "./store.svelte";
 
     import { _ } from "#/i18n";
     import Tooltip from "#/components/Tooltip.svelte";
@@ -51,18 +51,18 @@
 
 <Label>Notes</Label>
 <TextSwitchButton wide bgText={$_("main.notes.addNote")}
-    onText="+" offText="-" bind:checked={NotesEditorSettings.editChecked}/>
+    onText="+" offText="-" bind:checked={$notesEditChecked}/>
 <Label>{$_("main.notes.noteType")}</Label>
 <PopupOption wide options={
     [NoteType.tap, NoteType.hold, NoteType.flick, NoteType.drag]
 } displayTexts={
     ["Tap", "Hold", "Flick", "Drag"]
-} currentOption={NotesEditorSettings.noteType}
+} bind:currentOption={$notesNoteType}
 ></PopupOption>
 
 <div class="flex">
     <TextSwitchButton wide bgText={$_("main.notes.showsNNN.term")}
-    onText="Y" offText="N" bind:checked={NotesEditorSettings.showsNNN}/>
+    onText="Y" offText="N" bind:checked={$notesShowsNNN}/>
     <Tooltip>{$_("main.notes.showsNNN.desc")}</Tooltip>
 </div>
 
