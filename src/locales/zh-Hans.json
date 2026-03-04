@@ -122,6 +122,7 @@
       "multiNote": "多音符编辑"
     },
     "note": {
+      "noNote": "没有目标音符或目标音符已被移除",
       "type": "类型",
       "time": "时间",
       "positionX": "X轴位置",
@@ -144,6 +145,7 @@
       "warning-lone-note": "警告：这个Note不存在于谱面中。"
     },
     "event": {
+      "noEvent": "没有目标事件或目标事件已被移除",
       "startNode": "起始节点",
       "endNode": "结束节点",
       "time": "时间",

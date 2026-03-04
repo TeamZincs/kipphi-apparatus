@@ -86,6 +86,7 @@ export interface I18nMapping {
 "main.secondary.chart": never;
 "main.secondary.multiNode": never;
 "main.secondary.multiNote": never;
+"main.note.noNote": never;
 "main.note.type": never;
 "main.note.time": never;
 "main.note.positionX": never;
@@ -105,6 +106,7 @@ export interface I18nMapping {
 "main.note.delete": never;
 "main.note.warning-not-from-selected-line": "line";
 "main.note.warning-lone-note": never;
+"main.event.noEvent": never;
 "main.event.startNode": never;
 "main.event.endNode": never;
 "main.event.time": never;

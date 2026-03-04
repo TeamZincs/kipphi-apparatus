@@ -376,12 +376,16 @@ updateTip();
             {#if $activeSecondarySidebar === SecondarySidebar.LINES}
                 <JudgeLines chart={data.chart} bind:this={judgeLinesManager}></JudgeLines>
             {:else if $activeSecondarySidebar === SecondarySidebar.NOTE}
-                {#if $selectedNote}
+                {#if $selectedNote && $selectedNote.parentNode}
                 <NoteEditor target={$selectedNote}></NoteEditor>
+                {:else}
+                <div style="color: var(--color-foreground)">{$_("main.note.noNote")}</div>
                 {/if}
             {:else if $activeSecondarySidebar === SecondarySidebar.EVENT}
-                {#if $selectedNode}
+                {#if $selectedNode && $selectedNode.parentSeq}
                 <EventEditor></EventEditor>
+                {:else}
+                <div style="color: var(--color-foreground)">{$_("main.event.noEvent")}</div>
                 {/if}
             {:else if $activeSecondarySidebar === SecondarySidebar.LINE}
                 <JudgeLineEditor></JudgeLineEditor>
