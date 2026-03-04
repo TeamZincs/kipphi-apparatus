@@ -1,4 +1,5 @@
 <script lang="ts" generics="T">
+    import { untrack } from 'svelte';
   import Portal from 'svelte-portal';
 
 
@@ -25,9 +26,10 @@
 
   $effect(() => {
     // 同步 currentIndex 和 currentOption
-    if (options[currentIndex] !== currentOption) {
-      currentIndex = options.indexOf(currentOption);
-      if (currentIndex === -1) {
+    const index = untrack(() => currentIndex);
+    if (options[index] !== currentOption) {
+      const newIndex = options.indexOf(currentOption);
+      if (newIndex === -1) {
         if (Array.isArray(currentOption)) {
 
           currentIndex = options.findIndex(o => tupleEq(o as any[], $state.snapshot(currentOption) as any[]));
@@ -35,6 +37,8 @@
           currentIndex = 0
           currentOption = options[0]
         }
+      } else {
+        currentIndex = newIndex;
       }
     }
   });
