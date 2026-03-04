@@ -117,7 +117,8 @@
       "note": "音符编辑",
       "event": "事件编辑",
       "line": "管理所选判定线",
-      "chart": "谱面信息"
+      "chart": "谱面信息",
+      "multiNode": "多节点编辑"
     },
     "note": {
       "type": "类型",
@@ -249,6 +250,22 @@
         "zeroDelta": "数值变化量为0.封装的模板缓动需要非零数值变化量，请检查头尾的蓝节点。"
       },
       "noNodeSelected": "未选中任何节点。"
+    },
+    "multiNode": {
+      "title": "多节点编辑 ({count} 个节点来自 {ids})",
+      "delete": "删除",
+      "reverse": "反转",
+      "execute": "执行",
+      "start": "起始节点",
+      "end": "结束节点",
+      "backToBack": "背靠背",
+      "faceToFace": "面对面",
+      "value": "值",
+      "time": "时间",
+      "snippets": "代码片段",
+      "snippetHelp": "帮助",
+      "snippetFillCurve": "填充曲线",
+      "each": "每个"
     },
     "chart": {
       "info": "谱面信息",

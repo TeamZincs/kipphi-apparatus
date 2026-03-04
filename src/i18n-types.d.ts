@@ -84,6 +84,7 @@ export interface I18nMapping {
 "main.secondary.event": never;
 "main.secondary.line": never;
 "main.secondary.chart": never;
+"main.secondary.multiNode": never;
 "main.note.type": never;
 "main.note.time": never;
 "main.note.positionX": never;
@@ -172,6 +173,20 @@ export interface I18nMapping {
 "main.events.encapsuleErr.notBelongToSourceSequence": never;
 "main.events.encapsuleErr.zeroDelta": never;
 "main.events.noNodeSelected": never;
+"main.multiNode.title": "count" | "ids";
+"main.multiNode.delete": never;
+"main.multiNode.reverse": never;
+"main.multiNode.execute": never;
+"main.multiNode.start": never;
+"main.multiNode.end": never;
+"main.multiNode.backToBack": never;
+"main.multiNode.faceToFace": never;
+"main.multiNode.value": never;
+"main.multiNode.time": never;
+"main.multiNode.snippets": never;
+"main.multiNode.snippetHelp": never;
+"main.multiNode.snippetFillCurve": never;
+"main.multiNode.each": never;
 "main.chart.info": never;
 "main.chart.id": never;
 "main.chart.title": never;

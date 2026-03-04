@@ -31,6 +31,7 @@ import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, Pla
     import { event } from "@tauri-apps/api";
     import EventEditor from "./EventEditor.svelte";
     import ChartInfoEditor from "./ChartInfoEditor.svelte";
+    import MultiNodeEditor from "./MultiNodeEditor.svelte";
     import { KPASettings } from "#/settings.svelte";
 
 
@@ -347,6 +348,10 @@ onMount(async () => {
     eventSequenceEditors.addEventListenerForAll("nodeselected", (ev) => {
         GlobalContext.selectedNode = ev.node;
         GlobalContext.activeSecondarySidebar = SecondarySidebar.EVENT;
+    });
+    eventSequenceEditors.addEventListenerForAll("nodescopeselected", (ev) => {
+        GlobalContext.selectedNodes = ev.nodes;
+        GlobalContext.activeSecondarySidebar = SecondarySidebar.MULTI_NODE;
     })
     player.renderingOffset = renderingOffset;
     // @ts-expect-error 仅供调试
@@ -421,17 +426,16 @@ updateTip();
         <div class="sidebar-content">
             <PopupOption wide
                 options={
-                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE, SecondarySidebar.CHART]
+                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE, SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE]
                 }
-                displayTexts={
-                    [
-                        $_("main.secondary.lines"),
-                        $_("main.secondary.note"),
-                        $_("main.secondary.event"),
-                        $_("main.secondary.line"),
-                        $_("main.secondary.chart")
-                    ]
-                }
+                displayTexts={[
+                    $_("main.secondary.lines"),
+                    $_("main.secondary.note"),
+                    $_("main.secondary.event"),
+                    $_("main.secondary.line"),
+                    $_("main.secondary.chart"),
+                    $_("main.secondary.multiNode")
+                ]}
                 bind:currentOption={GlobalContext.activeSecondarySidebar}
             ></PopupOption>
             {#if GlobalContext.activeSecondarySidebar === SecondarySidebar.LINES}
@@ -448,6 +452,10 @@ updateTip();
                 <JudgeLineEditor></JudgeLineEditor>
             {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.CHART}
                 <ChartInfoEditor></ChartInfoEditor>
+            {:else if GlobalContext.activeSecondarySidebar === SecondarySidebar.MULTI_NODE}
+                {#if GlobalContext.selectedNodes && GlobalContext.selectedNodes.size > 0}
+                    <MultiNodeEditor target={GlobalContext.selectedNodes}></MultiNodeEditor>
+                {/if}
             {/if}
         </div>
     </div>

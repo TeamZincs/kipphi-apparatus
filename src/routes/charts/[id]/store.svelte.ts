@@ -91,8 +91,8 @@ const createEventSequenceEditorSettings = () => ({
 export let EventSequenceEditorSettings = $state(createEventSequenceEditorSettings());
 
 export function restoreStates() {
-    GlobalContext = createGlobalContext();
-    PlayerSettings = createPlayerSettings();
-    NotesEditorSettings = createNotesEditorSettings();
-    EventSequenceEditorSettings = createEventSequenceEditorSettings();
+    Object.assign(GlobalContext, createGlobalContext());
+    Object.assign(PlayerSettings, createPlayerSettings());
+    Object.assign(NotesEditorSettings, createNotesEditorSettings());
+    Object.assign(EventSequenceEditorSettings, createEventSequenceEditorSettings());
 }
