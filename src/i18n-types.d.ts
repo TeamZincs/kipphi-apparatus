@@ -196,6 +196,8 @@ export interface I18nMapping {
 "main.chart.offset": never;
 "main.chart.level": never;
 "main.chart.save": never;
+"main.chart.exit": never;
+"main.chart.confirm": never;
 "main.chart.noMessage": never;
 "main.chart.saveSuccess": never;
 "main.chart.summary": never;

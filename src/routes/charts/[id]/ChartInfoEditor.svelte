@@ -11,6 +11,8 @@
     import { notify } from "./notify.svelte";
     import Button from "#/components/buttons/Button.svelte";
     import { getPathOfChart } from "#/queryCharts";
+    import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
+    import { goto } from "$app/navigation";
 
     const target = operationList.chart;
     let values = $state({
@@ -106,6 +108,20 @@
         }
     }
 }>{$_("main.chart.save")}</ProgressiveButton>
+
+<DestructiveButton onclick={
+    () => {
+        if (target.modified) {
+            if (confirm($_("main.chart.confirm"))) {
+                goto("/");
+            }
+        } else {
+            goto("/");
+        }
+    }
+}>
+    {$_("main.chart.exit")}
+</DestructiveButton>
 
 <style lang="less" scoped>
     @import "#/components/mixin.less";

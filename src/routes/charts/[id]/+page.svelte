@@ -20,7 +20,7 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLinesManager.svelte";
 
-import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, PlayerSettings, NotesEditorSettings, EventSequenceEditorSettings } from "./store.svelte";
+import { GlobalContext, Sidebar, init as EditorGlobalInit, SecondarySidebar, PlayerSettings, NotesEditorSettings, EventSequenceEditorSettings, restoreStates, operationList } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
@@ -282,6 +282,14 @@ document.addEventListener("keyup", (event) => {
     }
 });
 
+window.addEventListener("beforeunload", (e) => {
+    if (operationList.chart?.modified) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+    }
+})
+
 
 onMount(async () => {
     await tick();
@@ -367,6 +375,7 @@ onMount(async () => {
 
 
     EditorGlobalInit(notesEditor, eventSequenceEditors, operationList, player);
+    restoreStates();
     // 释放内存
     // data.chart = null;
 });
