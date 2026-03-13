@@ -57,12 +57,17 @@ audio.addEventListener("ended", () => {
 })
 // 这里启用了实验性功能，随时都有可能出现破坏性更改，如果出现，需要修改此处
 const illustration = await createImageBitmap(data.illustration);
-const audioProcessor = new AudioProcessor();
-await audioProcessor.init({
-    tap: data.tap,
-    drag: data.drag,
-    flick: data.flick,
-});
+let audioProcessor: AudioProcessor;
+if (respack.TAP_SE && respack.DRAG_SE && respack.FLICK_SE) {
+    audioProcessor = await AudioProcessor.fromRespack(respack)
+} else {
+    audioProcessor = new AudioProcessor();
+    await audioProcessor.init({
+        tap: data.tap,
+        drag: data.drag,
+        flick: data.flick,
+    });
+}
 console.log(audioProcessor.tap)
 
 await Images.loadAndOptimize({
