@@ -59,7 +59,7 @@ audio.addEventListener("ended", () => {
 const illustration = await createImageBitmap(data.illustration);
 let audioProcessor: AudioProcessor;
 if (respack.TAP_SE && respack.DRAG_SE && respack.FLICK_SE) {
-    audioProcessor = await AudioProcessor.fromRespack(respack)
+    audioProcessor = AudioProcessor.fromRespack(respack)
 } else {
     audioProcessor = new AudioProcessor();
     await audioProcessor.init({
