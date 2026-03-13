@@ -1,7 +1,7 @@
 <script lang="ts">
     import Label from "#/components/Label.svelte";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
-    import { EventType, type ExtendedEventTypeName } from "kipphi";
+    import { EventType, type ExtendedEventTypeName, KPAError, Op } from "kipphi";
     import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, operationList, useEasing, templateName } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
@@ -9,10 +9,8 @@
     import EasingBox from "./EasingBox.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import { EventSequenceEditor } from "kipphi-canvas-editor/eventCurveEditor";
-    import { notify } from "./notify.svelte";
-    import { EncapsuleOperation } from "../../../../../kipphi/packages/package-kipphi/operation";
+    import { notify } from "#/notify.svelte";
     import { eventSequenceEditors } from "./store.svelte";
-    import { KPAError } from "../../../../../kipphi/packages/package-kipphi/env";
 
     let options = $derived(
         $eventsLayer === 'ex'
@@ -72,7 +70,7 @@ bind:value={$templateName}>
             return notify($_("main.events.noNodeSelected"), "error");
         }
         try {
-            const operation = EncapsuleOperation.encapsule(
+            const operation = Op.EncapsuleOperation.encapsule(
                 lib,
                 evSeqEditor.target,
                 evSeqEditor.nodesSelection,
@@ -80,7 +78,7 @@ bind:value={$templateName}>
             );
             operationList.do(operation);
         } catch (e) {
-            if (e instanceof KPAError)
+            if (e instanceof Env.KPAError)
                 return notify(e.message, "error");
         }
     }

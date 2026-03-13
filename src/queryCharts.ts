@@ -1,7 +1,11 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, readTextFile, mkdir, readFile, writeFile, rename, writeTextFile } from "@tauri-apps/plugin-fs";
+
+import YAML from "yaml";
+
 import { getExtensionFromName, getMimeTypeFromName } from "#/util";
 import { Chart, type ChartDataKPA, type ChartDataKPA2, type ChartDataRPE } from "kipphi";
+import { unzip } from "./uncompress";
 
 export interface ChartMetadata {
     title: string;
@@ -24,6 +28,7 @@ type ChartHistory = ChartHistoryEntry[];
 let APP_DATA_DIR: string;
 let CHART_DIR: string;
 let TRASH_DIR: string;
+let RESPACK_DIR: string;
 
 /**
  * 查询应用数据目录、谱面目录和谱面回收站目录。
@@ -36,9 +41,10 @@ export async function queryMeta() {
         APP_DATA_DIR = await appDataDir();
         CHART_DIR = await join(APP_DATA_DIR, "charts");
         TRASH_DIR = await join(APP_DATA_DIR, "trash");
+        RESPACK_DIR = await join(APP_DATA_DIR, "respack");
     }
     return {
-        APP_DATA_DIR, CHART_DIR, TRASH_DIR
+        APP_DATA_DIR, CHART_DIR, TRASH_DIR, RESPACK_DIR
     }
 }
 
@@ -332,9 +338,78 @@ export async function fetchTexture(identifier: string, name: string): Promise<Im
                 await mkdir(texturesDir);
             }
             const texturePath = await join(texturesDir, name);
-            await writeFile(texturePath, new Uint8Array(await blob.arrayBuffer()));
+            await writeFile(texturePath, await blob.bytes());
         } catch {}
         return await createImageBitmap(blob);
     }
 }
 
+export interface RespackEntry {
+    pathname: string;
+    shortPathname: string;
+    name: string;
+}
+
+export async function queryRespackList() {
+    const RESPACK_DIRECTORY = RESPACK_DIR || (await queryMeta()).RESPACK_DIR;
+    if (!await exists(RESPACK_DIRECTORY)) {
+        await mkdir(RESPACK_DIRECTORY);
+    }
+    const respacks = await readDir(RESPACK_DIRECTORY);
+    const filtered: RespackEntry[] = [];
+    for (const entry of respacks) {
+        if (!entry.isDirectory) {
+            continue;
+        }
+        const metaPath = await join(RESPACK_DIRECTORY, entry.name, "info.yml")
+        if (await exists(metaPath)) {
+            const ymlContent = await readTextFile(metaPath);
+            try {
+                const respackMetadata = YAML.parse(ymlContent);
+                if (respackMetadata.name) {
+                    filtered.push({
+                        pathname: await join(RESPACK_DIRECTORY, entry.name),
+                        name: respackMetadata.name,
+                        shortPathname: entry.name
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }
+    return filtered;
+}
+
+export async function getFileInRespack(respackName: string, filename: string) {
+    if (respackName === "Default") {
+        return await (await fetch("/default/" + filename)).blob();
+    }
+    const RESPACK_DIRECTORY = RESPACK_DIR || (await queryMeta()).RESPACK_DIR;
+    const respackPath = await join(RESPACK_DIRECTORY, respackName);
+    if (!await exists(respackPath)) {
+        throw new Error("资源包不存在")
+    }
+    const resPath =  await join(respackPath, filename);
+    if (!await exists(resPath)) {
+        return null;
+    }
+    return new Blob([await readFile(resPath)])
+}
+
+export async function uploadRespack(respackName: string, zipFile: Blob) {
+    const RESPACK_DIRECTORY = RESPACK_DIR || (await queryMeta()).RESPACK_DIR;
+    const respackPath = await join(RESPACK_DIRECTORY, respackName);
+    const unzipped = await unzip(zipFile);
+    if (!unzipped.success) {
+        throw new Error("Decompression failed.")
+    }
+    if (await exists(respackPath)) {
+        throw new Error("Occupied.");
+    }
+    await mkdir(respackPath);
+    for (const entry of unzipped.files) {
+        const name = entry.name;
+        await writeFile(await join(respackPath, name), new Uint8Array(entry.buffer));
+    }
+}

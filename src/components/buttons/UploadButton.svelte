@@ -5,10 +5,12 @@
 
     let {
         onchange,
-        file = $bindable()
+        file = $bindable(),
+        accept = "image/*"
     }: {
-        onchange: (file: File) => void,
-        file: File
+        onchange?: (file: File) => void,
+        file?: File,
+        accept?: string
     } = $props();
     $effect(() => {
         if (file === null) {
@@ -19,7 +21,7 @@
     // 用于上传贴图
     let fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = "image/*";
+    fileInput.accept = accept;
     fileInput.addEventListener("change", () => {
         file = fileInput.files[0];
         if (!file) {
@@ -27,7 +29,7 @@
             return;
         }
         fileName = file.name;
-        onchange(file);
+        onchange?.(file);
     });
     let fileName = $state($_("main.judgeline.select"))
 </script>

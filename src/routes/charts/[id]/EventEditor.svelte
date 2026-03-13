@@ -34,7 +34,7 @@ const TEMPLATE = EasingType.template;
     import ColorInput from "#/components/Inputs/ColorInput.svelte";
     import RadioTabs from "#/components/RadioTabs.svelte";
     import EasingBox from "./EasingBox.svelte";
-    import { notify } from "./notify.svelte";
+    import { notify } from "#/notify.svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
     import BezierEditor from "./BezierEditor.svelte";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";

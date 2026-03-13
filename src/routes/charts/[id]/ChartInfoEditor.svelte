@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { openPath as tauriOpenPath } from "@tauri-apps/plugin-opener"
+    import { openPath as tauriOpenPath } from "#/opener"
 
     import Label from "#/components/Label.svelte";
     import { _ } from "#/i18n";
@@ -8,7 +8,7 @@
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import { onSave, saveChart } from "./save";
-    import { notify } from "./notify.svelte";
+    import { notify } from "../../../notify.svelte";
     import Button from "#/components/buttons/Button.svelte";
     import { getPathOfChart } from "#/queryCharts";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";

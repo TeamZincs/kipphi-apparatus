@@ -3,7 +3,7 @@
 </script>
 
 
-<span class:small={small} {title}><slot/></span>
+<span class="label" class:small={small} {title}><slot/></span>
 
 <style scoped lang="less">
 span {

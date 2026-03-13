@@ -20,7 +20,8 @@
     "jszip": "^3.10.1",
     "mime": "^4.1.0",
     "svelte-i18n": "^4.0.1",
-    "svelte-portal": "^2.2.1"
+    "svelte-portal": "^2.2.1",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@internationalized/date": "^3.11.0",

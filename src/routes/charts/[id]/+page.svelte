@@ -34,8 +34,8 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import MultiNodeEditor from "./MultiNodeEditor.svelte";
     import MultiNoteEditor from "./MultiNoteEditor.svelte";
     import { KPASettings } from "#/settings.svelte";
-    import { notify } from "./notify.svelte";
-    import { respack } from "#/respack";
+    import { notify } from "#/notify.svelte";
+    import { respack } from "#/respack.svelte";
 
 
 let {
@@ -477,7 +477,6 @@ updateTip();
         <span id="tips">Tips: {Constants.tips[tipIndex]}</span>
     </div>
 </main>
-<div id="notifications"></div>
 
 <style lang="less">
     :root {

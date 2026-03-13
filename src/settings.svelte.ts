@@ -25,4 +25,11 @@ export const KPASettings = $state({
     set autosaveInterval(value: number) {
         localStorage.setItem('autosaveInterval', value.toString());
     },
+    get respack() {
+        const it = localStorage.getItem("respack");
+        return it || "Default";
+    },
+    set respack(value: string) {
+        localStorage.setItem("respack", value)
+    }
 })

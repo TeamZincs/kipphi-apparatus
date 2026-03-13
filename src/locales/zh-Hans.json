@@ -36,7 +36,11 @@
       "save": "保存谱面",
       "switchSeq": "切换下个序列",
       "switchSeqPrev": "切换上个序列"
-    }
+    },
+    "respack": "资源包",
+    "respackExists": "该名称的资源包已存在。",
+    "uploadSuccess": "上传成功。",
+    "upload": "上传"
   },
   "create": {
     "title": "创建谱面",

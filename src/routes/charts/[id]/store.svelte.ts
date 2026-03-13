@@ -51,6 +51,7 @@ export const timeDivisor = writable(4);
 // PlayerSettings - 每个属性独立的 writable store
 export const playerShowsUI = writable(true);
 export const playerShowsLineID = writable(false);
+export const playerHitEffectNoFollows = writable(false);
 
 // NotesEditorSettings - 每个属性独立的 writable store
 export const notesEditChecked = writable(false);
@@ -101,6 +102,11 @@ playerShowsLineID.subscribe(v => {
         player.render();
     }
 });
+
+playerHitEffectNoFollows.subscribe(v => {
+    if (!player) return;
+    player.hitEffectNoFollows = v;
+})
 
 // === NotesEditorSettings 订阅 ===
 notesEditChecked.subscribe(v => {
@@ -182,6 +188,7 @@ export function restoreStates() {
 
     playerShowsUI.set(true);
     playerShowsLineID.set(false);
+    playerHitEffectNoFollows.set(false);
 
     notesEditChecked.set(false);
     notesShowsNNN.set(false);

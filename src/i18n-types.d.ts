@@ -32,6 +32,10 @@ export interface I18nMapping {
 "settings.hotkeys.save": never;
 "settings.hotkeys.switchSeq": never;
 "settings.hotkeys.switchSeqPrev": never;
+"settings.respack": never;
+"settings.respackExists": never;
+"settings.uploadSuccess": never;
+"settings.upload": never;
 "create.title": never;
 "create.name": never;
 "create.bpm": never;
@@ -155,6 +159,7 @@ export interface I18nMapping {
 "main.lines.name": never;
 "main.player.showsUI": never;
 "main.player.showsLineID": never;
+"main.player.hitEffectNoFollows": never;
 "main.notes.showsNNN.term": never;
 "main.notes.showsNNN.desc": never;
 "main.notes.NNList.term": never;

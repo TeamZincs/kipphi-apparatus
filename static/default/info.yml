@@ -1,0 +1,7 @@
+name: "KPA官方纹理"
+description: 奇谱发生器官方纹理，按照CC BY-NC-SA 4.0协议发布，请勿用于商业用途。可自由在您自己的项目中使用该纹理包，这不构成“衍生作品”传染。Hold使用SVG制作，其他几个音符使用“像素绘图”制作。
+author: Zes-M-Young
+hitFx: [4, 4]
+hitFxDuration: 0.5
+holdAtlas: [4, 4]
+holdAtlasMH: [4, 4]

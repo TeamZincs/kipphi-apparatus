@@ -12,7 +12,7 @@ import { ROKP, createFunction, fillCurve,  } from "./multi"
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import FractionInput from "#/components/Inputs/FractionInput.svelte";
     import { operationList, selectedLineNumber } from "./store.svelte";
-    import { notify } from "./notify.svelte";
+    import { notify } from "#/notify.svelte";
     import { Note, Op, TC } from "kipphi";
 
     let {
