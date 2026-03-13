@@ -71,15 +71,8 @@ if (respack.TAP_SE && respack.DRAG_SE && respack.FLICK_SE) {
 console.log(audioProcessor.tap)
 
 await Images.loadAndOptimize({
-    tap: data.tapImg,
-    drag: data.dragImg,
-    flick: data.flickImg,
     anchor: data.anchorImg,
-    chord: data.chordImg,
-    holdHead: data.holdHeadImg,
-    holdBody: data.holdBodyImg,
-    below: data.belowImg,
-    hitFx: data.hitFxImg
+    below: data.belowImg
 });
 await Images.initImagesForEditor({
     selectNote: data.selectNoteImg,
