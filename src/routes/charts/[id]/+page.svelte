@@ -35,6 +35,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import MultiNoteEditor from "./MultiNoteEditor.svelte";
     import { KPASettings } from "#/settings.svelte";
     import { notify } from "./notify.svelte";
+    import { respack } from "#/respack";
 
 
 let {
@@ -213,7 +214,8 @@ onMount(async () => {
         playerCanvas,
         audioProcessor,
         audio,
-        illustration
+        illustration,
+        respack
     );
     player.addEventListener("play", () => {
         isPlaying = true;
@@ -226,7 +228,8 @@ onMount(async () => {
     notesEditor = new NotesEditor(
         notesEditorCanvas,
         [0, 0, 600, 900],
-        operationList
+        operationList,
+        respack
     );
     notesEditor.target = chart.judgeLines[0];
     notesEditor.showsNNNListAttachable = false;
