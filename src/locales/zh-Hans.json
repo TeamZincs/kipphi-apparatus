@@ -219,7 +219,8 @@
     },
     "player": {
       "showsUI": "显示UI",
-      "showsLineID": "显示线号"
+      "showsLineID": "显示线号",
+      "hitEffectNoFollows": "打击滞留"
     },
     "notes": {
       "showsNNN": {
