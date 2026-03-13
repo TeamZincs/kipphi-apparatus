@@ -14,12 +14,33 @@
       "deleteSuccess": "Chart {name} has been deleted.",
       "export": "Export"
     },
-    "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware."
+    "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware.",
+    "subscribe": "Bookmark our website: https://pgrfm.miraheze.org/!"
   },
   "settings": {
     "language": "Language",
     "useRpeEasingId": "Use RPE Easing ID",
-    "useRpeEasingIdWarning": "Using RPE Easing ID will disable EaseInOutQuint and EaseInOutExpo."
+    "useRpeEasingIdWarning": "Using RPE Easing ID will disable EaseInOutQuint and EaseInOutExpo.",
+    "autosaveEnabled": "Enable Autosave",
+    "autosaveComment": "Autosave only saves modified charts. Each autosave increases charting time by one.\n(This means if you leave it idle, autosave won't fill up your hard drive or count that time)",
+    "autosaveInterval": "Autosave Interval",
+    "hotkey": "Hotkey",
+    "joke": "Just kidding, hotkeys don't support customization. This is just a tutorial (lol)",
+    "hotkeys": {
+      "playpause": "Play/Pause",
+      "placeNode": "(Event Sequence Editor) Place event node pair",
+      "placeNote": "(Notes Editor) Place note (Tap/Drag/Flick/Hold)",
+      "toLines": "Switch to Judge Line List",
+      "scrollTime": "Scroll Timeline",
+      "switchLine": "Switch Judge Line",
+      "save": "Save Chart",
+      "switchSeq": "Switch to Next Sequence",
+      "switchSeqPrev": "Switch to Previous Sequence"
+    },
+    "respack": "Resource Pack",
+    "respackExists": "A resource pack with this name already exists.",
+    "uploadSuccess": "Upload successful.",
+    "upload": "Upload"
   },
   "create": {
     "title": "Create Chart",
@@ -86,7 +107,7 @@
       },
       "renderingOffset": {
         "term": "Audio-Visual Offset",
-        "desc": "Controls the rendering offset relative to the music. Bluetooth headphone users usually need to set a lower value."
+        "desc": "Controls the rendering offset relative to the music/audio. Bluetooth headphone users usually need to set a lower value.\nNote: This is not the \"chart offset\" we usually refer to. Please edit the offset in \"Chart Info\"."
       },
       "linenumber": "Judge Line Number",
       "judgeLineLayout": {
@@ -99,9 +120,13 @@
       "lines": "Lines",
       "note": "Note Editor",
       "event": "Event Editor",
-      "line": "Manage Selected Line"
+      "line": "Manage Selected Line",
+      "chart": "Chart Info",
+      "multiNode": "Multi-Node Editor",
+      "multiNote": "Multi-Note Editor"
     },
     "note": {
+      "noNote": "No target note or target note has been removed",
       "type": "Type",
       "time": "Time",
       "positionX": "X Position",
@@ -118,10 +143,30 @@
       "tintHitEffect": "Hit Effect Tint",
       "judgeSize": "Judgement Area Size",
       "setAsDefault": "Set as Default",
-      "delete": "Delete",
+      "delete": "Delete Note",
 
       "warning-not-from-selected-line": "Warning: This Note does not belong to the selected judge line {line}.",
       "warning-lone-note": "Warning: This Note does not exist in the chart."
+    },
+    "event": {
+      "noEvent": "No target event or target event has been removed",
+      "startNode": "Start Node",
+      "endNode": "End Node",
+      "time": "Time",
+      "value": "Value",
+      "evaluator": "Evaluator",
+      "easing": "Easing",
+      "evaluators": {
+        "eased": "Eased Evaluator",
+        "expression": "Expression Evaluator",
+        "macro": "Macro Evaluator"
+      },
+      "easings": {
+        "normal": "Normal Easing",
+        "template": "Template Easing",
+        "bezier": "Bezier Easing"
+      },
+      "delete": "Delete Node Pair"
     },
     "judgeline": {
       "cover": {
@@ -171,11 +216,15 @@
       "select": "Select",
       "uploadWarning": "Filename is already in use. Upload will overwrite the existing texture. See {dir}",
       "uploadSuccess": "Upload successful.",
-      "delete": "Delete"
+      "delete": "Delete Judge Line"
+    },
+    "lines": {
+      "name": "New Group Name"
     },
     "player": {
       "showsUI": "Show UI",
-      "showsLineID": "Show Line Number"
+      "showsLineID": "Show Line Number",
+      "hitEffectNoFollows": "Hit Effect Lag"
     },
     "notes": {
       "showsNNN": {
@@ -199,7 +248,63 @@
         "ex": "Special Layer (ex)"
       },
       "timeSpan": "Time Span",
-      "addNodePair": "Add Node Pair"
+      "addNodePair": "Add Node Pair",
+      "encapsule": "Encapsulate",
+      "templateName": "Template Name",
+      "templateNameEmpty": "Please enter a template name",
+      "templateNameOccupied": "This template name is already in use",
+      "encapsuleErr": {
+        "noContinuous": "Node pairs are not continuous",
+        "notBelongToSourceSequence": "Node does not belong to source sequence",
+        "zeroDelta": "Value change is 0. Encapsulated template easing requires non-zero value change. Please check the blue nodes at the beginning and end."
+      },
+      "noNodeSelected": "No node selected."
+    },
+    "multiNode": {
+      "title": "Multi-Node Editor ({count} nodes from {ids})",
+      "delete": "Delete",
+      "reverse": "Reverse",
+      "execute": "Execute",
+      "start": "Start Node",
+      "end": "End Node",
+      "backToBack": "Back-to-Back",
+      "faceToFace": "Face-to-Face",
+      "value": "Value",
+      "time": "Time",
+      "snippets": "Code Snippets",
+      "snippetHelp": "Help",
+      "snippetFillCurve": "Fill Curve",
+      "each": "Each"
+    },
+    "multiNote": {
+      "title": "Multi-Note Editor ({count} notes from {lines} judge lines)",
+      "warning-different-lines": "Warning: Selected notes are from different judge lines, but the 'Fill' function will only fill notes in the selected judge lines.",
+      "delete": "Delete",
+      "reverse": "Reverse",
+      "execute": "Execute",
+      "eachNote": "Each Note",
+      "snippets": "Code Snippets",
+      "fillEachNeighbors": "Fill between adjacent notes, step size:",
+      "fill": "Fill"
+    },
+    "chart": {
+      "info": "Chart Info",
+      "id": "Chart Identifier",
+
+      "title": "Title",
+      "charter": "Charter",
+      "illustrator": "Illustrator",
+      "composer": "Composer",
+      "offset": "Offset",
+      "level": "Difficulty Level",
+
+      "save": "Save Chart",
+      "exit": "Exit Chart",
+      "confirm": "Chart is not saved. Are you sure you want to leave?",
+      "noMessage": "Write a commit summary to briefly summarize what you modified in the chart for easy version lookup",
+      "saveSuccess": "Chart has been saved successfully.",
+      "summary": "Chart Summary",
+      "openInExplorer": "Open in Explorer"
     }
   },
   "general": {
@@ -218,6 +323,7 @@
       "easing": "Easing",
       "bpm": "BPM"
     },
-    "beat": "beat"
+    "beat": "beat",
+    "wheel": "wheel"
   }
 }

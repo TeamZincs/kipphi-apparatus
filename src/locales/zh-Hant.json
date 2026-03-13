@@ -14,28 +14,49 @@
       "deleteSuccess": "譜面{name}已刪除。",
       "export": "導出譜面"
     },
-    "licenseDeclaration": "雖然本軟件使用MIT許可證，但作者不鼓勵、支持其付費再分發，請知悉。"
+    "licenseDeclaration": "雖然本軟件使用 MIT 許可證，但作者不鼓勵、支持其付費再分發，請知悉。",
+    "subscribe": "請收藏我們的網址：https://pgrfm.miraheze.org/！"
   },
   "settings": {
     "language": "語言",
-    "useRpeEasingId": "使用RPE緩動ID",
-    "useRpeEasingIdWarning": "使用RPE緩動ID將無法使用EaseInOutQuint和EaseInOutExpo。"
+    "useRpeEasingId": "使用 RPE 緩動 ID",
+    "useRpeEasingIdWarning": "使用 RPE 緩動 ID 將無法使用 EaseInOutQuint 和 EaseInOutExpo。",
+    "autosaveEnabled": "啟用自動保存",
+    "autosaveComment": "自動保存只會保存修改過的譜面，每次自動保存增加一次製譜時間。\n（也就是說，如果掛機，自動保存不會塞滿你的硬盤，也不會統計這部分時間）",
+    "autosaveInterval": "自動保存間隔",
+    "hotkey": "熱鍵",
+    "joke": "騙你的，熱鍵不支持定製化，這只是教程（笑",
+    "hotkeys": {
+      "playpause": "播放/暫停",
+      "placeNode": "（事件序列編輯器）放置事件節點對",
+      "placeNote": "（音符配置編輯器）放置音符（藍黃紅長）",
+      "toLines": "切換至判定線列表",
+      "scrollTime": "滾動時間軸",
+      "switchLine": "切換判定線",
+      "save": "保存譜面",
+      "switchSeq": "切換下個序列",
+      "switchSeqPrev": "切換上個序列"
+    },
+    "respack": "資源包",
+    "respackExists": "該名稱的資源包已存在。",
+    "uploadSuccess": "上傳成功。",
+    "upload": "上傳"
   },
   "create": {
     "title": "創建譜面",
     "name": "曲目名稱",
-    "bpm": "基準BPM",
+    "bpm": "基準 BPM",
     "composer": "曲師",
     "create": "創建",
     "alert": {
       "name": "請填寫曲目名稱",
-      "bpm": "請正確填寫基準BPM"
+      "bpm": "請正確填寫基準 BPM"
     },
-    "success": "譜面創建成功，3秒後跳轉至該譜面。"
+    "success": "譜面創建成功，3 秒後跳轉至該譜面。"
   },
   "import": {
     "title": "導入譜面",
-    "formathint": "導入譜面可用PEZ/ZIP包，亦可將譜面（兼容RPEJSON）、音樂、曲繪分別上傳。",
+    "formathint": "導入譜面可用 PEZ/ZIP 包，亦可將譜面（兼容 RPEJSON）、音樂、曲繪分別上傳。",
     "retail": "使用散文件",
     "archive": "使用譜包",
     "chart": "譜面文件",
@@ -49,7 +70,7 @@
   },
   "form": {
     
-    "hint": "譜面標識符用於索引譜面，請盡量使用易於記憶的純英文+數字名稱（最好不要包含空格）",
+    "hint": "譜面標識符用於索引譜面，請盡量使用易於記憶的純英文 + 數字名稱（最好不要包含空格）",
     "id": "譜面標識符",
     "music": "音樂文件",
     "illustration": "曲繪文件",
@@ -75,7 +96,7 @@
     "notFound": "您進入了一個不存在的譜面。",
     "delete": "刪除",
     "alreadyWritten": "該譜面自創建以來已寫了{mins}分鐘。",
-    "notKPA": "該譜面不是KPAJSON譜面，似乎是從別處導入的。",
+    "notKPA": "該譜面不是 KPAJSON 譜面，似乎是從別處導入的。",
     "hint": "刪除的譜面將回收至{path}。"
   },
   "main": {
@@ -86,7 +107,7 @@
       },
       "renderingOffset": {
         "term": "音畫偏移",
-        "desc": "控制畫面渲染相對於音樂的偏移時間，藍牙耳機用戶通常需要設置更低的數值。"
+        "desc": "控制畫面渲染相對於音樂/音效的偏移時間，藍牙耳機用戶通常需要設置更低的數值。\n注意：這並不是我們通常說的「譜面偏移量」。請在「譜面信息」中編輯偏移量。"
       },
       "linenumber": "判定線序號",
       "judgeLineLayout": {
@@ -99,19 +120,23 @@
       "lines": "判定線列表",
       "note": "音符編輯",
       "event": "事件編輯",
-      "line": "管理所選判定線"
+      "line": "管理所選判定線",
+      "chart": "譜面信息",
+      "multiNode": "多節點編輯",
+      "multiNote": "多音符編輯"
     },
     "note": {
+      "noNote": "沒有目標音符或目標音符已被移除",
       "type": "類型",
       "time": "時間",
-      "positionX": "X軸位置",
+      "positionX": "X 軸位置",
       "direction": "方向",
       "above": "上方",
       "below": "下方",
       "speed": "速度指數",
       "real": "真值",
       "alpha": "不透明度",
-      "absoluteYOffset": "絕對Y值偏移",
+      "absoluteYOffset": "絕對 Y 值偏移",
       "visibleBeats": "可視拍數",
       "size": "寬度",
       "tint": "染色",
@@ -120,8 +145,28 @@
       "setAsDefault": "設為默認",
       "delete": "刪除音符",
 
-      "warning-not-from-selected-line": "警告：這個Note不屬於選中的判定線{line}。",
-      "warning-lone-note": "警告：這個Note不存在於譜面中。"
+      "warning-not-from-selected-line": "警告：這個 Note 不屬於選中的判定線{line}。",
+      "warning-lone-note": "警告：這個 Note 不存在於譜面中。"
+    },
+    "event": {
+      "noEvent": "沒有目標事件或目標事件已被移除",
+      "startNode": "起始節點",
+      "endNode": "結束節點",
+      "time": "時間",
+      "value": "值",
+      "evaluator": "求值器",
+      "easing": "緩動",
+      "evaluators": {
+        "eased": "緩動求值器",
+        "expression": "表達式求值器",
+        "macro": "宏求值器"
+      },
+      "easings": {
+        "normal": "普通緩動",
+        "template": "模板緩動",
+        "bezier": "貝塞爾緩動"
+      },
+      "delete": "刪除節點對"
     },
     "judgeline": {
       "cover": {
@@ -141,15 +186,15 @@
         "desc": "將判定線分組，僅影響編輯。\n非默認組的同組判定線會在音符和事件編輯區中一起渲染。"
       },
       "zOrder": {
-        "term": "Z軸順序",
-        "desc": "控制判定線在Z軸上的順序，值越大越靠前。"
+        "term": "Z 軸順序",
+        "desc": "控制判定線在 Z 軸上的順序，值越大越靠前。"
       },
       "attachUI": {
-        "term": "UI綁定",
-        "desc": "將譜面UI組件（如譜面名字、連擊數）綁定到判定線，使之跟隨判定線移動。\n一個UI僅能綁定一條判定線，而一條判定線可以綁定多個UI。",
+        "term": "UI 綁定",
+        "desc": "將譜面 UI 組件（如譜面名字、連擊數）綁定到判定線，使之跟隨判定線移動。\n一個 UI 僅能綁定一條判定線，而一條判定線可以綁定多個 UI。",
         "name": "曲目名稱",
         "bar": "進度條",
-        "combo": "COMBO文本",
+        "combo": "COMBO 文本",
         "combonumber": "連擊數",
         "level": "難度等級",
         "pause": "暫停按鈕",
@@ -173,9 +218,13 @@
       "uploadSuccess": "上傳成功。",
       "delete": "刪除判定線"
     },
+    "lines": {
+      "name": "新組名"
+    },
     "player": {
-      "showsUI": "顯示UI",
-      "showsLineID": "顯示線號"
+      "showsUI": "顯示 UI",
+      "showsLineID": "顯示線號",
+      "hitEffectNoFollows": "打擊滯留"
     },
     "notes": {
       "showsNNN": {
@@ -184,7 +233,7 @@
       },
       "NNList": {
         "term": "音符節點列表",
-        "desc": "音符節點列表是音符節點的序列，它們包含同大類、同速度、同Y軸偏移範圍的音符。\n*代表顯示該判定線所有列表。"
+        "desc": "音符節點列表是音符節點的序列，它們包含同大類、同速度、同 Y 軸偏移範圍的音符。\n*代表顯示該判定線所有列表。"
       },
       "addNote": "添加音符",
       "noteType": "音符類型"
@@ -192,25 +241,81 @@
     "events": {
       "layerAndSeq": "事件層與序列",
       "layers": {
-        "0": "默認層(0)",
-        "1": "普1層(1)",
-        "2": "普2層(2)",
-        "3": "普3層(3)",
-        "ex": "特殊層(ex)"
+        "0": "默認層 (0)",
+        "1": "普 1 層 (1)",
+        "2": "普 2 層 (2)",
+        "3": "普 3 層 (3)",
+        "ex": "特殊層 (ex)"
       },
       "timeSpan": "時間跨度",
-      "addNodePair": "添加節點對"
+      "addNodePair": "添加節點對",
+      "encapsule": "封裝",
+      "templateName": "模板名",
+      "templateNameEmpty": "請填寫模板名",
+      "templateNameOccupied": "該模板名已被使用",
+      "encapsuleErr": {
+        "noContinuous": "節點對不連續",
+        "notBelongToSourceSequence": "節點不屬於源序列",
+        "zeroDelta": "數值變化量為 0.封裝的模板緩動需要非零數值變化量，請檢查頭尾的藍節點。"
+      },
+      "noNodeSelected": "未選中任何節點。"
+    },
+    "multiNode": {
+      "title": "多節點編輯 ({count} 個節點來自 {ids})",
+      "delete": "刪除",
+      "reverse": "反轉",
+      "execute": "執行",
+      "start": "起始節點",
+      "end": "結束節點",
+      "backToBack": "背靠背",
+      "faceToFace": "面對面",
+      "value": "值",
+      "time": "時間",
+      "snippets": "代碼片段",
+      "snippetHelp": "幫助",
+      "snippetFillCurve": "填充曲線",
+      "each": "每個"
+    },
+    "multiNote": {
+      "title": "多音符編輯 ({count} 個音符來自 {lines} 條判定線)",
+      "warning-different-lines": "警告：選中的音符來自不同的判定線，但 '填充' 功能只會填充到選中判定線的音符中。",
+      "delete": "刪除",
+      "reverse": "反轉",
+      "execute": "執行",
+      "eachNote": "每個音符",
+      "snippets": "代碼片段",
+      "fillEachNeighbors": "在相鄰音符之間填充，步長為：",
+      "fill": "填充"
+    },
+    "chart": {
+      "info": "譜面信息",
+      "id": "譜面標識符",
+
+      "title": "標題",
+      "charter": "譜師",
+      "illustrator": "畫師",
+      "composer": "曲師",
+      "offset": "偏移量",
+      "level": "難度等級",
+
+      "save": "保存譜面",
+      "exit": "退出譜面",
+      "confirm": "譜面未保存，您確定要離開嗎？",
+      "noMessage": "寫個提交摘要吧，簡單總結自己修改了譜面的什麼，方便版本查找",
+      "saveSuccess": "譜面已成功保存。",
+      "summary": "寫譜摘要",
+      "openInExplorer": "在資源管理器中打開"
     }
   },
   "general": {
     "pixel": "像素",
     "preservesPitch": "原調",
     "eventTypes": {
-      "moveX": "X軸移動",
-      "moveY": "Y軸移動",
+      "moveX": "X 軸移動",
+      "moveY": "Y 軸移動",
       "rotate": "旋轉",
-      "scaleX": "X軸縮放",
-      "scaleY": "Y軸縮放",
+      "scaleX": "X 軸縮放",
+      "scaleY": "Y 軸縮放",
       "alpha": "不透明度",
       "color": "顏色",
       "text": "文本",
@@ -218,6 +323,7 @@
       "easing": "緩動",
       "bpm": "BPM"
     },
-    "beat": "拍"
+    "beat": "拍",
+    "wheel": "滾輪"
   }
 }
