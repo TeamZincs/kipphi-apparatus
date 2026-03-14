@@ -1847,7 +1847,7 @@ dependencies = [
 
 [[package]]
 name = "kipphi-apparatus"
-version = "0.1.0"
+version = "2.1.0"
 dependencies = [
  "async-stream",
  "futures",
