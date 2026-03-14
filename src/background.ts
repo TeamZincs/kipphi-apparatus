@@ -1,5 +1,6 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, readTextFile, mkdir, readFile, writeFile, rename, writeTextFile } from "@tauri-apps/plugin-fs";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 import YAML from "yaml";
 
@@ -22,6 +23,28 @@ export interface ChartHistoryEntry {
     filename: string;
 }
 
+export enum ReturnType {
+    u8,
+    blob,
+    arrayBuffer,
+    imageBmp
+}
+
+export type NonImageReturnType = ReturnType.u8 | ReturnType.blob | ReturnType.arrayBuffer;
+
+type TypeMap<RT extends ReturnType> = RT extends ReturnType.u8 ? Uint8Array<ArrayBuffer> :
+RT extends ReturnType.blob ? Blob :
+RT extends ReturnType.arrayBuffer ? ArrayBuffer :
+RT extends ReturnType.imageBmp ? ImageBitmap :
+null;
+
+const returningFromU8 = async <RT extends ReturnType>(u8Arr: Uint8Array<ArrayBuffer>, type: RT, mime: string): Promise<TypeMap<RT> > =>
+    type === ReturnType.u8 ? u8Arr as TypeMap<RT> :
+    type === ReturnType.blob ? new Blob([u8Arr], { type: mime }) as TypeMap<RT> :
+    type === ReturnType.arrayBuffer ? u8Arr.buffer as TypeMap<RT> :
+    type === ReturnType.imageBmp ? await createImageBitmap(new Blob([u8Arr], { type: mime })) as TypeMap<RT> :
+    null;
+
 type ChartHistory = ChartHistoryEntry[];
 
 
@@ -29,6 +52,7 @@ let APP_DATA_DIR: string;
 let CHART_DIR: string;
 let TRASH_DIR: string;
 let RESPACK_DIR: string;
+let DOWNLOAD_DIR: string;
 
 /**
  * 查询应用数据目录、谱面目录和谱面回收站目录。
@@ -42,9 +66,10 @@ export async function queryMeta() {
         CHART_DIR = await join(APP_DATA_DIR, "charts");
         TRASH_DIR = await join(APP_DATA_DIR, "trash");
         RESPACK_DIR = await join(APP_DATA_DIR, "respack");
+        DOWNLOAD_DIR = await join(APP_DATA_DIR, "downloads");
     }
     return {
-        APP_DATA_DIR, CHART_DIR, TRASH_DIR, RESPACK_DIR
+        APP_DATA_DIR, CHART_DIR, TRASH_DIR, RESPACK_DIR, DOWNLOAD_DIR
     }
 }
 
@@ -174,13 +199,19 @@ export async function saveChart(chartId: string, chart: Chart, summary: string) 
     await writeTextFile(filePath, chartStr);
 }
 
-interface ChartStruct {
+interface ChartStruct<RT extends NonImageReturnType = ReturnType.blob> {
     chart: Chart;
-    music: Blob;
-    illustration: Blob;
+    music: TypeMap<RT>;
+    illustration: TypeMap<RT>;
 }
 
-export async function getChart(chartId: string): Promise<ChartStruct> {
+/**
+ * 获取谱面项目（谱面对象，音乐和背景资源）。
+ * @param chartId 
+ * @param returning 使用此参数指定返回的音乐背景资源类型
+ * @returns 
+ */
+export async function getChartProject<RT extends NonImageReturnType = ReturnType.blob>(chartId: string, returning?: RT): Promise<ChartStruct<RT>> {
     const metadata = await queryChartMeta(chartId);
     const chartPath = await join(CHART_DIR, chartId, metadata.chart);
     const chartType = metadata.type;
@@ -193,12 +224,14 @@ export async function getChart(chartId: string): Promise<ChartStruct> {
     const music = await readAFileInChart(
         chartId,
         musicPath,
-        getMimeTypeFromName("audio", musicPath)
+        getMimeTypeFromName("audio", musicPath),
+        returning
     );
     const illustration = await readAFileInChart(
         chartId,
         illustrationPath,
-        getMimeTypeFromName("image", illustrationPath)
+        getMimeTypeFromName("image", illustrationPath),
+        returning
     );
     return {
         chart,
@@ -207,11 +240,25 @@ export async function getChart(chartId: string): Promise<ChartStruct> {
     }
 }
 
-export async function readAFileInChart(identifier: string, filename: string, mimeType: string) {
+export async function getChart(chartId: string): Promise<Chart> {
+    const metadata = await queryChartMeta(chartId);
+    const chartPath = await join(CHART_DIR, chartId, metadata.chart);
+    const chartType = metadata.type;
+    
+    const chartData = JSON.parse(await readTextFile(chartPath)) as ChartDataRPE | ChartDataKPA | ChartDataKPA2;
+    const chart = chartType === "RPE"
+        ? Chart.fromRPEJSON(chartData as ChartDataRPE, metadata.durationSecs)
+        : Chart.fromKPAJSON(chartData as ChartDataKPA | ChartDataKPA2);
+    return chart;
+}
+
+export async function readAFileInChart<RT extends ReturnType = ReturnType.blob>(identifier: string, filename: string, mimeType: string, returning?: RT) {
+    returning = returning || ReturnType.blob as RT;
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
-    return new Blob(
-        [await readFile(await join(CHART_DIRECTORY, identifier, filename))],
-        { type: mimeType}
+    return returningFromU8(
+        await readFile(await join(CHART_DIRECTORY, identifier, filename)),
+        returning,
+        mimeType
     );
 }
 
@@ -315,32 +362,31 @@ export async function uploadTexture(identifier: string, texture: File) {
     await writeFile(texturePath, new Uint8Array(await texture.arrayBuffer()));
 }
 
-export async function fetchTexture(identifier: string, name: string): Promise<ImageBitmap> {
+export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(identifier: string, name: string, returning?: RT): Promise<TypeMap<RT> > {
+    returning = returning || ReturnType.imageBmp as RT;
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
     if (await exists(texturesDir)) {
         
         const texturePath = await join(texturesDir, name);
         if (await exists(texturePath)) {
-                    
-            const blob = new Blob([await readFile(texturePath)], { type: getMimeTypeFromName("image", name) })
-            return await createImageBitmap(blob);
+            return await returningFromU8(await readFile(texturePath), returning, getMimeTypeFromName("image", name));
         }
     }
     // 如果不能搜索到，则在此谱面根目录搜索
     const thisChartDir = await join(CHART_DIRECTORY, identifier);
     const texturePath = await join(thisChartDir, name);
     if (await exists(texturePath)) {
-        const blob = new Blob([await readFile(texturePath)], { type: getMimeTypeFromName("image", name) })
+        const u8Arr = await readFile(texturePath);
         try { // 移动到textures中
             const texturesDir = await join(thisChartDir, "textures");
             if (!await exists(texturesDir)) {
                 await mkdir(texturesDir);
             }
             const texturePath = await join(texturesDir, name);
-            await writeFile(texturePath, await blob.bytes());
+            await writeFile(texturePath, u8Arr);
         } catch {}
-        return await createImageBitmap(blob);
+        return await returningFromU8(u8Arr, returning, getMimeTypeFromName("image", name));
     }
 }
 
@@ -412,4 +458,13 @@ export async function uploadRespack(respackName: string, zipFile: Blob) {
         const name = entry.name;
         await writeFile(await join(respackPath, name), new Uint8Array(entry.buffer));
     }
+}
+
+export async function downloadFile(filename: string, file: Uint8Array, opens: boolean = false) {
+    const downloadDirectory = DOWNLOAD_DIR || (await queryMeta()).DOWNLOAD_DIR;
+    if (!await exists(downloadDirectory)) {
+        await mkdir(downloadDirectory);
+    }
+    await writeFile(await join(downloadDirectory, filename), file);
+    if (opens) openPath(downloadDirectory);
 }

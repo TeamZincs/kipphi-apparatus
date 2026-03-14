@@ -1,4 +1,4 @@
-import { saveChart as _saveChart } from "#/queryCharts";
+import { saveChart as _saveChart } from "#/background";
 import type { Chart } from "kipphi";
 import { chartId } from "./store.svelte";
 

@@ -14,7 +14,7 @@
         uploadRespack,
         uploadTexture,
         type RespackEntry,
-    } from "#/queryCharts";
+    } from "#/background";
     import { KPASettings } from "#/settings.svelte";
     import Respack from "./Respack.svelte";
 

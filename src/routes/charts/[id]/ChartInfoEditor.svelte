@@ -10,7 +10,7 @@
     import { onSave, saveChart } from "./save";
     import { notify } from "../../../notify.svelte";
     import Button from "#/components/buttons/Button.svelte";
-    import { getPathOfChart } from "#/queryCharts";
+    import { getPathOfChart } from "#/background";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
     import { goto } from "$app/navigation";
 

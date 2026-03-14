@@ -14,8 +14,7 @@
       "deleteSuccess": "Chart {name} has been deleted.",
       "export": "Export"
     },
-    "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware.",
-    "subscribe": "Bookmark our website: https://pgrfm.miraheze.org/!"
+    "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware."
   },
   "settings": {
     "language": "Language",
@@ -143,7 +142,7 @@
       "tintHitEffect": "Hit Effect Tint",
       "judgeSize": "Judgement Area Size",
       "setAsDefault": "Set as Default",
-      "delete": "Delete Note",
+      "delete": "Delete",
 
       "warning-not-from-selected-line": "Warning: This Note does not belong to the selected judge line {line}.",
       "warning-lone-note": "Warning: This Note does not exist in the chart."
@@ -216,7 +215,7 @@
       "select": "Select",
       "uploadWarning": "Filename is already in use. Upload will overwrite the existing texture. See {dir}",
       "uploadSuccess": "Upload successful.",
-      "delete": "Delete Judge Line"
+      "delete": "Delete"
     },
     "lines": {
       "name": "New Group Name"

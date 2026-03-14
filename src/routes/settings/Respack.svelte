@@ -2,7 +2,7 @@
     import Button from "#/components/buttons/Button.svelte";
     import { _ } from "#/i18n";
     import { openPath as openPath } from "#/opener";
-    import { getFileInRespack } from "#/queryCharts";
+    import { getFileInRespack } from "#/background";
     import { respackId as currentRespackId, useRespack } from "#/respack.svelte";
     import { onDestroy } from "svelte";
 

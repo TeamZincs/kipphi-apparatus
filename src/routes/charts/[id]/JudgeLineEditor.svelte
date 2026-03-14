@@ -16,7 +16,7 @@
     import type { UIName } from "kipphi";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
-    import { fetchTexture, getTexturePathOf, getTextures, uploadTexture } from "#/queryCharts";
+    import { fetchTexture, getTexturePathOf, getTextures, uploadTexture } from "#/background";
     import { notify } from "../../../notify.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import Button from "#/components/buttons/Button.svelte";

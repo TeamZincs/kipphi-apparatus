@@ -25,7 +25,7 @@
     "autosaveComment": "自動保存只會保存修改過的譜面，每次自動保存增加一次製譜時間。\n（也就是說，如果掛機，自動保存不會塞滿你的硬盤，也不會統計這部分時間）",
     "autosaveInterval": "自動保存間隔",
     "hotkey": "熱鍵",
-    "joke": "騙你的，熱鍵不支持定製化，這只是教程（笑",
+    "joke": "騙你的，熱鍵不支持客製化，這只是教程（笑",
     "hotkeys": {
       "playpause": "播放/暫停",
       "placeNode": "（事件序列編輯器）放置事件節點對",
@@ -306,6 +306,11 @@
       "summary": "寫譜摘要",
       "openInExplorer": "在資源管理器中打開"
     }
+  },
+  "export": {
+    "convertToRPEJSONOnly": "僅轉譜為RPEJSON",
+    "exportPEZ": "導出PEZ文檔",
+    "noShaderSupport": "KPA只打包紋理，不會打包著色器。（事實上也不支持使用著色器）"
   },
   "general": {
     "pixel": "像素",

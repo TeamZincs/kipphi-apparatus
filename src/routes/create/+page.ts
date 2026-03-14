@@ -1,5 +1,5 @@
 
-import { queryCharts, queryMeta } from "../../queryCharts";
+import { queryCharts, queryMeta } from "../../background";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = async () => {

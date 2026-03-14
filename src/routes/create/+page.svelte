@@ -16,7 +16,7 @@
     type EventNodeSequenceDataKPA2, type EventType, type EventValueESType, type JudgeLineDataKPA2
   } from "kipphi";
   
-  import { type ChartMetadata } from "#/queryCharts";
+  import { type ChartMetadata } from "#/background";
 
   const { data }: { data: PageData } = $props();
   const identifiers = new Set(data.chartInfos.map((info) => info.identifier));

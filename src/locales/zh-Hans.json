@@ -307,6 +307,11 @@
       "openInExplorer": "在资源管理器中打开"
     }
   },
+  "export": {
+    "convertToRPEJSONOnly": "仅转谱为RPEJSON",
+    "exportPEZ": "导出PEZ文件",
+    "noShaderSupport": "KPA只打包纹理，不会打包着色器。（事实上也不支持使用着色器）"
+  },
   "general": {
     "pixel": "像素",
     "preservesPitch": "原调",

@@ -32,7 +32,7 @@
         type JudgeLineDataKPA2,
     } from "kipphi";
 
-    import { parseRawInfoTxt, parseInfoTxt, saveAFileToChart, type ChartMetadata } from "#/queryCharts";
+    import { parseRawInfoTxt, parseInfoTxt, saveAFileToChart, type ChartMetadata } from "#/background";
     import { unzip } from "#/uncompress";
     import { type UnzippedFile } from "#/workers/unzip.worker";
 

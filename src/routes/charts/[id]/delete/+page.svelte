@@ -2,7 +2,7 @@
     import Navigator from "#/components/Navigator.svelte";
     import type { PageData } from "./$types";
     import { _ } from "#/i18n";
-    import { disposeChart as delChart } from "#/queryCharts";
+    import { disposeChart as delChart } from "#/background";
     import ImageLoader from "#/components/ImageLoader.svelte";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
 

@@ -1,6 +1,6 @@
 import { Respack } from "kipphi-player";
 import { unzip } from "./uncompress";
-import { getFileInRespack } from "./queryCharts";
+import { getFileInRespack } from "./background";
 import { KPASettings } from "./settings.svelte";
 import { writable, type Writable } from "svelte/store";
 

@@ -1,5 +1,5 @@
 import type { PageLoad } from "./$types";
-import { queryCharts, readChart, queryMeta } from "#/queryCharts";
+import { queryCharts, readChart, queryMeta } from "#/background";
 import type { ChartDataRPE } from "kipphi";
 import type { ChartDataKPA } from "kipphi";
 

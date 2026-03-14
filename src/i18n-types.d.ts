@@ -220,6 +220,9 @@ export interface I18nMapping {
 "main.chart.saveSuccess": never;
 "main.chart.summary": never;
 "main.chart.openInExplorer": never;
+"export.convertToRPEJSONOnly": never;
+"export.exportPEZ": never;
+"export.noShaderSupport": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;

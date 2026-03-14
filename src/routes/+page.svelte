@@ -31,8 +31,8 @@
               <a href="/charts/{chart.identifier}" class="edit-link"
                 >{$_("chartIndex.charts.edit")}</a
               >
-              <span role="link" class="export-link"
-                >{$_("chartIndex.charts.export")}</span
+              <a class="export-link" href="/charts/{chart.identifier}/export"
+                >{$_("chartIndex.charts.export")}</a
               >
               <a href="/charts/{chart.identifier}/delete" class="delete-link"
                 >{$_("chartIndex.charts.delete")}</a
