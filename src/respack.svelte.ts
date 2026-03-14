@@ -11,6 +11,9 @@ export async function useDefaultRespack() {
     respack = await Respack.loadFromPhira(
         async (filename) => {
             const res = await fetch(`/default/${filename}`);
+            if (!res.ok) {
+                return null;
+            }
             return res.blob();
         }
     );
