@@ -37,4 +37,8 @@ export async function useRespack(respackName: string) {
     return await useUserRespack(respackName);
 }
 
-await useRespack(KPASettings.respack)
+let prom = useRespack(KPASettings.respack);
+
+export async function waitRespack() {
+    await prom;
+}

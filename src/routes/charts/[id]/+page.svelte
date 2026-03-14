@@ -35,7 +35,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import MultiNoteEditor from "./MultiNoteEditor.svelte";
     import { KPASettings } from "#/settings.svelte";
     import { notify } from "#/notify.svelte";
-    import { respack } from "#/respack.svelte";
+    import { respack, waitRespack } from "#/respack.svelte";
 
 
 let {
@@ -56,6 +56,7 @@ audio.addEventListener("ended", () => {
     isPlaying = false;
 })
 // 这里启用了实验性功能，随时都有可能出现破坏性更改，如果出现，需要修改此处
+await waitRespack();
 const illustration = await createImageBitmap(data.illustration);
 let audioProcessor: AudioProcessor;
 if (respack.TAP_SE && respack.DRAG_SE && respack.FLICK_SE) {
