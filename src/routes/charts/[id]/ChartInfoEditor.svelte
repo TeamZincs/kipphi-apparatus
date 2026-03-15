@@ -8,7 +8,7 @@
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import { onSave, saveChart } from "./save";
-    import { notify } from "../../../notify.svelte";
+    import { notify } from "#/notify.svelte";
     import Button from "#/components/buttons/Button.svelte";
     import { getPathOfChart } from "#/background";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
