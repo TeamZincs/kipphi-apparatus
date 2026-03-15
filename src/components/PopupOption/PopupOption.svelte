@@ -109,9 +109,12 @@
     };
   });
 
-  onMount(() => {
-    const rect = buttonRef.getBoundingClientRect();
-    isLeft = rect.left < window.innerWidth / 2;
+  $effect(() => {
+    // 确保 buttonRef 已经绑定到 DOM 元素
+    if (buttonRef) {
+      const rect = buttonRef.getBoundingClientRect();
+      isLeft = rect.left < window.innerWidth / 2;
+    }
   });
 </script>
 

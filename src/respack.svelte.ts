@@ -10,6 +10,9 @@ export async function useDefaultRespack() {
     respackId.set("Default")
     respack = await Respack.loadFromPhira(
         async (filename) => {
+            if (filename.endsWith(".ogg")) {
+                return null;
+            }
             const res = await fetch(`/default/${filename}`);
             if (!res.ok) {
                 return null;
