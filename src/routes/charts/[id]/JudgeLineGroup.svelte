@@ -3,7 +3,7 @@
     import JudgeLineManager from "./JudgeLineManager.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import { chartId, operationList } from "./store.svelte";
-    import { Operation } from "../../../../../kipphi/packages/package-kipphi/operation";
+    const Operation = Op.Operation;
     let {
         target
     }: {
