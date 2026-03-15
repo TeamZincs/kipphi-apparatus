@@ -17,7 +17,7 @@
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
     import { fetchTexture, getTexturePathOf, getTextures, uploadTexture } from "#/background";
-    import { notify } from "../../../notify.svelte";
+    import { notify } from "#/notify.svelte";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import Button from "#/components/buttons/Button.svelte";
     import UploadButton from "#/components/buttons/UploadButton.svelte";
