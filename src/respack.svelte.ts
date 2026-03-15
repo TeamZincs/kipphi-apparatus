@@ -14,6 +14,11 @@ export async function useDefaultRespack() {
             if (!res.ok) {
                 return null;
             }
+            const blob = await res.blob();
+            if (blob.type === "text/html") {
+                // 生产环境下资源不存在不会返回404
+                return null;
+            }
             return res.blob();
         }
     );
