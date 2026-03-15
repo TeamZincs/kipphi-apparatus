@@ -10,13 +10,11 @@ export async function useDefaultRespack() {
     respackId.set("Default")
     respack = await Respack.loadFromPhira(
         async (filename) => {
-            const res = await fetch(`/default/${filename}`);
-            if (!res.ok) {
+            if (filename.endsWith(".ogg")) {
                 return null;
             }
-            const blob = await res.blob();
-            if (blob.type === "text/html") {
-                // 生产环境下资源不存在不会返回404
+            const res = await fetch(`/default/${filename}`);
+            if (!res.ok) {
                 return null;
             }
             return res.blob();
