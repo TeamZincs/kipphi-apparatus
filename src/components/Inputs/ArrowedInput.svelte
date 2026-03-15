@@ -38,7 +38,7 @@ function len(str: string) {
     <span class="up" onclick={() => {val += step; check()}}>↑</span>
     <span class="down" onclick={() => {val -= step; check();}}>↓</span>
     {#if suffix}
-        <span class="suffix" style={`font-size:${Math.min(5 / len(suffix), 2)}em; line-height:${3 / Math.min(5 / len(suffix), 2)}em`}>{suffix}</span>
+        <span class="suffix" style={`font-size:${Math.min(5 / len(suffix), 2)}em; line-height: 2em`}>{suffix}</span>
     {/if}
 </div>
 
@@ -51,6 +51,7 @@ div.arrowed-input {
     grid-template-columns: 1fr auto;
     position: relative;
     margin-inline: auto;
+    font-size: var(--font-size-medium);
     gap: 2px;
 }
 
