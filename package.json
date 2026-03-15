@@ -21,7 +21,10 @@
     "mime": "^4.1.0",
     "svelte-i18n": "^4.0.1",
     "svelte-portal": "^2.2.1",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.2",
+    "kipphi": "^2.1.0",
+    "kipphi-player": "^2.1.0",
+    "kipphi-canvas-editor": "^2.1.0"
   },
   "devDependencies": {
     "@internationalized/date": "^3.11.0",
