@@ -243,6 +243,7 @@ export interface I18nMapping {
 "general.eventTypes.easing": never;
 "general.eventTypes.bpm": never;
 "general.beat": never;
-"general.wheel": never
+"general.wheel": never;
+"general.pressIconToReturn": never
 }
 

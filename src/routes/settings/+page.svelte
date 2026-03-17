@@ -26,7 +26,7 @@
 </script>
 
 <main class="container">
-    <Navigator></Navigator>
+    <Navigator><span class="return">{$_("general.pressIconToReturn")}</span></Navigator>
     <div class="content">
         <h1>{$_("chartIndex.nav.settings")}</h1>
         <div class="settings-columns">
@@ -146,6 +146,9 @@
         background-color: #777;
         height: 100%;
         h1 {
+            color: var(--color-foreground);
+        }
+        .return {
             color: var(--color-foreground);
         }
     }

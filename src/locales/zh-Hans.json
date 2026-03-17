@@ -337,6 +337,7 @@
       "bpm": "BPM"
     },
     "beat": "拍",
-    "wheel": "滚轮"
+    "wheel": "滚轮",
+    "pressIconToReturn": "按图标返回主页"
   }
 }

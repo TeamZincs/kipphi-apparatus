@@ -8,7 +8,9 @@ main {
     align-items: center;
     height: 100%;
     flex-direction: column;
-
+    padding-top: 5em;
+    box-sizing: border-box;
+    overflow: auto;
 }
 
 
