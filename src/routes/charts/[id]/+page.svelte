@@ -433,7 +433,7 @@ updateTip();
                 loops
             />
             {#if $activeSidebar === Sidebar.DEFAULT}
-                <Label>Player</Label>
+                <Label>{$_("main.sidebar.player")}</Label>
                 <TextSwitchButton wide bgText={$_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$playerShowsUI}/>
                 <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$playerShowsLineID}/>
                 <TextSwitchButton wide bgText={$_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$playerHitEffectNoFollows}/>

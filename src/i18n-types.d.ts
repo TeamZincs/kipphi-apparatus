@@ -83,6 +83,9 @@ export interface I18nMapping {
 "main.sidebar.judgeLineLayout.ordered": never;
 "main.sidebar.judgeLineLayout.tree": never;
 "main.sidebar.judgeLineLayout.group": never;
+"main.sidebar.player": never;
+"main.sidebar.notes": never;
+"main.sidebar.events": never;
 "main.secondary.lines": never;
 "main.secondary.note": never;
 "main.secondary.event": never;
@@ -244,6 +247,7 @@ export interface I18nMapping {
 "general.eventTypes.bpm": never;
 "general.beat": never;
 "general.wheel": never;
-"general.pressIconToReturn": never
+"general.pressIconToReturn": never;
+"general.multiSelectMode": never
 }
 

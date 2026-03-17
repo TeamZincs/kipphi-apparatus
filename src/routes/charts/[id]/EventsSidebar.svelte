@@ -18,7 +18,7 @@
         : ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "bpm"] satisfies Exclude<keyof typeof EventType, ExtendedEventTypeName>[])
     let texts = $derived(options.map(name => $_(`general.eventTypes.${name}`)))
 </script>
-<Label>Events</Label>
+<Label>{$_("main.sidebar.events")}</Label>
 <Label small>{$_("main.events.layerAndSeq")}</Label>
 <PopupOption wide
     options={
@@ -78,7 +78,7 @@ bind:value={$templateName}>
             );
             operationList.do(operation);
         } catch (e) {
-            if (e instanceof Env.KPAError)
+            if (e instanceof KPAError)
                 return notify(e.message, "error");
         }
     }

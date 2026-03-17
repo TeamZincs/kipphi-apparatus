@@ -8,6 +8,7 @@
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { onMount } from "svelte";
     import { NoteType, type NNList } from "kipphi";
+    import { SelectState } from "kipphi-canvas-editor";
 
     let judgeLine = $derived(operationList.chart.judgeLines[$selectedLineNumber]);
     let options = $state.raw([]);
@@ -49,10 +50,10 @@
 </script>
 
 
-<Label>Notes</Label>
+<Label>{$_("main.sidebar.notes")}</Label>
 <TextSwitchButton wide bgText={$_("main.notes.addNote")}
     onText="+" offText="-" bind:checked={$notesEditChecked}/>
-<Label>{$_("main.notes.noteType")}</Label>
+<Label small>{$_("main.notes.noteType")}</Label>
 <PopupOption wide options={
     [NoteType.tap, NoteType.hold, NoteType.flick, NoteType.drag]
 } displayTexts={
@@ -74,6 +75,18 @@
 } displayTexts={
     options.map(option => option[0])
 } currentOption={currentOption}></PopupOption>
+
+<PopupOption wide options={
+    [
+        SelectState.none,
+        SelectState.extend,
+        SelectState.replace,
+        SelectState.exclude
+    ]
+} displayTexts={
+    [
+    ]
+}/>
 
 <style scoped>
     .flex {

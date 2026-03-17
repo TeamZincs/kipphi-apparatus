@@ -114,7 +114,10 @@
         "ordered": "按序平铺",
         "tree": "树形布局",
         "group": "分组布局"
-      }
+      },
+      "player": "播放器设置",
+      "notes": "音符编辑设置",
+      "events": "事件编辑设置"
     },
     "secondary": {
       "lines": "判定线列表",
@@ -338,6 +341,7 @@
     },
     "beat": "拍",
     "wheel": "滚轮",
-    "pressIconToReturn": "按图标返回主页"
+    "pressIconToReturn": "按图标返回主页",
+    "multiSelectMode": "多选模式"
   }
 }
