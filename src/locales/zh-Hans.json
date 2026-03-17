@@ -342,6 +342,12 @@
     "beat": "拍",
     "wheel": "滚轮",
     "pressIconToReturn": "按图标返回主页",
-    "multiSelectMode": "多选模式"
+    "multiSelectMode": "多选模式",
+    "modes": {  
+      "replace": "重选",
+      "extend": "扩选",
+      "substract": "排除",
+      "none": "非多选"
+    }
   }
 }

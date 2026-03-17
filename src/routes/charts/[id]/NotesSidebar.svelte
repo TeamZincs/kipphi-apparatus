@@ -1,7 +1,8 @@
 <script lang="ts">
+    import { SquaresSubtract, SquaresUnite, Replace, SquareX } from "@lucide/svelte";
     import Label from "#/components/Label.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
-    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList } from "./store.svelte";
+    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList, notesScopeSelectMode, notesTimeSpan } from "./store.svelte";
 
     import { _ } from "#/i18n";
     import Tooltip from "#/components/Tooltip.svelte";
@@ -9,6 +10,7 @@
     import { onMount } from "svelte";
     import { NoteType, type NNList } from "kipphi";
     import { SelectState } from "kipphi-canvas-editor";
+    import UnitInput from "#/components/Inputs/UnitInput.svelte";
 
     let judgeLine = $derived(operationList.chart.judgeLines[$selectedLineNumber]);
     let options = $state.raw([]);
@@ -76,6 +78,10 @@
     options.map(option => option[0])
 } currentOption={currentOption}></PopupOption>
 
+<Label small>{$_("main.events.timeSpan")}</Label>
+<UnitInput bind:value={$notesTimeSpan} unit={$_("general.beat")}></UnitInput>
+
+<Label small>{$_("general.multiSelectMode")}</Label>
 <PopupOption wide options={
     [
         SelectState.none,
@@ -83,10 +89,24 @@
         SelectState.replace,
         SelectState.exclude
     ]
-} displayTexts={
-    [
-    ]
-}/>
+} bind:currentOption={$notesScopeSelectMode}>
+    {#snippet displayTexts(mode: SelectState)}
+        {#if mode === SelectState.none}
+            <SquareX/>
+            {$_("general.modes.none")}
+        {:else if mode === SelectState.extend}
+            <SquaresUnite/>
+            {$_("general.modes.extend")}
+        {:else if mode === SelectState.replace}
+            <Replace/>
+            {$_("general.modes.replace")}
+        {:else if mode === SelectState.exclude}
+            <SquaresSubtract/>
+            {$_("general.modes.substract")}
+        {/if}
+
+    {/snippet}
+</PopupOption>
 
 <style scoped>
     .flex {

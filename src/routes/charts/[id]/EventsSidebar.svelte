@@ -2,7 +2,7 @@
     import Label from "#/components/Label.svelte";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { EventType, type ExtendedEventTypeName, KPAError, Op } from "kipphi";
-    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, operationList, useEasing, templateName } from "./store.svelte";
+    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, eventsScopeSelectMode, operationList, useEasing, templateName } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
@@ -11,6 +11,8 @@
     import { EventSequenceEditor } from "kipphi-canvas-editor/eventCurveEditor";
     import { notify } from "#/notify.svelte";
     import { eventSequenceEditors } from "./store.svelte";
+    import { SelectState } from "kipphi-canvas-editor";
+    import { Replace, SquaresSubtract, SquaresUnite, SquareX } from "@lucide/svelte";
 
     let options = $derived(
         $eventsLayer === 'ex'
@@ -49,6 +51,34 @@
     onText="+" offText="-" bind:checked={$eventsEditChecked}/>
 
 <EasingBox bind:value={$useEasing}></EasingBox>
+
+
+<Label small>{$_("general.multiSelectMode")}</Label>
+<PopupOption wide options={
+    [
+        SelectState.none,
+        SelectState.extend,
+        SelectState.replace,
+        SelectState.exclude
+    ]
+} bind:currentOption={$eventsScopeSelectMode}>
+    {#snippet displayTexts(mode: SelectState)}
+        {#if mode === SelectState.none}
+            <SquareX/>
+            {$_("general.modes.none")}
+        {:else if mode === SelectState.extend}
+            <SquaresUnite/>
+            {$_("general.modes.extend")}
+        {:else if mode === SelectState.replace}
+            <Replace/>
+            {$_("general.modes.replace")}
+        {:else if mode === SelectState.exclude}
+            <SquaresSubtract/>
+            {$_("general.modes.substract")}
+        {/if}
+
+    {/snippet}
+</PopupOption>
 
 {#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY"].includes($eventsType)}
 <input type="text" class="template-name"

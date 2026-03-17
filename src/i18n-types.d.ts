@@ -248,6 +248,10 @@ export interface I18nMapping {
 "general.beat": never;
 "general.wheel": never;
 "general.pressIconToReturn": never;
-"general.multiSelectMode": never
+"general.multiSelectMode": never;
+"general.modes.replace": never;
+"general.modes.extend": never;
+"general.modes.substract": never;
+"general.modes.none": never
 }
 
