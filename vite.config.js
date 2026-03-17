@@ -1,9 +1,20 @@
 
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
+import TAURI_CONF from "./src-tauri/tauri.conf.json";
+import fs from "fs";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+
+const TAURI_CONF_VERSION = TAURI_CONF.version;
+
+const getNPMPackageVersion = async (packageName) => {
+  const jsonContent = fs.readFileSync("./node_modules/" + packageName + "/package.json");
+  const version = JSON.parse(jsonContent).version;
+  console.log(version)
+  return JSON.stringify(version);
+}
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
@@ -23,5 +34,11 @@ export default defineConfig(async () => ({
   },
   build: {
     minify: false,
+  },
+  define: {
+    "__APP_VERSION": JSON.stringify(TAURI_CONF_VERSION),
+    "__PLAYER_VERSION": await getNPMPackageVersion("kipphi-player"),
+    "__CANVAS_EDITOR_VERSION": await getNPMPackageVersion("kipphi-canvas-editor"),
+    "__KIPPHI_VERSION": await getNPMPackageVersion("kipphi"),
   }
 }));

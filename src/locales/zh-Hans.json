@@ -312,6 +312,14 @@
     "exportPEZ": "导出PEZ文件",
     "noShaderSupport": "KPA只打包纹理，不会打包着色器。（事实上也不支持使用着色器）"
   },
+  "about": {
+    "title": "关于",
+    "desc": "奇谱发生器（Kipphi Apparatus，简称KPA）是由Zes Minkey Young（杨哲思）开发的一款Phigros谱面编辑器。",
+    "player": "奇谱播放器版本",
+    "canvasEditor": "奇谱画布编辑器版本",
+    "apparatus": "本软件版本",
+    "kipphi": "奇谱内核版本"
+  },
   "general": {
     "pixel": "像素",
     "preservesPitch": "原调",

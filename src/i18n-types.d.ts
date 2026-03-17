@@ -223,6 +223,12 @@ export interface I18nMapping {
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;
+"about.title": never;
+"about.desc": never;
+"about.player": never;
+"about.canvasEditor": never;
+"about.apparatus": never;
+"about.kipphi": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;
