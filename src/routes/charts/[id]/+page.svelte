@@ -20,7 +20,7 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLinesManager.svelte";
 
-import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes, timeDivisor, playerHitEffectNoFollows } from "./store.svelte";
+import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes, timeDivisor, playerHitEffectNoFollows, chartId } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
@@ -36,6 +36,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import { KPASettings } from "#/settings.svelte";
     import { notify } from "#/notify.svelte";
     import { respack, waitRespack } from "#/respack.svelte";
+    import { fetchTexture } from "#/background";
 
 
 let {
@@ -293,7 +294,9 @@ onMount(async () => {
     window.player = player;
     // @ts-expect-error 仅供调试
     window.operationList = operationList;
-    player.receive(chart, () => void 0);
+    player.receive(chart, (name) => {
+        return fetchTexture(chartId, name)
+    });
 
     if (KPASettings.autosaveEnabled) {
         AutoSaveRunner.init(chart);
