@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { Languages } from "@lucide/svelte";
+
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import UploadButton from "#/components/buttons/UploadButton.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
@@ -29,7 +31,7 @@
         <h1>{$_("chartIndex.nav.settings")}</h1>
         <div class="settings-columns">
             <div class="settings-column">
-                <Label small>{$_("settings.language")}</Label>
+                <Label small><Languages/>{$_("settings.language")}</Label>
                 <PopupOption
                     wide
                     options={Object.keys(localeLangNames)}
