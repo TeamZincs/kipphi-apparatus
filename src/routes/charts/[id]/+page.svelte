@@ -3,7 +3,7 @@ import { Player, AudioProcessor, Images } from "kipphi-player";
 import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
 import type { PageData } from "./$types";
 import { onMount, tick, onDestroy } from "svelte";
-import { Chart, EventType, Op as O, type ExtendedEventTypeName } from "kipphi";
+import { Chart, EventType, KPAError, Op as O, type ExtendedEventTypeName } from "kipphi";
 
 import { _ } from "#/i18n";
 
@@ -37,6 +37,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import { notify } from "#/notify.svelte";
     import { respack, waitRespack } from "#/respack.svelte";
     import { fetchTexture } from "#/background";
+    import Errors from "./Errors.svelte";
 
 
 let {
@@ -298,6 +299,12 @@ onMount(async () => {
         return fetchTexture(chartId, name)
     });
 
+    if (KPAError.buffer.length > 0) {
+        setTimeout(() => {
+            notify($_("main.errors.notify"), "error")
+        }, 3000)
+    }
+
     if (KPASettings.autosaveEnabled) {
         AutoSaveRunner.init(chart);
         AutoSaveRunner.run();
@@ -365,7 +372,10 @@ updateTip();
         <div class="sidebar-content">
             <PopupOption wide
                 options={
-                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE, SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE]
+                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE,
+                    SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE,
+                    SecondarySidebar.ERRORS
+                ]
                 }
                 displayTexts={[
                     $_("main.secondary.lines"),
@@ -374,7 +384,8 @@ updateTip();
                     $_("main.secondary.line"),
                     $_("main.secondary.chart"),
                     $_("main.secondary.multiNode"),
-                    $_("main.secondary.multiNote")
+                    $_("main.secondary.multiNote"),
+                    $_("main.secondary.errors")
                 ]}
                 bind:currentOption={$activeSecondarySidebar}
             ></PopupOption>
@@ -404,6 +415,8 @@ updateTip();
                 {#if $selectedNotes && $selectedNotes.size > 0}
                     <MultiNoteEditor target={$selectedNotes}></MultiNoteEditor>
                 {/if}
+            {:else if $activeSecondarySidebar === SecondarySidebar.ERRORS}
+                <Errors/>
             {/if}
         </div>
     </div>

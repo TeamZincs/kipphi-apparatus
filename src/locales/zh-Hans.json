@@ -126,7 +126,8 @@
       "line": "管理所选判定线",
       "chart": "谱面信息",
       "multiNode": "多节点编辑",
-      "multiNote": "多音符编辑"
+      "multiNote": "多音符编辑",
+      "errors": "谱面错误"
     },
     "note": {
       "noNote": "没有目标音符或目标音符已被移除",
@@ -311,6 +312,10 @@
       "saveSuccess": "谱面已成功保存。",
       "summary": "写谱摘要",
       "openInExplorer": "在资源管理器中打开"
+    },
+    "errors": {
+      "title": "错误",
+      "notify": "谱面中存在错误，打开“错误”次侧栏以检查。"
     }
   },
   "export": {

@@ -93,6 +93,7 @@ export interface I18nMapping {
 "main.secondary.chart": never;
 "main.secondary.multiNode": never;
 "main.secondary.multiNote": never;
+"main.secondary.errors": never;
 "main.note.noNote": never;
 "main.note.type": never;
 "main.note.time": never;
@@ -226,6 +227,8 @@ export interface I18nMapping {
 "main.chart.saveSuccess": never;
 "main.chart.summary": never;
 "main.chart.openInExplorer": never;
+"main.errors.title": never;
+"main.errors.notify": never;
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;
