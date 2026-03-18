@@ -169,6 +169,7 @@ export interface I18nMapping {
 "main.notes.NNList.desc": never;
 "main.notes.addNote": never;
 "main.notes.noteType": never;
+"main.notes.positionXInterval": never;
 "main.events.layerAndSeq": never;
 "main.events.layers.0": never;
 "main.events.layers.1": never;
@@ -184,6 +185,8 @@ export interface I18nMapping {
 "main.events.encapsuleErr.noContinuous": never;
 "main.events.encapsuleErr.notBelongToSourceSequence": never;
 "main.events.encapsuleErr.zeroDelta": never;
+"main.events.range": never;
+"main.events.invalidRange": never;
 "main.events.noNodeSelected": never;
 "main.multiNode.title": "count" | "ids";
 "main.multiNode.delete": never;

@@ -239,7 +239,8 @@
         "desc": "音符节点列表是音符节点的序列，它们包含同大类、同速度、同Y轴偏移范围的音符。\n*代表显示该判定线所有列表。"
       },
       "addNote": "添加音符",
-      "noteType": "音符类型"
+      "noteType": "音符类型",
+      "positionXInterval": "竖线间隔"
     },
     "events": {
       "layerAndSeq": "事件层与序列",
@@ -261,6 +262,8 @@
         "notBelongToSourceSequence": "节点不属于源序列",
         "zeroDelta": "数值变化量为0.封装的模板缓动需要非零数值变化量，请检查头尾的蓝节点。"
       },
+      "range": "数值范围",
+      "invalidRange": "数值范围无效",
       "noNodeSelected": "未选中任何节点。"
     },
     "multiNode": {

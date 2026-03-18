@@ -2,7 +2,7 @@
     import { SquaresSubtract, SquaresUnite, Replace, SquareX } from "@lucide/svelte";
     import Label from "#/components/Label.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
-    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList, notesScopeSelectMode, notesTimeSpan } from "./store.svelte";
+    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList, notesScopeSelectMode, notesTimeSpan, notesPositionCenter, notesPositionXInterval } from "./store.svelte";
 
     import { _ } from "#/i18n";
     import Tooltip from "#/components/Tooltip.svelte";
@@ -107,6 +107,10 @@
 
     {/snippet}
 </PopupOption>
+
+<UnitInput bind:value={$notesPositionCenter} step={$notesPositionXInterval} unit="px"></UnitInput>
+<Label small>{$_("main.notes.positionXInterval")}</Label>
+<UnitInput bind:value={$notesPositionXInterval} step={1} unit="px"></UnitInput>
 
 <style scoped>
     .flex {

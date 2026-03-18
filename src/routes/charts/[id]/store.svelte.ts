@@ -59,6 +59,8 @@ export const notesShowsNNN = writable(false);
 export const notesNoteType = writable(NoteType.tap);
 export const notesTimeSpan = writable(4);
 export const notesScopeSelectMode = writable(SelectState.none);
+export const notesPositionCenter = writable(0);
+export const notesPositionXInterval = writable(135);
 
 // EventSequenceEditorSettings - 每个属性独立的 writable store
 export const eventsEditChecked = writable(false);
@@ -151,7 +153,20 @@ notesScopeSelectMode.subscribe(v => {
     } else {
         notesEditor.state = NotesEditorState.select;
     }
+    notesEditor.draw();
 });
+
+notesPositionCenter.subscribe(v => {
+    if (!notesEditor) return;
+    notesEditor.setValueAsCenter(v);
+    notesEditor.draw();
+});
+
+notesPositionXInterval.subscribe(v => {
+    if (!notesEditor) return;
+    notesEditor.positionGridSpan = v;
+    notesEditor.draw();
+})
 
 // === EventSequenceEditorSettings 订阅 ===
 eventsEditChecked.subscribe(v => {
@@ -224,6 +239,8 @@ export function restoreStates() {
     notesNoteType.set(NoteType.tap);
     notesTimeSpan.set(4);
     notesScopeSelectMode.set(SelectState.none);
+    notesPositionCenter.set(0);
+    notesPositionXInterval.set(135);
 
     eventsEditChecked.set(false);
     eventsLayer.set("0");
