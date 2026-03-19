@@ -4,13 +4,13 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import TAURI_CONF from "./src-tauri/tauri.conf.json";
 import fs from "fs";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 const TAURI_CONF_VERSION = TAURI_CONF.version;
 
-const getNPMPackageVersion = async (packageName) => {
-  const jsonContent = fs.readFileSync("./node_modules/" + packageName + "/package.json");
+
+const getNPMPackageVersion = async (/** @type {string} */packageName) => {
+  const jsonContent = fs.readFileSync("./node_modules/" + packageName + "/package.json").toString();
   const version = JSON.parse(jsonContent).version;
   console.log(version)
   return JSON.stringify(version);
