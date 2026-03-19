@@ -185,6 +185,9 @@ document.addEventListener("keydown", (event) => {
             );
         }
         break;
+    case "Escape":
+        activeSecondarySidebar.set(SecondarySidebar.CHART);
+        break;
     case "z":
         operationList.undo();
         break;
