@@ -27,8 +27,6 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import Tooltip from "#/components/Tooltip.svelte";
     import JudgeLineEditor from "./JudgeLineEditor.svelte";
     import EventsSidebar from "./EventsSidebar.svelte";
-    import { EventCurveEditorState } from "kipphi-canvas-editor/eventCurveEditor";
-    import { event } from "@tauri-apps/api";
     import EventEditor from "./EventEditor.svelte";
     import ChartInfoEditor from "./ChartInfoEditor.svelte";
     import MultiNodeEditor from "./MultiNodeEditor.svelte";
@@ -38,6 +36,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import { respack, waitRespack } from "#/respack.svelte";
     import { fetchTexture } from "#/background";
     import Errors from "./Errors.svelte";
+    import { Redo2, Undo2 } from "@lucide/svelte";
 
 
 let {
@@ -105,6 +104,9 @@ let speed = $state("1.0x");
 let preservesPitch = $state(true);
 let renderingOffset = $state(-0.10);
 let judgeLinesLayout = $state(0b001);
+
+let undoAvailable = $state(false);
+let redoAvailable = $state(false);
 
 // let selectedLineNumber = $state(0);
 
@@ -259,6 +261,15 @@ onMount(async () => {
         }
         judgeLinesManager?.update();
     });
+    const updateUndoRedoAvailability = () => {
+        console.log("???")
+        undoAvailable = operationList.operations.length > 0;
+        redoAvailable = operationList.undoneOperations.length > 0;
+    }
+    operationList.addEventListener("do", updateUndoRedoAvailability);
+    operationList.addEventListener("undo", updateUndoRedoAvailability);
+    operationList.addEventListener("redo", updateUndoRedoAvailability);
+
     operationList.addEventListener("needsupdate", () => {
         player.render();
     });
@@ -493,14 +504,16 @@ updateTip();
     </div>
     <div id="secondary-footer">
         <span id="tips">Tips: {Constants.tips[tipIndex]}</span>
+        <Undo2 size={"4vh"} opacity={undoAvailable ? 1 : 0.2} onclick={() => operationList.undo()}/>
+        <Redo2 size={"4vh"} opacity={redoAvailable ? 1 : 0.2} onclick={() => operationList.redo()}/>
     </div>
 </main>
 
 <style lang="less">
     :root {
         --player-height: 85vh;
-        --bottom-bar-height: 12vh;
-        --bottom-tips-height: 3vh;
+        --bottom-bar-height: 11vh;
+        --bottom-tips-height: 4vh;
         --color-foreground: white;
     }
     .container {
@@ -529,6 +542,10 @@ updateTip();
         grid-column: 1 / 4;
         background-color: #333;
         color: white;
+        display: flex;
+        #tips {
+            flex: 1;
+        }
     }
     input[type="range"] {
         flex: 1;
