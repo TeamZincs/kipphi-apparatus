@@ -94,7 +94,7 @@
     {/snippet}
 </PopupOption>
 
-{#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY"].includes($eventsType)}
+{#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY", "bpm"].includes($eventsType)}
 <input bind:this={rangeInput} type="text" class="range" value="auto" onchange={
     (e) => {
         const target = e.target as HTMLInputElement;
@@ -128,7 +128,7 @@
         
     }
 }>
-
+{#if $eventsType !== "bpm"}
 <input type="text" class="template-name"
 placeholder={$_("main.events.templateName")}
 bind:value={$templateName}>
@@ -161,6 +161,7 @@ bind:value={$templateName}>
         }
     }
 }>{$_("main.events.encapsule")}</ProgressiveButton>
+{/if}
 {/if}
 
 <style lang="less">
