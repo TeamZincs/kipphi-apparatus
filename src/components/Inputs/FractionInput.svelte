@@ -13,6 +13,7 @@
       value[2] = 1;
     }
   });
+  
 </script>
 
 <div class="fraction-input">
@@ -66,12 +67,12 @@
 
   .input-cell {
     .input;
-    width: 2.5em;
+    width: 4em;
     margin: auto;
     text-align: center;
-    font-size: var(--font-size-small);
+    font-size: var(--font-size-smaller);
     box-sizing: border-box;
-
+    padding: 0.1em;
   }
 
   .input-cell:focus {
