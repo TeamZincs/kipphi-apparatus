@@ -366,9 +366,10 @@ onDestroy(() => {
 
 
 let tipIndex: number = $state(0);
+let timeout: number;
 function updateTip() {
     tipIndex = Math.floor(Constants.tips.length * Math.random());
-    setTimeout(() => {
+    timeout = window.setTimeout(() => {
         updateTip();
     }, Constants.TIP_INTERVAL);
 }
@@ -505,7 +506,7 @@ updateTip();
         <TextSwitchButton onText="Y" offText="N" bgText={$_("general.preservesPitch")} bind:checked={preservesPitch} />
     </div>
     <div id="secondary-footer">
-        <span id="tips">Tips: {Constants.tips[tipIndex]}</span>
+        <span id="tips" onclick={() => {clearTimeout(timeout);updateTip()}}>Tips: {Constants.tips[tipIndex]}</span>
         <Undo2 size={"4vh"} opacity={undoAvailable ? 1 : 0.2} onclick={() => operationList.undo()}/>
         <Redo2 size={"4vh"} opacity={redoAvailable ? 1 : 0.2} onclick={() => operationList.redo()}/>
     </div>
