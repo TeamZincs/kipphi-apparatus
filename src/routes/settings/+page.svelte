@@ -72,6 +72,12 @@
                     unit="s"
                     disabled={!KPASettings.autosaveEnabled}
                 ></UnitInput>
+                <Label small>{$_("settings.playerWidth")}</Label>
+                <UnitInput
+                    bind:value={KPASettings.playerWidth}
+                    step={1}
+                    unit="px"
+                ></UnitInput>
             </div>
             <div class="settings-column hotkeys">
                 <div class="whole-row">

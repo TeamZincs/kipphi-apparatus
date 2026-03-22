@@ -24,6 +24,7 @@
     "autosaveEnabled": "启用自动保存",
     "autosaveComment": "自动保存只会保存修改过的谱面，每次自动保存增加一次制谱时间。\n（也就是说，如果挂机，自动保存不会塞满你的硬盘，也不会统计这部分时间）" ,
     "autosaveInterval": "自动保存间隔",
+    "playerWidth": "播放器宽度",
     "hotkey": "热键",
     "joke": "骗你的，热键不支持定制化，这只是教程（笑",
     "hotkeys": {

@@ -31,5 +31,12 @@ export const KPASettings = $state({
     },
     set respack(value: string) {
         localStorage.setItem("respack", value)
+    },
+    get playerWidth() {
+        const it = localStorage.getItem("playerWidth");
+        return parseInt(it) || 1350
+    },
+    set playerWidth(value: number) {
+        localStorage.setItem("playerWidth", value + "");
     }
 })

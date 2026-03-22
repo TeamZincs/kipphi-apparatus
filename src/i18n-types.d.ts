@@ -21,6 +21,7 @@ export interface I18nMapping {
 "settings.autosaveEnabled": never;
 "settings.autosaveComment": never;
 "settings.autosaveInterval": never;
+"settings.playerWidth": never;
 "settings.hotkey": never;
 "settings.joke": never;
 "settings.hotkeys.playpause": never;

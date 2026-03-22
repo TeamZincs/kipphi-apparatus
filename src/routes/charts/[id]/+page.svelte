@@ -94,6 +94,8 @@ let eventSequenceEditorCanvas: HTMLCanvasElement;
 let player: Player = null;
 let notesEditor: NotesEditor;
 let eventSequenceEditors: EventSequenceEditors;
+
+const playerWidth = KPASettings.playerWidth;
 // svelte-ignore non_reactive_update
 let judgeLinesManager: JudgeLines;
 let progressBar: HTMLInputElement;
@@ -377,7 +379,7 @@ updateTip();
 
 <main class="container">
     <div id="inner" onwheel={handleWheel}>
-        <canvas bind:this={playerCanvas} id="player" width=1350 height=900>Your device does not support the HTML5 canvas element.</canvas>
+        <canvas bind:this={playerCanvas} id="player" width={playerWidth} height=900>Your device does not support the HTML5 canvas element.</canvas>
         <canvas bind:this={notesEditorCanvas} id="ne" width=600 height=900>Your device does not support the HTML5 canvas element.</canvas>
         <canvas bind:this={eventSequenceEditorCanvas} id="ece" width=600 height=900>Your device does not support the HTML5 canvas element.</canvas>
     </div>
