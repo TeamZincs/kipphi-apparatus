@@ -26,7 +26,7 @@ function handleInput(e: Event) {
 </script>
 
 <div class="color-input">
-    <input type="color" value={rgbToHex(value)}/>
+    <input type="color" value={rgbToHex(value)} oninput={handleInput}/>
     <span class="hex">{rgbToHex(value)}</span>
 </div>
 
