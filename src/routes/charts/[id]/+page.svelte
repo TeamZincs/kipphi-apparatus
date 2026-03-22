@@ -253,7 +253,8 @@ onMount(async () => {
     eventSequenceEditors = new EventSequenceEditors(
         eventSequenceEditorCanvas,
         [0, 0, 600, 900],
-        operationList
+        operationList,
+        0.5
     );
     eventSequenceEditors.changeTarget({ judgeLine: chart.judgeLines[0] });
     player.addEventListener("drawn", () => {
