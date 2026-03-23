@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState } from "kipphi-canvas-editor"
+import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState } from "kipphi-canvas-editor"
 import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
@@ -19,7 +19,8 @@ export const SecondarySidebar = {
     LINE: 3,
     CHART: 4,
     MULTI_NODE: 5,
-    MULTI_NOTE: 6
+    MULTI_NOTE: 6,
+    ERRORS: 7
 }
 
 export let player: Player;
@@ -57,12 +58,17 @@ export const playerHitEffectNoFollows = writable(false);
 export const notesEditChecked = writable(false);
 export const notesShowsNNN = writable(false);
 export const notesNoteType = writable(NoteType.tap);
+export const notesTimeSpan = writable(4);
+export const notesScopeSelectMode = writable(SelectState.none);
+export const notesPositionCenter = writable(0);
+export const notesPositionXInterval = writable(135);
 
 // EventSequenceEditorSettings - 每个属性独立的 writable store
 export const eventsEditChecked = writable(false);
 export const eventsLayer = writable<"0" | "1" | "2" | "3" | "ex">("0");
 export const eventsType = writable<any>("moveX");
 export const eventsTimeSpan = writable(4);
+export const eventsScopeSelectMode = writable(SelectState.none);
 
 // useEasing 和 templateName 作为独立的 writable stores
 export const useEasing = writable(1);
@@ -134,6 +140,35 @@ notesNoteType.subscribe(v => {
     }
 });
 
+notesTimeSpan.subscribe(v => {
+    if (!notesEditor) return;
+    notesEditor.timeSpan = v;
+    notesEditor.draw();
+});
+
+notesScopeSelectMode.subscribe(v => {
+    if (!notesEditor) return;
+    notesEditor.selectState = v;
+    if (v !== SelectState.none) {
+        notesEditor.state = NotesEditorState.selectScope;
+    } else {
+        notesEditor.state = NotesEditorState.select;
+    }
+    notesEditor.draw();
+});
+
+notesPositionCenter.subscribe(v => {
+    if (!notesEditor) return;
+    notesEditor.setValueAsCenter(v);
+    notesEditor.draw();
+});
+
+notesPositionXInterval.subscribe(v => {
+    if (!notesEditor) return;
+    notesEditor.positionGridSpan = v;
+    notesEditor.draw();
+})
+
 // === EventSequenceEditorSettings 订阅 ===
 eventsEditChecked.subscribe(v => {
     if (!eventSequenceEditors) return;
@@ -167,6 +202,16 @@ eventsTimeSpan.subscribe(v => {
     eventSequenceEditors.draw();
 });
 
+eventsScopeSelectMode.subscribe(v => {
+    if (!eventSequenceEditors) return;
+    eventSequenceEditors.activatedEditor.selectState = v;
+    if (v !== SelectState.none) {
+        eventSequenceEditors.activatedEditor.state = EventCurveEditorState.selectScope;
+    } else {
+        eventSequenceEditors.activatedEditor.state = EventCurveEditorState.select;
+    }
+});
+
 // === useEasing 订阅 ===
 useEasing.subscribe(v => {
     if (eventSequenceEditors) {
@@ -193,11 +238,16 @@ export function restoreStates() {
     notesEditChecked.set(false);
     notesShowsNNN.set(false);
     notesNoteType.set(NoteType.tap);
+    notesTimeSpan.set(4);
+    notesScopeSelectMode.set(SelectState.none);
+    notesPositionCenter.set(0);
+    notesPositionXInterval.set(135);
 
     eventsEditChecked.set(false);
     eventsLayer.set("0");
     eventsType.set("moveX");
     eventsTimeSpan.set(4);
+    eventsScopeSelectMode.set(SelectState.none);
 
     useEasing.set(1);
     templateName.set("");

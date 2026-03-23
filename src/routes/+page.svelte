@@ -3,6 +3,7 @@
   import { _ } from "#/i18n";
   import ImageLoader from "#/components/ImageLoader.svelte";
   import Navigator from "#/components/Navigator.svelte";
+  import { Settings } from "@lucide/svelte";
 
   let { data }: { data: PageData } = $props();
   let selectedChart = undefined;
@@ -10,7 +11,9 @@
 
 <main class="container">
   <Navigator>
-    <a href="./settings" class="nav-button">{$_("chartIndex.nav.settings")}</a>
+    
+    <a href="./about" class="nav-button">{$_("about.title")}</a>
+    <a href="./settings" class="nav-button"><Settings size="20"/>{$_("chartIndex.nav.settings")}</a>
     <a href="./create" class="nav-button">{$_("chartIndex.nav.create")}</a>
     <a href="./import" class="nav-button">{$_("chartIndex.nav.import")}</a>
   </Navigator>

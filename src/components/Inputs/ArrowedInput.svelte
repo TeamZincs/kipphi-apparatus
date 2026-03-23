@@ -34,11 +34,17 @@ function len(str: string) {
 </script>
 
 <div class="arrowed-input" class:has-suffix={!!suffix}>
-    <input type="number" step={step} bind:value={val} onchange={check}>
+    <input type="number" step={step} bind:value={
+        () => val,
+        (newValue) => {
+            val = newValue;
+            check();
+        }
+    }>
     <span class="up" onclick={() => {val += step; check()}}>↑</span>
     <span class="down" onclick={() => {val -= step; check();}}>↓</span>
     {#if suffix}
-        <span class="suffix" style={`font-size:${Math.min(5 / len(suffix), 2)}em; line-height: 2em`}>{suffix}</span>
+        <span class="suffix" style={`font-size:${Math.min(5 / len(suffix), 1)}em; line-height: 2em`}>{suffix}</span>
     {/if}
 </div>
 
@@ -73,6 +79,7 @@ input {
     color: #888;
     pointer-events: none;
     user-select: none;
+    font-size: var(--font-size-medium);
 }
 
 

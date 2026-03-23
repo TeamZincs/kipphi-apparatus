@@ -3,7 +3,7 @@ import { Player, AudioProcessor, Images } from "kipphi-player";
 import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
 import type { PageData } from "./$types";
 import { onMount, tick, onDestroy } from "svelte";
-import { Chart, EventType, Op as O, type ExtendedEventTypeName } from "kipphi";
+import { Chart, EventType, KPAError, Op as O, type ExtendedEventTypeName } from "kipphi";
 
 import { _ } from "#/i18n";
 
@@ -20,15 +20,13 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLinesManager.svelte";
 
-import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes, timeDivisor, playerHitEffectNoFollows } from "./store.svelte";
+import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes, timeDivisor, playerHitEffectNoFollows, chartId } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
     import Tooltip from "#/components/Tooltip.svelte";
     import JudgeLineEditor from "./JudgeLineEditor.svelte";
     import EventsSidebar from "./EventsSidebar.svelte";
-    import { EventCurveEditorState } from "kipphi-canvas-editor/eventCurveEditor";
-    import { event } from "@tauri-apps/api";
     import EventEditor from "./EventEditor.svelte";
     import ChartInfoEditor from "./ChartInfoEditor.svelte";
     import MultiNodeEditor from "./MultiNodeEditor.svelte";
@@ -36,6 +34,9 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, ope
     import { KPASettings } from "#/settings.svelte";
     import { notify } from "#/notify.svelte";
     import { respack, waitRespack } from "#/respack.svelte";
+    import { fetchTexture } from "#/background";
+    import Errors from "./Errors.svelte";
+    import { Redo2, Undo2 } from "@lucide/svelte";
 
 
 let {
@@ -93,6 +94,8 @@ let eventSequenceEditorCanvas: HTMLCanvasElement;
 let player: Player = null;
 let notesEditor: NotesEditor;
 let eventSequenceEditors: EventSequenceEditors;
+
+const playerWidth = KPASettings.playerWidth;
 // svelte-ignore non_reactive_update
 let judgeLinesManager: JudgeLines;
 let progressBar: HTMLInputElement;
@@ -103,6 +106,9 @@ let speed = $state("1.0x");
 let preservesPitch = $state(true);
 let renderingOffset = $state(-0.10);
 let judgeLinesLayout = $state(0b001);
+
+let undoAvailable = $state(false);
+let redoAvailable = $state(false);
 
 // let selectedLineNumber = $state(0);
 
@@ -160,7 +166,7 @@ document.addEventListener("keydown", (event) => {
         activeSecondarySidebar.set(SecondarySidebar.LINES);
         break;
     case " ":
-        if (document.hasFocus()) {
+        if (document.hasFocus() && document.activeElement !== document.body) {
             return;
         }
         if (isPlaying) {
@@ -182,6 +188,9 @@ document.addEventListener("keydown", (event) => {
                     : NORMALS[(NORMALS.indexOf(currentType) + offset + NORMALS.length) % NORMALS.length] ?? NORMALS[0]
             );
         }
+        break;
+    case "Escape":
+        activeSecondarySidebar.set(SecondarySidebar.CHART);
         break;
     case "z":
         operationList.undo();
@@ -244,7 +253,8 @@ onMount(async () => {
     eventSequenceEditors = new EventSequenceEditors(
         eventSequenceEditorCanvas,
         [0, 0, 600, 900],
-        operationList
+        operationList,
+        0.5
     );
     eventSequenceEditors.changeTarget({ judgeLine: chart.judgeLines[0] });
     player.addEventListener("drawn", () => {
@@ -254,6 +264,15 @@ onMount(async () => {
         }
         judgeLinesManager?.update();
     });
+    const updateUndoRedoAvailability = () => {
+        console.log("???")
+        undoAvailable = operationList.operations.length > 0;
+        redoAvailable = operationList.undoneOperations.length > 0;
+    }
+    operationList.addEventListener("do", updateUndoRedoAvailability);
+    operationList.addEventListener("undo", updateUndoRedoAvailability);
+    operationList.addEventListener("redo", updateUndoRedoAvailability);
+
     operationList.addEventListener("needsupdate", () => {
         player.render();
     });
@@ -293,7 +312,15 @@ onMount(async () => {
     window.player = player;
     // @ts-expect-error 仅供调试
     window.operationList = operationList;
-    player.receive(chart, () => void 0);
+    player.receive(chart, (name) => {
+        return fetchTexture(chartId, name)
+    });
+
+    if (KPAError.buffer.length > 0) {
+        setTimeout(() => {
+            notify($_("main.errors.notify"), "error")
+        }, 3000)
+    }
 
     if (KPASettings.autosaveEnabled) {
         AutoSaveRunner.init(chart);
@@ -340,9 +367,10 @@ onDestroy(() => {
 
 
 let tipIndex: number = $state(0);
+let timeout: number;
 function updateTip() {
     tipIndex = Math.floor(Constants.tips.length * Math.random());
-    setTimeout(() => {
+    timeout = window.setTimeout(() => {
         updateTip();
     }, Constants.TIP_INTERVAL);
 }
@@ -353,7 +381,7 @@ updateTip();
 
 <main class="container">
     <div id="inner" onwheel={handleWheel}>
-        <canvas bind:this={playerCanvas} id="player" width=1350 height=900>Your device does not support the HTML5 canvas element.</canvas>
+        <canvas bind:this={playerCanvas} id="player" width={playerWidth} height=900>Your device does not support the HTML5 canvas element.</canvas>
         <canvas bind:this={notesEditorCanvas} id="ne" width=600 height=900>Your device does not support the HTML5 canvas element.</canvas>
         <canvas bind:this={eventSequenceEditorCanvas} id="ece" width=600 height=900>Your device does not support the HTML5 canvas element.</canvas>
     </div>
@@ -362,7 +390,10 @@ updateTip();
         <div class="sidebar-content">
             <PopupOption wide
                 options={
-                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE, SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE]
+                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE,
+                    SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE,
+                    SecondarySidebar.ERRORS
+                ]
                 }
                 displayTexts={[
                     $_("main.secondary.lines"),
@@ -371,7 +402,8 @@ updateTip();
                     $_("main.secondary.line"),
                     $_("main.secondary.chart"),
                     $_("main.secondary.multiNode"),
-                    $_("main.secondary.multiNote")
+                    $_("main.secondary.multiNote"),
+                    $_("main.secondary.errors")
                 ]}
                 bind:currentOption={$activeSecondarySidebar}
             ></PopupOption>
@@ -401,6 +433,8 @@ updateTip();
                 {#if $selectedNotes && $selectedNotes.size > 0}
                     <MultiNoteEditor target={$selectedNotes}></MultiNoteEditor>
                 {/if}
+            {:else if $activeSecondarySidebar === SecondarySidebar.ERRORS}
+                <Errors/>
             {/if}
         </div>
     </div>
@@ -430,7 +464,7 @@ updateTip();
                 loops
             />
             {#if $activeSidebar === Sidebar.DEFAULT}
-                <Label>Player</Label>
+                <Label>{$_("main.sidebar.player")}</Label>
                 <TextSwitchButton wide bgText={$_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$playerShowsUI}/>
                 <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$playerShowsLineID}/>
                 <TextSwitchButton wide bgText={$_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$playerHitEffectNoFollows}/>
@@ -473,15 +507,17 @@ updateTip();
         <TextSwitchButton onText="Y" offText="N" bgText={$_("general.preservesPitch")} bind:checked={preservesPitch} />
     </div>
     <div id="secondary-footer">
-        <span id="tips">Tips: {Constants.tips[tipIndex]}</span>
+        <span id="tips" onclick={() => {clearTimeout(timeout);updateTip()}}>Tips: {Constants.tips[tipIndex]}</span>
+        <Undo2 size={"4vh"} opacity={undoAvailable ? 1 : 0.2} onclick={() => operationList.undo()}/>
+        <Redo2 size={"4vh"} opacity={redoAvailable ? 1 : 0.2} onclick={() => operationList.redo()}/>
     </div>
 </main>
 
 <style lang="less">
     :root {
         --player-height: 85vh;
-        --bottom-bar-height: 12vh;
-        --bottom-tips-height: 3vh;
+        --bottom-bar-height: 11vh;
+        --bottom-tips-height: 4vh;
         --color-foreground: white;
     }
     .container {
@@ -510,6 +546,10 @@ updateTip();
         grid-column: 1 / 4;
         background-color: #333;
         color: white;
+        display: flex;
+        #tips {
+            flex: 1;
+        }
     }
     input[type="range"] {
         flex: 1;

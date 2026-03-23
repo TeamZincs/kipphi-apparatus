@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { Languages } from "@lucide/svelte";
+
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.svelte";
     import UploadButton from "#/components/buttons/UploadButton.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
@@ -24,12 +26,12 @@
 </script>
 
 <main class="container">
-    <Navigator></Navigator>
+    <Navigator><span class="return">{$_("general.pressIconToReturn")}</span></Navigator>
     <div class="content">
         <h1>{$_("chartIndex.nav.settings")}</h1>
         <div class="settings-columns">
             <div class="settings-column">
-                <Label small>{$_("settings.language")}</Label>
+                <Label small><Languages/>{$_("settings.language")}</Label>
                 <PopupOption
                     wide
                     options={Object.keys(localeLangNames)}
@@ -69,6 +71,12 @@
                     step={1}
                     unit="s"
                     disabled={!KPASettings.autosaveEnabled}
+                ></UnitInput>
+                <Label small>{$_("settings.playerWidth")}</Label>
+                <UnitInput
+                    bind:value={KPASettings.playerWidth}
+                    step={1}
+                    unit="px"
                 ></UnitInput>
             </div>
             <div class="settings-column hotkeys">
@@ -144,6 +152,9 @@
         background-color: #777;
         height: 100%;
         h1 {
+            color: var(--color-foreground);
+        }
+        .return {
             color: var(--color-foreground);
         }
     }

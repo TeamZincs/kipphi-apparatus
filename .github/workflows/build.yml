@@ -53,15 +53,17 @@ jobs:
 
       - name: install frontend dependencies
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
-        run: bun install # change this to npm or pnpm depending on which one you use.
+        run: bun install
+        env:
+          BUN_CONFIG_REGISTRY: 'https://registry.npmjs.org/'
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'App v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseName: 'KPA v__VERSION__'
+          releaseBody: '如果你是Windows用户且是小白，直接选下面的.exe文件进行安装。'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

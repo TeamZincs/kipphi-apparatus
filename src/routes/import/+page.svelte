@@ -35,6 +35,7 @@
     import { parseRawInfoTxt, parseInfoTxt, saveAFileToChart, type ChartMetadata } from "#/background";
     import { unzip } from "#/uncompress";
     import { type UnzippedFile } from "#/workers/unzip.worker";
+    import Navigator from "#/components/Navigator.svelte";
 
     const { data }: { data: PageData } = $props();
     const identifiers = new Set(data.chartInfos.map((info) => info.identifier));
@@ -296,6 +297,7 @@
 </script>
 
 <main>
+    <Navigator></Navigator>
     <p>
         {$_("form.hint")}<br />
         {$_("form.chartsLocation", {

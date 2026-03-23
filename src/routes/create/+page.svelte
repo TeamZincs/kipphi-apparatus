@@ -17,6 +17,7 @@
   } from "kipphi";
   
   import { type ChartMetadata } from "#/background";
+    import Navigator from "#/components/Navigator.svelte";
 
   const { data }: { data: PageData } = $props();
   const identifiers = new Set(data.chartInfos.map((info) => info.identifier));
@@ -268,6 +269,8 @@
 </script>
 
 <main>
+
+  <Navigator></Navigator>
   <p>{$_("form.hint")}<br>
     {$_("form.chartsLocation", { values: { location: data.meta.CHART_DIR } })}
   </p>

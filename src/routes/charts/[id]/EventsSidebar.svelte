@@ -2,7 +2,7 @@
     import Label from "#/components/Label.svelte";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { EventType, type ExtendedEventTypeName, KPAError, Op } from "kipphi";
-    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, operationList, useEasing, templateName } from "./store.svelte";
+    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, eventsScopeSelectMode, operationList, useEasing, templateName, selectedLineNumber } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
@@ -11,14 +11,30 @@
     import { EventSequenceEditor } from "kipphi-canvas-editor/eventCurveEditor";
     import { notify } from "#/notify.svelte";
     import { eventSequenceEditors } from "./store.svelte";
+    import { SelectState, NumericEventCurveEditor } from "kipphi-canvas-editor";
+    import { Replace, SquaresSubtract, SquaresUnite, SquareX } from "@lucide/svelte";
 
     let options = $derived(
         $eventsLayer === 'ex'
         ? ["scaleX", "scaleY", "text", "color"] satisfies ExtendedEventTypeName[]
         : ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "bpm"] satisfies Exclude<keyof typeof EventType, ExtendedEventTypeName>[])
-    let texts = $derived(options.map(name => $_(`general.eventTypes.${name}`)))
+    let texts = $derived(options.map(name => $_(`general.eventTypes.${name}`)));
+
+    let rangeInput: HTMLInputElement = $state(null);
+    const restore = () => {
+        if (eventSequenceEditors.activatedEditor.autoRangeEnabled) {
+            rangeInput.value = "auto";
+        } else {
+            rangeInput.value = (eventSequenceEditors.activatedEditor as NumericEventCurveEditor).valueRange.join(", ");
+        }
+    }
+    $effect(() => {
+        $eventsLayer;$eventsType;$selectedLineNumber;
+        if (rangeInput) restore();
+    })
+
 </script>
-<Label>Events</Label>
+<Label>{$_("main.sidebar.events")}</Label>
 <Label small>{$_("main.events.layerAndSeq")}</Label>
 <PopupOption wide
     options={
@@ -50,7 +66,69 @@
 
 <EasingBox bind:value={$useEasing}></EasingBox>
 
-{#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY"].includes($eventsType)}
+
+<Label small>{$_("general.multiSelectMode")}</Label>
+<PopupOption wide options={
+    [
+        SelectState.none,
+        SelectState.extend,
+        SelectState.replace,
+        SelectState.exclude
+    ]
+} bind:currentOption={$eventsScopeSelectMode}>
+    {#snippet displayTexts(mode: SelectState)}
+        {#if mode === SelectState.none}
+            <SquareX/>
+            {$_("general.modes.none")}
+        {:else if mode === SelectState.extend}
+            <SquaresUnite/>
+            {$_("general.modes.extend")}
+        {:else if mode === SelectState.replace}
+            <Replace/>
+            {$_("general.modes.replace")}
+        {:else if mode === SelectState.exclude}
+            <SquaresSubtract/>
+            {$_("general.modes.substract")}
+        {/if}
+
+    {/snippet}
+</PopupOption>
+
+{#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY", "bpm"].includes($eventsType)}
+<input bind:this={rangeInput} type="text" class="range" value="auto" onchange={
+    (e) => {
+        const target = e.target as HTMLInputElement;
+        const value = target.value as string;
+        if (value === "auto") {
+            eventSequenceEditors.activatedEditor.autoRangeEnabled = true;
+            return;
+        }
+        const match = value.match(/^(\-?\d+)[,\- ]\s?(\-?\d+)$/);
+        if (!match) {
+            notify($_("main.events.invalidRange"), "error");
+            restore();
+            return;
+        }
+        const [, start, end] = match;
+        const startNum = parseFloat(start);
+        const endNum = parseFloat(end);
+        if (isNaN(startNum) || isNaN(endNum)) {
+            notify($_("main.events.invalidRange"), "error");
+            return restore();
+        }
+        if (startNum >= endNum) {
+            notify($_("main.events.invalidRange"), "error");
+            return restore();
+        }
+        const activatedEditor = eventSequenceEditors.activatedEditor as NumericEventCurveEditor;
+        activatedEditor.valueRange = [startNum, endNum];
+        activatedEditor.autoRangeEnabled = false;
+        
+        eventSequenceEditors.activatedEditor.draw();
+        
+    }
+}>
+{#if $eventsType !== "bpm"}
 <input type="text" class="template-name"
 placeholder={$_("main.events.templateName")}
 bind:value={$templateName}>
@@ -78,16 +156,17 @@ bind:value={$templateName}>
             );
             operationList.do(operation);
         } catch (e) {
-            if (e instanceof Env.KPAError)
+            if (e instanceof KPAError)
                 return notify(e.message, "error");
         }
     }
 }>{$_("main.events.encapsule")}</ProgressiveButton>
 {/if}
+{/if}
 
 <style lang="less">
     @import "#/components/mixin.less";
-    .template-name {
+    .template-name, .range {
         .input();
         font-size: var(--font-size-medium);
         width: 100%;

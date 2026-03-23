@@ -21,6 +21,7 @@ export interface I18nMapping {
 "settings.autosaveEnabled": never;
 "settings.autosaveComment": never;
 "settings.autosaveInterval": never;
+"settings.playerWidth": never;
 "settings.hotkey": never;
 "settings.joke": never;
 "settings.hotkeys.playpause": never;
@@ -83,6 +84,9 @@ export interface I18nMapping {
 "main.sidebar.judgeLineLayout.ordered": never;
 "main.sidebar.judgeLineLayout.tree": never;
 "main.sidebar.judgeLineLayout.group": never;
+"main.sidebar.player": never;
+"main.sidebar.notes": never;
+"main.sidebar.events": never;
 "main.secondary.lines": never;
 "main.secondary.note": never;
 "main.secondary.event": never;
@@ -90,6 +94,7 @@ export interface I18nMapping {
 "main.secondary.chart": never;
 "main.secondary.multiNode": never;
 "main.secondary.multiNote": never;
+"main.secondary.errors": never;
 "main.note.noNote": never;
 "main.note.type": never;
 "main.note.time": never;
@@ -166,6 +171,7 @@ export interface I18nMapping {
 "main.notes.NNList.desc": never;
 "main.notes.addNote": never;
 "main.notes.noteType": never;
+"main.notes.positionXInterval": never;
 "main.events.layerAndSeq": never;
 "main.events.layers.0": never;
 "main.events.layers.1": never;
@@ -181,6 +187,8 @@ export interface I18nMapping {
 "main.events.encapsuleErr.noContinuous": never;
 "main.events.encapsuleErr.notBelongToSourceSequence": never;
 "main.events.encapsuleErr.zeroDelta": never;
+"main.events.range": never;
+"main.events.invalidRange": never;
 "main.events.noNodeSelected": never;
 "main.multiNode.title": "count" | "ids";
 "main.multiNode.delete": never;
@@ -220,9 +228,17 @@ export interface I18nMapping {
 "main.chart.saveSuccess": never;
 "main.chart.summary": never;
 "main.chart.openInExplorer": never;
+"main.errors.title": never;
+"main.errors.notify": never;
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;
+"about.title": never;
+"about.desc": never;
+"about.player": never;
+"about.canvasEditor": never;
+"about.apparatus": never;
+"about.kipphi": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;
@@ -237,6 +253,12 @@ export interface I18nMapping {
 "general.eventTypes.easing": never;
 "general.eventTypes.bpm": never;
 "general.beat": never;
-"general.wheel": never
+"general.wheel": never;
+"general.pressIconToReturn": never;
+"general.multiSelectMode": never;
+"general.modes.replace": never;
+"general.modes.extend": never;
+"general.modes.substract": never;
+"general.modes.none": never
 }
 

@@ -14,7 +14,8 @@
       "deleteSuccess": "Chart {name} has been deleted.",
       "export": "Export"
     },
-    "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware."
+    "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware.",
+    "subscribe": "Please bookmark our website: https://pgrfm.miraheze.org/!"
   },
   "settings": {
     "language": "Language",
@@ -113,7 +114,10 @@
         "ordered": "Ordered",
         "tree": "Tree",
         "group": "Grouped"
-      }
+      },
+      "player": "Player Settings",
+      "notes": "Note Edit Settings",
+      "events": "Event Edit Settings"
     },
     "secondary": {
       "lines": "Lines",
@@ -235,7 +239,8 @@
         "desc": "Note node list is a sequence of note nodes. They contain notes of the same major category, speed, and Y offset range.\n* represents displaying all lists of the judge line."
       },
       "addNote": "Add Note",
-      "noteType": "Note Type"
+      "noteType": "Note Type",
+      "positionXInterval": "Vertical Line Interval"
     },
     "events": {
       "layerAndSeq": "Event Layer and Sequence",
@@ -257,6 +262,8 @@
         "notBelongToSourceSequence": "Node does not belong to source sequence",
         "zeroDelta": "Value change is 0. Encapsulated template easing requires non-zero value change. Please check the blue nodes at the beginning and end."
       },
+      "range": "Value Range",
+      "invalidRange": "Invalid Value Range",
       "noNodeSelected": "No node selected."
     },
     "multiNode": {
@@ -304,7 +311,24 @@
       "saveSuccess": "Chart has been saved successfully.",
       "summary": "Chart Summary",
       "openInExplorer": "Open in Explorer"
+    },
+    "errors": {
+      "title": "Errors",
+      "notify": "There are errors in the chart. Open the \"Errors\" sidebar to check."
     }
+  },
+  "export": {
+    "convertToRPEJSONOnly": "Convert to RPEJSON Only",
+    "exportPEZ": "Export PEZ File",
+    "noShaderSupport": "KPA only packages textures, not shaders. (In fact, it does not support using shaders)"
+  },
+  "about": {
+    "title": "About",
+    "desc": "Kipphi Apparatus (KPA) is a Phigros chart editor developed by Zes Minkey Young (杨哲思).",
+    "player": "Kipphi Player Version",
+    "canvasEditor": "Kipphi Canvas Editor Version",
+    "apparatus": "This Software Version",
+    "kipphi": "Kipphi Core Version"
   },
   "general": {
     "pixel": "pixel",
@@ -323,6 +347,14 @@
       "bpm": "BPM"
     },
     "beat": "beat",
-    "wheel": "wheel"
+    "wheel": "wheel",
+    "pressIconToReturn": "Press icon to return to home",
+    "multiSelectMode": "Multi-Select Mode",
+    "modes": {
+      "replace": "Replace",
+      "extend": "Extend",
+      "substract": "Subtract",
+      "none": "Non-Multi"
+    }
   }
 }

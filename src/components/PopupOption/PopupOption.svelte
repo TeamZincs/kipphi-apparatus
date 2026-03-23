@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-  import { onMount, tick, untrack } from "svelte";
+  import { onMount, tick, untrack, type Snippet } from "svelte";
   import Portal from "svelte-portal";
 
   let {
@@ -11,10 +11,10 @@
   }: {
     options: T[];
     wide?: boolean;
-    displayTexts?: string[];
+    displayTexts?: string[] | Snippet<[T]>;
     currentOption: T;
     onchange?: (option: T) => void;
-  } & (T extends string ? {} : { displayTexts: string[] }) = $props();
+  } & (T extends string ? {} : { displayTexts: string[] | Snippet<[T]> }) = $props();
 
   // 内部用索引管理选中状态，与 currentOption 同步
   let currentIndex = $state(0);
@@ -116,6 +116,8 @@
       isLeft = rect.left < window.innerWidth / 2;
     }
   });
+
+  const isString = typeof displayTexts === "undefined" || Array.isArray(displayTexts)
 </script>
 
 <!-- 触发按钮 -->
@@ -132,9 +134,13 @@
 >
   <!-- 如果有传入插槽内容则使用插槽，否则使用默认内容 -->
   <div class="default-button-content">
+    {#if isString}
     {currentIndex >= 0
       ? displayTexts?.[currentIndex] || options[currentIndex]
       : "Select Option"}
+      {:else}
+      {@render displayTexts(options[currentIndex])}
+      {/if}
   </div>
 
   <!-- 弹窗内容 -->
@@ -164,7 +170,11 @@
                 if (e.key === "Enter" || e.key === " ") selectOption(i);
               }}
             >
+              {#if isString}
               {displayTexts?.[i] || option}
+              {:else}
+              {@render displayTexts(option)}
+              {/if}
             </div>
           {/each}
         </div>
