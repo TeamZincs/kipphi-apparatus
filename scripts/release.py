@@ -49,7 +49,7 @@ def bump():
     # Update package versions
     package["dependencies"]["kipphi"] = kipphi["version"]
     package["dependencies"]["kipphi-player"] = player["version"]
-    package["dependencies"]["kipphi-canvas-engine"] = canvas_editor["version"]
+    package["dependencies"]["kipphi-canvas-editor"] = canvas_editor["version"]
 
     ver = input("请输入版本号，留空使用kipphi版本号: ")
 
