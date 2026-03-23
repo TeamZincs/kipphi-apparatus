@@ -1,44 +1,45 @@
 {
-  "name": "kipphi-apparatus",
-  "version": "2.1.1",
-  "description": "",
-  "type": "module",
-  "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri",
-    "watchLocales": "bun scripts/type-i18n --watch"
-  },
-  "license": "MIT",
-  "dependencies": {
-    "@lucide/svelte": "^0.548.0",
-    "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/plugin-fs": "^2.4.5",
-    "@tauri-apps/plugin-opener": "^2.5.3",
-    "jszip": "^3.10.1",
-    "mime": "^4.1.0",
-    "svelte-i18n": "^4.0.1",
-    "svelte-portal": "^2.2.1",
-    "yaml": "^2.8.2",
-    "kipphi": "^2.1.1",
-    "kipphi-player": "^2.1.1",
-    "kipphi-canvas-editor": "^2.1.1"
-  },
-  "devDependencies": {
-    "@internationalized/date": "^3.11.0",
-    "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.53.4",
-    "@sveltejs/vite-plugin-svelte": "^5.1.1",
-    "@tauri-apps/cli": "^2.10.0",
-    "@types/node": "^25.5.0",
-    "clsx": "^2.1.1",
-    "less": "^4.5.1",
-    "svelte": "^5.53.6",
-    "svelte-check": "^4.4.4",
-    "typescript": "~5.6.3",
-    "vite": "^6.4.1"
-  }
+    "name": "kipphi-apparatus",
+    "version": "2.1.2-rc.1",
+    "description": "",
+    "type": "module",
+    "scripts": {
+        "dev": "vite dev",
+        "build": "vite build",
+        "preview": "vite preview",
+        "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+        "tauri": "tauri",
+        "watchLocales": "bun scripts/type-i18n --watch"
+    },
+    "license": "MIT",
+    "dependencies": {
+        "@lucide/svelte": "^0.548.0",
+        "@tauri-apps/api": "^2.10.1",
+        "@tauri-apps/plugin-fs": "^2.4.5",
+        "@tauri-apps/plugin-opener": "^2.5.3",
+        "jszip": "^3.10.1",
+        "mime": "^4.1.0",
+        "svelte-i18n": "^4.0.1",
+        "svelte-portal": "^2.2.1",
+        "yaml": "^2.8.2",
+        "kipphi": "2.1.2-rc.1",
+        "kipphi-player": "2.1.2-rc.1",
+        "kipphi-canvas-editor": "^2.1.1",
+        "kipphi-canvas-engine": "2.1.2-rc.1"
+    },
+    "devDependencies": {
+        "@internationalized/date": "^3.11.0",
+        "@sveltejs/adapter-static": "^3.0.10",
+        "@sveltejs/kit": "^2.53.4",
+        "@sveltejs/vite-plugin-svelte": "^5.1.1",
+        "@tauri-apps/cli": "^2.10.0",
+        "@types/node": "^25.5.0",
+        "clsx": "^2.1.1",
+        "less": "^4.5.1",
+        "svelte": "^5.53.6",
+        "svelte-check": "^4.4.4",
+        "typescript": "~5.6.3",
+        "vite": "^6.4.1"
+    }
 }
