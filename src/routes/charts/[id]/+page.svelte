@@ -166,7 +166,7 @@ document.addEventListener("keydown", (event) => {
         activeSecondarySidebar.set(SecondarySidebar.LINES);
         break;
     case " ":
-        if (document.hasFocus()) {
+        if (document.hasFocus() && document.activeElement !== document.body) {
             return;
         }
         if (isPlaying) {
