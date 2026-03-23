@@ -69,7 +69,7 @@ def bump():
 
     input("压缩提交到release分支")
     call(["git", "checkout", "release"])
-    call(["git", "merge", "--squash", "master", "-m", "build: release " + package["version"]])
+    call(["git", "merge", "--squash", "master", "-m", "build: release " + package["version"], "-X", "theirs"])
 
     input("推送到GitHub")
     call(["git", "push"])
