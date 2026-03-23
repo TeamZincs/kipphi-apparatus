@@ -24,6 +24,7 @@
     "autosaveEnabled": "啟用自動保存",
     "autosaveComment": "自動保存只會保存修改過的譜面，每次自動保存增加一次製譜時間。\n（也就是說，如果掛機，自動保存不會塞滿你的硬盤，也不會統計這部分時間）",
     "autosaveInterval": "自動保存間隔",
+    "playerWidth": "播放器寬度",
     "hotkey": "熱鍵",
     "joke": "騙你的，熱鍵不支持客製化，這只是教程（笑",
     "hotkeys": {
@@ -114,7 +115,10 @@
         "ordered": "按序平鋪",
         "tree": "樹形佈局",
         "group": "分組佈局"
-      }
+      },
+      "player": "播放器設置",
+      "notes": "音符編輯設置",
+      "events": "事件編輯設置"
     },
     "secondary": {
       "lines": "判定線列表",
@@ -123,7 +127,8 @@
       "line": "管理所選判定線",
       "chart": "譜面信息",
       "multiNode": "多節點編輯",
-      "multiNote": "多音符編輯"
+      "multiNote": "多音符編輯",
+      "errors": "譜面錯誤"
     },
     "note": {
       "noNote": "沒有目標音符或目標音符已被移除",
@@ -236,7 +241,8 @@
         "desc": "音符節點列表是音符節點的序列，它們包含同大類、同速度、同 Y 軸偏移範圍的音符。\n*代表顯示該判定線所有列表。"
       },
       "addNote": "添加音符",
-      "noteType": "音符類型"
+      "noteType": "音符類型",
+      "positionXInterval": "豎線間隔"
     },
     "events": {
       "layerAndSeq": "事件層與序列",
@@ -258,6 +264,8 @@
         "notBelongToSourceSequence": "節點不屬於源序列",
         "zeroDelta": "數值變化量為 0.封裝的模板緩動需要非零數值變化量，請檢查頭尾的藍節點。"
       },
+      "range": "數值範圍",
+      "invalidRange": "數值範圍無效",
       "noNodeSelected": "未選中任何節點。"
     },
     "multiNode": {
@@ -305,12 +313,24 @@
       "saveSuccess": "譜面已成功保存。",
       "summary": "寫譜摘要",
       "openInExplorer": "在資源管理器中打開"
+    },
+    "errors": {
+      "title": "錯誤",
+      "notify": "譜面中存在錯誤，打開“錯誤“次側欄以檢視。"
     }
   },
   "export": {
     "convertToRPEJSONOnly": "僅轉譜為RPEJSON",
     "exportPEZ": "導出PEZ文檔",
     "noShaderSupport": "KPA只打包紋理，不會打包著色器。（事實上也不支持使用著色器）"
+  },
+  "about": {
+    "title": "關於",
+    "desc": "奇譜發生器（Kipphi Apparatus，簡稱KPA）是由Zes Minkey Young（楊哲思）開發的一款Phigros譜面編輯器。",
+    "player": "奇譜播放器版本",
+    "canvasEditor": "奇譜畫佈編輯器版本",
+    "apparatus": "本軟體版本",
+    "kipphi": "奇譜內核版本"
   },
   "general": {
     "pixel": "像素",
@@ -329,6 +349,14 @@
       "bpm": "BPM"
     },
     "beat": "拍",
-    "wheel": "滾輪"
+    "wheel": "滾輪",
+    "pressIconToReturn": "按圖標返回首頁",
+    "multiSelectMode": "多選模式",
+    "modes": {  
+      "replace": "重選",
+      "extend": "擴選",
+      "substract": "排除",
+      "none": "非多選"
+    }
   }
 }
