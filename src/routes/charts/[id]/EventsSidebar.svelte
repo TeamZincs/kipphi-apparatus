@@ -58,7 +58,7 @@
 ></PopupOption>
 
 <Label small>{$_("main.events.timeSpan")}</Label>
-<UnitInput bind:value={$eventsTimeSpan} unit={$_("general.beat")}></UnitInput>
+<UnitInput bind:value={$eventsTimeSpan} unit={$_("general.beat")} step={1}></UnitInput>
 
 
 <TextSwitchButton wide bgText={$_("main.events.addNodePair")}

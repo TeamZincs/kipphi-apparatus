@@ -79,7 +79,7 @@
 } currentOption={currentOption}></PopupOption>
 
 <Label small>{$_("main.events.timeSpan")}</Label>
-<UnitInput bind:value={$notesTimeSpan} unit={$_("general.beat")}></UnitInput>
+<UnitInput bind:value={$notesTimeSpan} unit={$_("general.beat")} step={1}></UnitInput>
 
 <Label small>{$_("general.multiSelectMode")}</Label>
 <PopupOption wide options={
