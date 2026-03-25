@@ -84,6 +84,7 @@ selectedLineNumber.subscribe(v => {
     });
     notesEditor.draw();
     eventSequenceEditors.draw();
+    player.render();
 });
 
 timeDivisor.subscribe(v => {
