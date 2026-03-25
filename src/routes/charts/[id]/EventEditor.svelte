@@ -161,6 +161,9 @@ const TEMPLATE = EasingType.template;
     <input type="number" bind:value={
         () => values.value as number,
         (newValue) => {
+            if (newValue === null) {
+                return;
+            }
             operationList.do(new Op.EventNodeValueChangeOperation(
                 target,
                 newValue
