@@ -110,7 +110,13 @@ let judgeLinesLayout = $state(0b001);
 let undoAvailable = $state(false);
 let redoAvailable = $state(false);
 
+let volume = $state(3.5);
+
 // let selectedLineNumber = $state(0);
+
+$effect(() => {
+    audioProcessor.volume = volume;
+});
 
 $effect(() => {
     let s = parseFloat(speed); // 反正末尾有东西不影响解析
@@ -155,8 +161,7 @@ function globalHandleWheel(event: WheelEvent) {
     }
 }
 
-document.addEventListener("wheel", globalHandleWheel);
-document.addEventListener("keydown", (event) => {
+const handleKeydown = (event: KeyboardEvent) => {
     switch (event.key) {
     case "Control":
         if ($activeSecondarySidebar === SecondarySidebar.LINES) {
@@ -199,20 +204,28 @@ document.addEventListener("keydown", (event) => {
         operationList.redo();
         break;
     }
-});
-document.addEventListener("keyup", (event) => {
-    if (event.key === "Control") {
-        activeSecondarySidebar.set($previousActiveSecondarySidebar);
-    }
-});
+}
 
-window.addEventListener("beforeunload", (e) => {
+const handleKeyup = (event: KeyboardEvent) => {
+    switch (event.key) {
+    case "Control":
+        activeSecondarySidebar.set(SecondarySidebar.CHART);
+        break;
+    }
+}
+const handleExit = (e: BeforeUnloadEvent) => {
     if (operationList.chart?.modified) {
         e.preventDefault();
         e.returnValue = '';
         return '';
     }
-});
+}
+
+document.addEventListener("wheel", globalHandleWheel);
+document.addEventListener("keydown", handleKeydown);
+document.addEventListener("keyup", handleKeyup);
+
+window.addEventListener("beforeunload", handleExit);
 
 
 onMount(async () => {
@@ -345,6 +358,14 @@ onDestroy(() => {
     if (player) {
         player.pause();
     }
+
+    
+    document.removeEventListener("wheel", globalHandleWheel);
+    document.removeEventListener("keydown", handleKeydown);
+    document.removeEventListener("keyup", handleKeyup);
+
+    window.removeEventListener("beforeunload", handleExit);
+
     if (KPASettings.autosaveEnabled) {
         AutoSaveRunner.stop();
     }
@@ -468,6 +489,8 @@ updateTip();
                 <TextSwitchButton wide bgText={$_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$playerShowsUI}/>
                 <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$playerShowsLineID}/>
                 <TextSwitchButton wide bgText={$_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$playerHitEffectNoFollows}/>
+                <ArrowedInput bind:value={volume} step={0.5}></ArrowedInput>
+                
             {:else if $activeSidebar === Sidebar.NOTES}
                 <NotesSidebar/>
             {:else if $activeSidebar === Sidebar.EVENTS}
@@ -562,14 +585,14 @@ updateTip();
         height: var(--player-height);
         left: 0;
         transition: 0.3s opacity ease;
-        opacity: 0.3;
+        //opacity: 0.3;
     }
     #ece {
         position: absolute;
         height: var(--player-height);
         right: 0;
         transition: 0.3s opacity ease;
-        opacity: 0.3;
+        //opacity: 0.3;
     }
     #ne:hover, #ece:hover {
         opacity: 1.0;
