@@ -209,7 +209,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 const handleKeyup = (event: KeyboardEvent) => {
     switch (event.key) {
     case "Control":
-        activeSecondarySidebar.set(SecondarySidebar.CHART);
+        activeSecondarySidebar.set($previousActiveSecondarySidebar);
         break;
     }
 }
