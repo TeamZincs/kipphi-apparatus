@@ -53,6 +53,7 @@ export const timeDivisor = writable(4);
 export const playerShowsUI = writable(true);
 export const playerShowsLineID = writable(false);
 export const playerHitEffectNoFollows = writable(false);
+export const playerShowsCurve = writable(false);
 
 // NotesEditorSettings - 每个属性独立的 writable store
 export const notesEditChecked = writable(false);
@@ -113,7 +114,12 @@ playerShowsLineID.subscribe(v => {
 playerHitEffectNoFollows.subscribe(v => {
     if (!player) return;
     player.hitEffectNoFollows = v;
-})
+});
+
+playerShowsCurve.subscribe(v => {
+    if (!player) return;
+    player.showsLineCurve = v;
+});
 
 // === NotesEditorSettings 订阅 ===
 notesEditChecked.subscribe(v => {
@@ -235,6 +241,7 @@ export function restoreStates() {
     playerShowsUI.set(true);
     playerShowsLineID.set(false);
     playerHitEffectNoFollows.set(false);
+    playerShowsCurve.set(false);
 
     notesEditChecked.set(false);
     notesShowsNNN.set(false);

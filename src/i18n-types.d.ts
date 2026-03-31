@@ -165,6 +165,7 @@ export interface I18nMapping {
 "main.player.showsUI": never;
 "main.player.showsLineID": never;
 "main.player.hitEffectNoFollows": never;
+"main.player.showsCurve": never;
 "main.notes.showsNNN.term": never;
 "main.notes.showsNNN.desc": never;
 "main.notes.NNList.term": never;
