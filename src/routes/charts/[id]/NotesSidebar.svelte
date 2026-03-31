@@ -2,7 +2,7 @@
     import { SquaresSubtract, SquaresUnite, Replace, SquareX } from "@lucide/svelte";
     import Label from "#/components/Label.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
-    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList, notesScopeSelectMode, notesTimeSpan, notesPositionCenter, notesPositionXInterval } from "./store.svelte";
+    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList, notesScopeSelectMode, notesTimeSpan, notesPositionCenter, notesPositionXInterval, notesEditor } from "./store.svelte";
 
     import { _ } from "#/i18n";
     import Tooltip from "#/components/Tooltip.svelte";
@@ -76,7 +76,13 @@
     options
 } displayTexts={
     options.map(option => option[0])
-} currentOption={currentOption}></PopupOption>
+} bind:currentOption={
+    () => currentOption,
+    (v) => {
+        currentOption = v;
+        notesEditor.targetNNList = v[1];
+    }
+    }></PopupOption>
 
 <Label small>{$_("main.events.timeSpan")}</Label>
 <UnitInput bind:value={$notesTimeSpan} unit={$_("general.beat")} step={1}></UnitInput>
