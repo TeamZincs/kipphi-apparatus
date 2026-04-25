@@ -50,6 +50,7 @@ audio.addEventListener("timeupdate", () => {
     if (!player.playing) {
         return;
     }
+    pre0 = 0;
     progressBar.value = audio.currentTime + '';
 });
 audio.addEventListener("ended", () => {
@@ -95,7 +96,9 @@ let player: Player = null;
 let notesEditor: NotesEditor;
 let eventSequenceEditors: EventSequenceEditors;
 
-const playerWidth = KPASettings.playerWidth;
+let aspect = $state(3 / 2);
+
+const playerWidth = $derived(aspect * KPASettings.playerHeight);
 // svelte-ignore non_reactive_update
 let judgeLinesManager: JudgeLines;
 let progressBar: HTMLInputElement;
@@ -139,6 +142,50 @@ let selectedLineName = $derived.by(() => {
     return line?.name ?? "?";
 });
 
+let pre0 = 0;
+
+const renderingTimeCalculator = Object.getOwnPropertyDescriptor(Player.prototype, "renderingTime").get;
+
+const computeTimeWithPre0 = () => {
+    return renderingTimeCalculator.call({
+        time: player.time - pre0,
+        audio: audio,
+        renderingOffset: player.renderingOffset
+    })
+}
+
+const forward = (delta: number) => {
+    const tc = operationList.chart.timeCalculator;
+    if (pre0 > 0) {
+        pre0 -= delta;
+        if (pre0 <=0) {
+            pre0 = 0;
+        }
+        // HACK: 使得能够显示0之前的部分。
+        const renderingBeats = tc.secondsToBeats(computeTimeWithPre0());
+        eventSequenceEditors.draw(renderingBeats);
+        notesEditor.draw(renderingBeats)
+        return;
+    }
+    audio.currentTime += delta;
+    player.render();
+}
+
+const backward = (delta: number) => {
+    const tc = operationList.chart.timeCalculator;
+    const audioCurTime = audio.currentTime;
+    if (audioCurTime <= 0) {
+        pre0 += delta;
+        const renderingBeats = tc.secondsToBeats(computeTimeWithPre0());
+        eventSequenceEditors.draw(renderingBeats);
+        notesEditor.draw(renderingBeats)
+    } else {
+        pre0 = 0;
+        audio.currentTime = audioCurTime - delta;
+        player.render();
+    }
+
+}
 /**
  * 处理滚轮事件。
  * @param event
@@ -148,9 +195,14 @@ function handleWheel(event: WheelEvent) {
         return;
     }
     if (audio) {
-        audio.currentTime += event.deltaY / 1000;
+        const isForward = event.deltaY > 0 !== KPASettings.useRpeWheel;
+        const absDelta = Math.abs(event.deltaY);
+        if (isForward) {
+            forward(absDelta / 1000);
+        } else {
+            backward(absDelta / 1000);
+        }
         progressBar.value = audio.currentTime + '';
-        player.render();
     }
 }
 
@@ -164,6 +216,9 @@ function globalHandleWheel(event: WheelEvent) {
 const handleKeydown = (event: KeyboardEvent) => {
     switch (event.key) {
     case "Control":
+        if (document.activeElement !== document.body) {
+            return;
+        }
         if ($activeSecondarySidebar === SecondarySidebar.LINES) {
             return;
         }
@@ -179,6 +234,7 @@ const handleKeydown = (event: KeyboardEvent) => {
         } else {
             player.play();
         }
+        event.preventDefault();
         break;
     case "Tab":
         if ($activeSidebar === Sidebar.EVENTS) {
@@ -207,6 +263,9 @@ const handleKeydown = (event: KeyboardEvent) => {
 }
 
 const handleKeyup = (event: KeyboardEvent) => {
+    if (document.activeElement !== document.body) {
+        return;
+    }
     switch (event.key) {
     case "Control":
         activeSecondarySidebar.set($previousActiveSecondarySidebar);
@@ -238,6 +297,7 @@ onMount(async () => {
         illustration,
         respack
     );
+    //player.cameraRatio = 0.8;
     player.addEventListener("play", () => {
         isPlaying = true;
     });
@@ -271,7 +331,7 @@ onMount(async () => {
     );
     eventSequenceEditors.changeTarget({ judgeLine: chart.judgeLines[0] });
     player.addEventListener("drawn", () => {
-        if (showingGrid) {
+        if (showingGrid && pre0 === 0) {
             notesEditor.draw(player.renderingBeats);
             eventSequenceEditors.draw(player.renderingBeats);
         }
@@ -402,9 +462,9 @@ updateTip();
 
 <main class="container">
     <div id="inner" onwheel={handleWheel}>
-        <canvas bind:this={playerCanvas} id="player" width={playerWidth} height=900>Your device does not support the HTML5 canvas element.</canvas>
-        <canvas bind:this={notesEditorCanvas} id="ne" width=600 height=900>Your device does not support the HTML5 canvas element.</canvas>
-        <canvas bind:this={eventSequenceEditorCanvas} id="ece" width=600 height=900>Your device does not support the HTML5 canvas element.</canvas>
+        <canvas bind:this={playerCanvas} id="player" width={playerWidth} height={KPASettings.playerHeight}>Your device does not support the HTML5 canvas element.</canvas>
+        <canvas bind:this={notesEditorCanvas} id="ne" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
+        <canvas bind:this={eventSequenceEditorCanvas} id="ece" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
     </div>
     <div id="secondary-sidebar">
         <div class="sidebar-shadow"></div>
@@ -491,7 +551,21 @@ updateTip();
                 <TextSwitchButton wide bgText={$_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$playerHitEffectNoFollows}/>
                 <TextSwitchButton wide bgText={$_("main.player.showsCurve")} onText="Y" offText="N" bind:checked={$playerShowsCurve}/>
                 <ArrowedInput bind:value={volume} step={0.5}></ArrowedInput>
-                
+                <PopupOption wide
+                    bind:currentOption={aspect}
+                    options={
+                        [3 / 2, 16 / 9, 4 / 3]
+                    }
+                    displayTexts={
+                        ["3:2", "16:9", "4:3"]
+                    }
+                    onchange={
+                        async () => {
+                            await tick();
+                            player.useNewAspect();
+                        }
+                    }
+                ></PopupOption>
             {:else if $activeSidebar === Sidebar.NOTES}
                 <NotesSidebar/>
             {:else if $activeSidebar === Sidebar.EVENTS}
@@ -644,6 +718,9 @@ updateTip();
         gap: 3px;
 
         scrollbar-width: none;
+        &:focus {
+            scroll-behavior: auto;
+        }
     }
 
 
