@@ -297,9 +297,9 @@
     <label for="bpm">{$_("create.bpm")}</label>
     <input type="number" bind:this={bpmInput} placeholder="BPM" />
     <label for="illustration">{$_("form.illustration")}</label>
-    <input type="file" bind:this={illustrationFileInput} />
+    <input type="file" bind:this={illustrationFileInput} accept="image/*" />
     <label for="music">{$_("form.music")}</label>
-    <input type="file" bind:this={musicFileInput} />
+    <input type="file" bind:this={musicFileInput} accept="audio/*"/>
     <input type="button" value={$_("create.create")} onclick={create} />
     {#if success}
       <p>{$_("create.success")}</p>

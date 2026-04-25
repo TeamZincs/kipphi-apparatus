@@ -357,11 +357,11 @@
             {/if}
             {#if importWith === RETAIL}
                 <span class="label">{$_("import.chart")}</span>
-                <input type="file" bind:this={chartFileInput} />
+                <input type="file" bind:this={chartFileInput} accept="application/json"/>
                 <span class="label">{$_("form.illustration")}</span>
-                <input type="file" bind:this={illustrationFileInput} />
+                <input type="file" bind:this={illustrationFileInput} accept="image/*"/>
                 <span class="label">{$_("form.music")}</span>
-                <input type="file" bind:this={musicFileInput} />
+                <input type="file" bind:this={musicFileInput} accept="audio/*"/>
                 <input
                     type="button"
                     value={$_("create.create")}
@@ -372,7 +372,7 @@
                 {/if}
             {:else}
                 <span>{$_("import.archive")}</span>
-                <input type="file" bind:this={archiveFileInput} />
+                <input type="file" bind:this={archiveFileInput} accept="application/zip, .pez"/>
                 <input
                     type="button"
                     value={$_("create.create")}
