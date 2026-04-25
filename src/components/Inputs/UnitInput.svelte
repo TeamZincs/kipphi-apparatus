@@ -64,6 +64,6 @@
     }
 
     .unit {
-        font-size: 1.6em;
+        font-size: var(--font-size-medium);
     }
 </style>
