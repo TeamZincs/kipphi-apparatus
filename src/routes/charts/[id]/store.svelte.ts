@@ -226,6 +226,21 @@ useEasing.subscribe(v => {
     }
 });
 
+templateName.subscribe(v => {
+    if (!operationList) {
+        return;
+    }
+    const easing = operationList.chart.templateEasingLib.get(v);
+    if (!easing) {
+        return;
+    }
+    const seq = easing.eventNodeSequence
+    if (eventSequenceEditors?.activatedEditor.type === EventType.easing) {
+        eventSequenceEditors.easing.targetEasing = easing;
+        eventSequenceEditors.easing.target = seq;
+    }
+})
+
 export function restoreStates() {
     selectedLineNumber.set(0);
     activeSidebar.set(Sidebar.DEFAULT);
