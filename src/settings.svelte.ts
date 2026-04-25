@@ -32,11 +32,18 @@ export const KPASettings = $state({
     set respack(value: string) {
         localStorage.setItem("respack", value)
     },
-    get playerWidth() {
-        const it = localStorage.getItem("playerWidth");
-        return parseInt(it) || 1350
+    get playerHeight() {
+        const it = localStorage.getItem("playerHeight");
+        return parseInt(it) || 900
     },
-    set playerWidth(value: number) {
-        localStorage.setItem("playerWidth", value + "");
+    set playerHeight(value: number) {
+        localStorage.setItem("playerHeight", value + "");
+    },
+    get useRpeWheel() {
+        const it = localStorage.getItem("usesRpeWheel");
+        return it === null ? true : it === "1";
+    },
+    set useRpeWheel(value: boolean) {
+        localStorage.setItem("usesRpeWheel", value ? "1" : "");
     }
 })
