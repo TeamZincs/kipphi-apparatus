@@ -259,6 +259,8 @@ const handleKeydown = (event: KeyboardEvent) => {
     case "y":
         operationList.redo();
         break;
+    case "Delete":
+        handleDelete();
     }
 }
 
@@ -278,6 +280,33 @@ const handleExit = (e: BeforeUnloadEvent) => {
         e.returnValue = '';
         return '';
     }
+}
+const handleDelete = () => {
+    if ($activeSecondarySidebar === SecondarySidebar.NOTE) {
+        const note = $selectedNote;
+        if (!note) { return }
+        operationList.do(new O.NoteDeleteOperation(note));
+    } else if ($activeSecondarySidebar === SecondarySidebar.EVENT) {
+        const node = $selectedNode;
+        if (!node || (node instanceof EventStartNode && node.isFirstStart())) { return }
+        operationList.do(new O.EventNodePairRemoveOperation(
+            node instanceof EventEndNode ? node.previous : node,
+            true
+        ));
+    } else if ($activeSecondarySidebar === SecondarySidebar.MULTI_NOTE) {
+        const notes = $selectedNotes;
+        if (!notes || notes.size === 0) { return; }
+        operationList.do(new O.MultiNoteDeleteOperation(
+            notes
+        ));
+    } else if ($activeSecondarySidebar === SecondarySidebar.MULTI_NODE) {
+        const nodes = $selectedNodes;
+        if (!nodes || nodes.size === 0) { return; }
+        operationList.do(new O.MultiNodeDeleteOperation(
+            [...nodes].sort((a, b) => TC.lt(a.time, b.time) ? -1 : 1)
+        ));
+    }
+
 }
 
 document.addEventListener("wheel", globalHandleWheel);
