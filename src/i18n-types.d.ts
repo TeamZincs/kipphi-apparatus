@@ -21,7 +21,7 @@ export interface I18nMapping {
 "settings.autosaveEnabled": never;
 "settings.autosaveComment": never;
 "settings.autosaveInterval": never;
-"settings.playerWidth": never;
+"settings.playerHeight": never;
 "settings.hotkey": never;
 "settings.joke": never;
 "settings.hotkeys.playpause": never;
@@ -129,6 +129,7 @@ export interface I18nMapping {
 "main.event.easings.template": never;
 "main.event.easings.bezier": never;
 "main.event.delete": never;
+"main.event.goto": never;
 "main.judgeline.cover.term": never;
 "main.judgeline.cover.desc": never;
 "main.judgeline.father.term": never;
@@ -223,6 +224,7 @@ export interface I18nMapping {
 "main.chart.offset": never;
 "main.chart.level": never;
 "main.chart.save": never;
+"main.chart.forcesave": never;
 "main.chart.exit": never;
 "main.chart.confirm": never;
 "main.chart.noMessage": never;
@@ -260,6 +262,7 @@ export interface I18nMapping {
 "general.modes.replace": never;
 "general.modes.extend": never;
 "general.modes.substract": never;
-"general.modes.none": never
+"general.modes.none": never;
+"error.chart": never
 }
 
