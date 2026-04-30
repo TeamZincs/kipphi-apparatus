@@ -155,6 +155,11 @@ const computeTimeWithPre0 = () => {
 }
 
 const forward = (delta: number) => {
+    const easingECE = eventSequenceEditors.easing;
+    if (easingECE.active) {
+        easingECE.draw((easingECE.lastBeats || 0) + delta)
+        return;
+    }
     const tc = operationList.chart.timeCalculator;
     if (pre0 > 0) {
         pre0 -= delta;
@@ -172,6 +177,11 @@ const forward = (delta: number) => {
 }
 
 const backward = (delta: number) => {
+    const easingECE = eventSequenceEditors.easing;
+    if (easingECE.active) {
+        easingECE.draw((easingECE.lastBeats || 0) - delta)
+        return;
+    }
     const tc = operationList.chart.timeCalculator;
     const audioCurTime = audio.currentTime;
     if (audioCurTime <= 0) {
