@@ -100,12 +100,14 @@ export async function queryCharts() {
         identifier: string,
         title: string,
         image: Blob,
-        type: "KPA1" | "KPA2" | "RPE"
+        type: "KPA1" | "KPA2" | "RPE",
+        lastModified: number
     }[] = [];
     for (const chart of charts) {
         if (chart.isDirectory) {
             const name = chart.name;
             const metadata = await readTextFile(`${CHART_DIR}/${name}/metadata.json`);
+            const history = await queryChartHistory(name);
             const metadataJson = JSON.parse(metadata) as ChartMetadata;
             chartInfos.push({
                 chartPath: metadataJson.chart,
@@ -114,10 +116,12 @@ export async function queryCharts() {
                 image: new Blob(
                     [await readFile(`${CHART_DIR}/${name}/${metadataJson.illustration}`)],
                 { type: `image/${getExtensionFromName(metadataJson.illustration)}`}),
-                type: metadataJson.type
+                type: metadataJson.type,
+                lastModified: history?.[history.length - 1]?.time ?? 0
             });
         }
     }
+    chartInfos.sort((a, b) => b.lastModified - a.lastModified);
     return chartInfos;
 }
 
