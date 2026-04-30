@@ -123,7 +123,14 @@
         } else {
             const metadata = files.find((n) => n.name === "metadata.json");
             if (!metadata) {
-                alert($_("import.alert.incompleteArchive", {values:{missing:"metadata.json"}}));
+                const filenames = files.map((n) => n.name);
+                mName = filenames.find((n) => mime.getType(n)?.includes("audio")) || "";
+                cName = filenames.find((n) => n.endsWith(".json")) || "";
+                iName = filenames.find((n) => mime.getType(n)?.includes("image")) || "";
+                if (!(mName && cName && iName)) {
+                    alert($_("import.alert.incompleteArchive", {values:{missing: "META"}}));
+                    return;
+                }
                 return;
             }
             const info = JSON.parse(new TextDecoder().decode(metadata.buffer)) as ChartMetadata;
@@ -155,6 +162,10 @@
             file.name === cName || file.name === mName || file.name === iName) {
                 continue;
             }
+            const parentDir = await join(data.meta.CHART_DIR, id, file.name.split("/").slice(0, -1).join("/"));
+            await mkdir(parentDir, {
+                "recursive": true
+            });
             await writeFile(await join(data.meta.CHART_DIR, id, file.name), new Uint8Array(file.buffer));
         }
         success = true;
@@ -346,11 +357,11 @@
             {/if}
             {#if importWith === RETAIL}
                 <span class="label">{$_("import.chart")}</span>
-                <input type="file" bind:this={chartFileInput} />
+                <input type="file" bind:this={chartFileInput} accept="application/json"/>
                 <span class="label">{$_("form.illustration")}</span>
-                <input type="file" bind:this={illustrationFileInput} />
+                <input type="file" bind:this={illustrationFileInput} accept="image/*"/>
                 <span class="label">{$_("form.music")}</span>
-                <input type="file" bind:this={musicFileInput} />
+                <input type="file" bind:this={musicFileInput} accept="audio/*"/>
                 <input
                     type="button"
                     value={$_("create.create")}
@@ -361,7 +372,7 @@
                 {/if}
             {:else}
                 <span>{$_("import.archive")}</span>
-                <input type="file" bind:this={archiveFileInput} />
+                <input type="file" bind:this={archiveFileInput} accept="application/zip, .pez"/>
                 <input
                     type="button"
                     value={$_("create.create")}

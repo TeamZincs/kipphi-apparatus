@@ -72,12 +72,20 @@
                     unit="s"
                     disabled={!KPASettings.autosaveEnabled}
                 ></UnitInput>
-                <Label small>{$_("settings.playerWidth")}</Label>
-                <UnitInput
-                    bind:value={KPASettings.playerWidth}
-                    step={1}
-                    unit="px"
-                ></UnitInput>
+                <Label small>{$_("settings.playerHeight")}</Label>
+                <PopupOption wide
+                    bind:currentOption={KPASettings.playerHeight}
+                    options={[540, 900, 1080, 1200, 1800]}
+                    displayTexts={
+                        [
+                            "540px",
+                            "900px",
+                            "1080px",
+                            "1200px",
+                            "1800px"
+                        ]
+                    }
+                ></PopupOption>
             </div>
             <div class="settings-column hotkeys">
                 <div class="whole-row">

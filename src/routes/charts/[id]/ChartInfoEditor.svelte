@@ -109,6 +109,22 @@
     }
 }>{$_("main.chart.save")}</ProgressiveButton>
 
+<ProgressiveButton onclick={
+    () => {
+        if (!message) {
+            notify($_("main.chart.noMessage"), 'error');
+            return;
+        }
+        try {
+            saveChart(target, message);
+            message = ""
+            notify($_("main.chart.saveSuccess"), 'info');
+        } catch (e) {
+            notify(e instanceof Error ? e.message : String(e), 'error');
+        }
+    }
+}>{$_("main.chart.forcesave")}</ProgressiveButton>
+
 <DestructiveButton onclick={
     () => {
         if (target.modified) {

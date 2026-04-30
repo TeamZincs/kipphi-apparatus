@@ -13,6 +13,7 @@
     import { eventSequenceEditors } from "./store.svelte";
     import { SelectState, NumericEventCurveEditor } from "kipphi-canvas-editor";
     import { Replace, SquaresSubtract, SquaresUnite, SquareX } from "@lucide/svelte";
+    import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
 
     let options = $derived(
         $eventsLayer === 'ex'
@@ -103,15 +104,16 @@
             eventSequenceEditors.activatedEditor.autoRangeEnabled = true;
             return;
         }
-        const match = value.match(/^(\-?\d+)[,\- ]\s?(\-?\d+)$/);
+        const match = value.match(/^(\-?\d+)[,\- ]\s?(\-?\d+)[, ]\s?(\d+)?$/);
         if (!match) {
             notify($_("main.events.invalidRange"), "error");
             restore();
             return;
         }
-        const [, start, end] = match;
+        const [, start, end, interval] = match;
         const startNum = parseFloat(start);
         const endNum = parseFloat(end);
+        const intervalNum = interval && parseFloat(interval);
         if (isNaN(startNum) || isNaN(endNum)) {
             notify($_("main.events.invalidRange"), "error");
             return restore();
@@ -123,15 +125,18 @@
         const activatedEditor = eventSequenceEditors.activatedEditor as NumericEventCurveEditor;
         activatedEditor.valueRange = [startNum, endNum];
         activatedEditor.autoRangeEnabled = false;
+        // 属性可以为undefined，表示自适应密度
+        activatedEditor.valueGridInterval = intervalNum;
         
         eventSequenceEditors.activatedEditor.draw();
         
     }
 }>
 {#if $eventsType !== "bpm"}
-<input type="text" class="template-name"
+<SuggestionInput 
+getSuggestions={async (s) => operationList.chart.templateEasingLib.easings.keys().toArray().filter(k => k.startsWith(s))}
 placeholder={$_("main.events.templateName")}
-bind:value={$templateName}>
+bind:value={$templateName}/>
 
 <ProgressiveButton onclick={
     () => {

@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState } from "kipphi-canvas-editor"
 import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
@@ -52,7 +52,8 @@ export const timeDivisor = writable(4);
 // PlayerSettings - 每个属性独立的 writable store
 export const playerShowsUI = writable(true);
 export const playerShowsLineID = writable(false);
-export const playerHitEffectNoFollows = writable(false);
+export const playerHitEffectNoFollows = writable(true);
+export const playerShowsCurve = writable(false);
 
 // NotesEditorSettings - 每个属性独立的 writable store
 export const notesEditChecked = writable(false);
@@ -66,7 +67,7 @@ export const notesPositionXInterval = writable(135);
 // EventSequenceEditorSettings - 每个属性独立的 writable store
 export const eventsEditChecked = writable(false);
 export const eventsLayer = writable<"0" | "1" | "2" | "3" | "ex">("0");
-export const eventsType = writable<any>("moveX");
+export const eventsType = writable<keyof typeof EventType>("moveX");
 export const eventsTimeSpan = writable(4);
 export const eventsScopeSelectMode = writable(SelectState.none);
 
@@ -113,7 +114,12 @@ playerShowsLineID.subscribe(v => {
 playerHitEffectNoFollows.subscribe(v => {
     if (!player) return;
     player.hitEffectNoFollows = v;
-})
+});
+
+playerShowsCurve.subscribe(v => {
+    if (!player) return;
+    player.showsLineCurve = v;
+});
 
 // === NotesEditorSettings 订阅 ===
 notesEditChecked.subscribe(v => {
@@ -191,6 +197,9 @@ eventsType.subscribe(v => {
     // @ts-expect-error TSC又在发什么颠
     eventSequenceEditors.activatedEditor = eventSequenceEditors[v];
     eventsEditChecked.set(eventSequenceEditors.activatedEditor.state === EventCurveEditorState.edit);
+    if (v === "easing") {
+        switchEasing(get(templateName))
+    }
 });
 
 eventsTimeSpan.subscribe(v => {
@@ -220,6 +229,27 @@ useEasing.subscribe(v => {
     }
 });
 
+const switchEasing = (name: string) => {
+
+    const easing = operationList.chart.templateEasingLib.get(name);
+    if (!easing) {
+        return;
+    }
+    const seq = easing.eventNodeSequence
+    if (eventSequenceEditors?.activatedEditor.type === EventType.easing) {
+        eventSequenceEditors.easing.targetEasing = easing;
+        eventSequenceEditors.easing.target = seq;
+        eventSequenceEditors.easing.draw();
+    }
+}
+
+templateName.subscribe(v => {
+    if (!operationList) {
+        return;
+    }
+    switchEasing(v);
+})
+
 export function restoreStates() {
     selectedLineNumber.set(0);
     activeSidebar.set(Sidebar.DEFAULT);
@@ -234,7 +264,8 @@ export function restoreStates() {
 
     playerShowsUI.set(true);
     playerShowsLineID.set(false);
-    playerHitEffectNoFollows.set(false);
+    playerHitEffectNoFollows.set(true);
+    playerShowsCurve.set(false);
 
     notesEditChecked.set(false);
     notesShowsNNN.set(false);

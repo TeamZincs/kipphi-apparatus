@@ -24,7 +24,7 @@
     "autosaveEnabled": "启用自动保存",
     "autosaveComment": "自动保存只会保存修改过的谱面，每次自动保存增加一次制谱时间。\n（也就是说，如果挂机，自动保存不会塞满你的硬盘，也不会统计这部分时间）" ,
     "autosaveInterval": "自动保存间隔",
-    "playerWidth": "播放器宽度",
+    "playerHeight": "播放器高度（分辨率）",
     "hotkey": "热键",
     "joke": "骗你的，热键不支持定制化，这只是教程（笑",
     "hotkeys": {
@@ -171,7 +171,8 @@
         "template": "模板缓动",
         "bezier": "贝塞尔缓动"
       },
-      "delete": "删除节点对"
+      "delete": "删除节点对",
+      "goto": "前往该缓动"
     },
     "judgeline": {
       "cover": {
@@ -229,7 +230,8 @@
     "player": {
       "showsUI": "显示UI",
       "showsLineID": "显示线号",
-      "hitEffectNoFollows": "打击滞留"
+      "hitEffectNoFollows": "打击滞留",
+      "showsCurve": "展示线轨迹"
     },
     "notes": {
       "showsNNN": {
@@ -307,6 +309,7 @@
       "level": "难度等级",
 
       "save": "保存谱面",
+      "forcesave": "强制保存",
       "exit": "退出谱面",
       "confirm": "谱面未保存，您确定要离开吗？",
       "noMessage": "写个提交摘要吧，简单总结自己修改了谱面的什么，方便版本查找",
@@ -358,5 +361,8 @@
       "substract": "排除",
       "none": "非多选"
     }
+  },
+  "error": {
+    "chart": "哦不！我们遇到了一个错误。您可以按F12打开开发者工具以查看错误详情。如果您无法弄清错误且错误持续复现，请加入官群（478824121），将谱面发给杨哲思。"
   }
 }
