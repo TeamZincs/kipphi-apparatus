@@ -24,7 +24,7 @@
     "autosaveEnabled": "啟用自動保存",
     "autosaveComment": "自動保存只會保存修改過的譜面，每次自動保存增加一次製譜時間。\n（也就是說，如果掛機，自動保存不會塞滿你的硬盤，也不會統計這部分時間）",
     "autosaveInterval": "自動保存間隔",
-    "playerWidth": "播放器寬度",
+    "playerHeight": "播放器高度",
     "hotkey": "熱鍵",
     "joke": "騙你的，熱鍵不支持客製化，這只是教程（笑",
     "hotkeys": {
@@ -171,7 +171,8 @@
         "template": "模板緩動",
         "bezier": "貝塞爾緩動"
       },
-      "delete": "刪除節點對"
+      "delete": "刪除節點對",
+      "goto": "前往該緩動"
     },
     "judgeline": {
       "cover": {
@@ -229,7 +230,8 @@
     "player": {
       "showsUI": "顯示 UI",
       "showsLineID": "顯示線號",
-      "hitEffectNoFollows": "打擊滯留"
+      "hitEffectNoFollows": "打擊滯留",
+      "showsCurve": "展示線軌跡"
     },
     "notes": {
       "showsNNN": {
@@ -307,6 +309,7 @@
       "level": "難度等級",
 
       "save": "保存譜面",
+      "forcesave": "強制保存",
       "exit": "退出譜面",
       "confirm": "譜面未保存，您確定要離開嗎？",
       "noMessage": "寫個提交摘要吧，簡單總結自己修改了譜面的什麼，方便版本查找",
@@ -358,5 +361,8 @@
       "substract": "排除",
       "none": "非多選"
     }
+  },
+  "error": {
+    "chart": "糟糕！我們遇到了一個錯誤。你可以按 F12 打開開發者工具以查看錯誤詳情。如果您無法弄清錯誤且錯誤持續復現，請加入官群（478824121），將譜面發給楊哲思。"
   }
 }

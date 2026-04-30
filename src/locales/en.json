@@ -24,6 +24,7 @@
     "autosaveEnabled": "Enable Autosave",
     "autosaveComment": "Autosave only saves modified charts. Each autosave increases charting time by one.\n(This means if you leave it idle, autosave won't fill up your hard drive or count that time)",
     "autosaveInterval": "Autosave Interval",
+    "playerHeight": "Player Height",
     "hotkey": "Hotkey",
     "joke": "Just kidding, hotkeys don't support customization. This is just a tutorial (lol)",
     "hotkeys": {
@@ -126,7 +127,8 @@
       "line": "Manage Selected Line",
       "chart": "Chart Info",
       "multiNode": "Multi-Node Editor",
-      "multiNote": "Multi-Note Editor"
+      "multiNote": "Multi-Note Editor",
+      "errors": "Errors"
     },
     "note": {
       "noNote": "No target note or target note has been removed",
@@ -169,7 +171,8 @@
         "template": "Template Easing",
         "bezier": "Bezier Easing"
       },
-      "delete": "Delete Node Pair"
+      "delete": "Delete Node Pair",
+      "goto": "Go to This Easing"
     },
     "judgeline": {
       "cover": {
@@ -227,7 +230,8 @@
     "player": {
       "showsUI": "Show UI",
       "showsLineID": "Show Line Number",
-      "hitEffectNoFollows": "Hit Effect Lag"
+      "hitEffectNoFollows": "Hit Effect Lag",
+      "showsCurve": "Show Line Trail"
     },
     "notes": {
       "showsNNN": {
@@ -305,6 +309,7 @@
       "level": "Difficulty Level",
 
       "save": "Save Chart",
+      "forcesave": "Force Save",
       "exit": "Exit Chart",
       "confirm": "Chart is not saved. Are you sure you want to leave?",
       "noMessage": "Write a commit summary to briefly summarize what you modified in the chart for easy version lookup",
@@ -356,5 +361,8 @@
       "substract": "Subtract",
       "none": "Non-Multi"
     }
+  },
+  "error": {
+    "chart": "Oops! We encountered an error. You can press F12 to open the developer tools to view the error details. If you can't figure out the error and it persists, please join the official group (478824121) and send the chart to Zes Minkey Young."
   }
 }
