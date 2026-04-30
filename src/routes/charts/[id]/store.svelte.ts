@@ -52,7 +52,7 @@ export const timeDivisor = writable(4);
 // PlayerSettings - 每个属性独立的 writable store
 export const playerShowsUI = writable(true);
 export const playerShowsLineID = writable(false);
-export const playerHitEffectNoFollows = writable(false);
+export const playerHitEffectNoFollows = writable(true);
 export const playerShowsCurve = writable(false);
 
 // NotesEditorSettings - 每个属性独立的 writable store
