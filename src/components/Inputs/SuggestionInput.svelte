@@ -2,11 +2,13 @@
     let {
         getSuggestions,
         value = $bindable(),
-        onchange
+        onchange,
+        placeholder = ""
     }: {
         getSuggestions: (input: string) => Promise<string[]>,
         value: string,
-        onchange?: (value: string) => void
+        onchange?: (value: string) => void,
+        placeholder?: string
     } = $props();
     let displaysSuggestions = $state(false);
     let suggestions = $state([] as string[])
@@ -20,6 +22,7 @@
 
 <div class="sugggestion-input-container">
 <input class="suggestion-input" type="text"
+placeholder={placeholder}
 bind:value
 onchange={() => {
     // 设置一个防抖，因为后面点击了一下li之前已经触发了一次input的onchange，那个时候的文本内容可能是不准确的

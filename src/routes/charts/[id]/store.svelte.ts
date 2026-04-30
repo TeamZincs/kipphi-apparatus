@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState } from "kipphi-canvas-editor"
 import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
@@ -67,7 +67,7 @@ export const notesPositionXInterval = writable(135);
 // EventSequenceEditorSettings - 每个属性独立的 writable store
 export const eventsEditChecked = writable(false);
 export const eventsLayer = writable<"0" | "1" | "2" | "3" | "ex">("0");
-export const eventsType = writable<any>("moveX");
+export const eventsType = writable<keyof typeof EventType>("moveX");
 export const eventsTimeSpan = writable(4);
 export const eventsScopeSelectMode = writable(SelectState.none);
 
@@ -197,6 +197,9 @@ eventsType.subscribe(v => {
     // @ts-expect-error TSC又在发什么颠
     eventSequenceEditors.activatedEditor = eventSequenceEditors[v];
     eventsEditChecked.set(eventSequenceEditors.activatedEditor.state === EventCurveEditorState.edit);
+    if (v === "easing") {
+        switchEasing(get(templateName))
+    }
 });
 
 eventsTimeSpan.subscribe(v => {
@@ -226,11 +229,9 @@ useEasing.subscribe(v => {
     }
 });
 
-templateName.subscribe(v => {
-    if (!operationList) {
-        return;
-    }
-    const easing = operationList.chart.templateEasingLib.get(v);
+const switchEasing = (name: string) => {
+
+    const easing = operationList.chart.templateEasingLib.get(name);
     if (!easing) {
         return;
     }
@@ -238,7 +239,15 @@ templateName.subscribe(v => {
     if (eventSequenceEditors?.activatedEditor.type === EventType.easing) {
         eventSequenceEditors.easing.targetEasing = easing;
         eventSequenceEditors.easing.target = seq;
+        eventSequenceEditors.easing.draw();
     }
+}
+
+templateName.subscribe(v => {
+    if (!operationList) {
+        return;
+    }
+    switchEasing(v);
 })
 
 export function restoreStates() {
@@ -255,7 +264,7 @@ export function restoreStates() {
 
     playerShowsUI.set(true);
     playerShowsLineID.set(false);
-    playerHitEffectNoFollows.set(false);
+    playerHitEffectNoFollows.set(true);
     playerShowsCurve.set(false);
 
     notesEditChecked.set(false);
