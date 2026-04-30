@@ -3,7 +3,7 @@ import { Player, AudioProcessor, Images } from "kipphi-player";
 import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
 import type { PageData } from "./$types";
 import { onMount, tick, onDestroy } from "svelte";
-import { Chart, EventType, KPAError, Op as O, type ExtendedEventTypeName } from "kipphi";
+import { Chart, EventEndNode, EventStartNode, EventType, KPAError, Op as O, TC, type ExtendedEventTypeName } from "kipphi";
 
 import { _ } from "#/i18n";
 
@@ -194,8 +194,10 @@ const backward = (delta: number) => {
         audio.currentTime = audioCurTime - delta;
         player.render();
     }
-
 }
+
+
+
 /**
  * 处理滚轮事件。
  * @param event
@@ -402,6 +404,9 @@ onMount(async () => {
     })
     operationList.addEventListener("redo", (e) => {
         notify("Redo: " + e.operation.constructor.name, "info");
+    });
+    operationList.addEventListener("error", (e) => {
+        notify("Error: " + e.error.message, "error")
     })
     notesEditor.addEventListener("noteselected", (ev) => {
         selectedNote.set(ev.note);
