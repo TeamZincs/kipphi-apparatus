@@ -338,6 +338,7 @@ onMount(async () => {
         illustration,
         respack
     );
+    player.hitEffectNoFollows = $playerHitEffectNoFollows;
     //player.cameraRatio = 0.8;
     player.addEventListener("play", () => {
         isPlaying = true;
