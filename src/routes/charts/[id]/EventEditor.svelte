@@ -164,6 +164,8 @@ class EasingCanvas extends EventTarget {
             y = h / 3 * (1 - value) + h / 6;
             path3.lineTo(i + pad, y);
         }
+        value = undefined;
+        checkForbidden();
         if (this.holding) {
             context.fillStyle = "#f006";
             console.log(bgPath)

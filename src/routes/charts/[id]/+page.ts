@@ -3,26 +3,31 @@ import { getChartProject, queryMeta, readAFileInChart, type ChartMetadata } from
 import type { PageLoad } from "./$types";
 import { setID } from "./store.svelte";
 import { KPAError } from "kipphi";
+import { error } from "@sveltejs/kit";
 
 export const load: PageLoad = async (event) => {
     const chartId = event.params.id;
     setID(chartId);
     // 防止缓冲区堆积错误
     KPAError.flush();
-    const {chart, music, illustration} = await getChartProject(chartId)
-    return {
-        chart,
-        music,
-        illustration,
-        tap: "/Tap.wav",
-        drag: "/Drag.wav",
-        flick: "/Flick.wav",
-        anchorImg: "/Anchor.png",
-        belowImg: "/Below.png",
-        selectNoteImg: "/selectNote.png",
-        startNodeImg: "/South.png",
-        endNodeImg: "/North.png",
-    };
+    try {
+        const {chart, music, illustration} = await getChartProject(chartId)
+        return {
+            chart,
+            music,
+            illustration,
+            tap: "/Tap.wav",
+            drag: "/Drag.wav",
+            flick: "/Flick.wav",
+            anchorImg: "/Anchor.png",
+            belowImg: "/Below.png",
+            selectNoteImg: "/selectNote.png",
+            startNodeImg: "/South.png",
+            endNodeImg: "/North.png",
+        };
+    } catch (e) {
+        error(500, e)
+    }
 };
 
 

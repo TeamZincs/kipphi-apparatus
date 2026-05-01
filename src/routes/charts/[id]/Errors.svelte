@@ -3,12 +3,27 @@
 
 <script lang="ts">
 import { KPAError } from "kipphi";
+    import { operationList } from "./store.svelte";
+    import { _ } from "#/i18n";
+    import Button from "#/components/buttons/Button.svelte";
+    import { notify } from "#/notify.svelte";
+    let errors = $state(KPAError.buffer);
 </script>
 
+<Button onclick={
+    () => {
+        const pre = performance.now();
+        operationList.chart.checkErrors();
+        errors = KPAError.buffer;
+        const cost = (performance.now() - pre) / 1000;
+        notify($_("main.errors.checkComplete",
+        {values:{count: KPAError.buffer.length, secs: cost.toFixed(3)}}), "info");
+    }
+}>{$_("main.errors.check")}</Button>
 <div class="errors">
-    {#each KPAError.buffer as errror}
+    {#each errors as error}
         <div class="error">
-            <div class="error-message">{errror.message}</div>
+            <div class="error-message">{error.message}</div>
         </div>
     {/each}
 </div>

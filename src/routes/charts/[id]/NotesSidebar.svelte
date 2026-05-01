@@ -118,40 +118,6 @@
 <Label small>{$_("main.notes.positionXInterval")}</Label>
 <UnitInput bind:value={$notesPositionXInterval} step={1} unit="px"></UnitInput>
 
-<Label small>{$_("main.events.timeSpan")}</Label>
-<UnitInput bind:value={$notesTimeSpan} unit={$_("general.beat")} step={1}></UnitInput>
-
-<Label small>{$_("general.multiSelectMode")}</Label>
-<PopupOption wide options={
-    [
-        SelectState.none,
-        SelectState.extend,
-        SelectState.replace,
-        SelectState.exclude
-    ]
-} bind:currentOption={$notesScopeSelectMode}>
-    {#snippet displayTexts(mode: SelectState)}
-        {#if mode === SelectState.none}
-            <SquareX/>
-            {$_("general.modes.none")}
-        {:else if mode === SelectState.extend}
-            <SquaresUnite/>
-            {$_("general.modes.extend")}
-        {:else if mode === SelectState.replace}
-            <Replace/>
-            {$_("general.modes.replace")}
-        {:else if mode === SelectState.exclude}
-            <SquaresSubtract/>
-            {$_("general.modes.substract")}
-        {/if}
-
-    {/snippet}
-</PopupOption>
-
-<UnitInput bind:value={$notesPositionCenter} step={$notesPositionXInterval} unit="px"></UnitInput>
-<Label small>{$_("main.notes.positionXInterval")}</Label>
-<UnitInput bind:value={$notesPositionXInterval} step={1} unit="px"></UnitInput>
-
 <style scoped>
     .flex {
         display: flex;
