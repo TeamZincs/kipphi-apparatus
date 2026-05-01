@@ -319,7 +319,9 @@
     },
     "errors": {
       "title": "錯誤",
-      "notify": "譜面中存在錯誤，打開“錯誤“次側欄以檢視。"
+      "notify": "譜面中存在錯誤，打開“錯誤“次側欄以檢視。",
+      "check": "檢查錯誤",
+      "checkComplete": "檢查完成。在{secs}秒內發現{count}個錯誤。"
     }
   },
   "export": {

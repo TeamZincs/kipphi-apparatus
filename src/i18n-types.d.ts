@@ -233,6 +233,8 @@ export interface I18nMapping {
 "main.chart.openInExplorer": never;
 "main.errors.title": never;
 "main.errors.notify": never;
+"main.errors.check": never;
+"main.errors.checkComplete": "secs" | "count";
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;
@@ -263,6 +265,7 @@ export interface I18nMapping {
 "general.modes.extend": never;
 "general.modes.substract": never;
 "general.modes.none": never;
+"general.return": never;
 "error.chart": never
 }
 

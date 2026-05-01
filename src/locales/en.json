@@ -319,7 +319,9 @@
     },
     "errors": {
       "title": "Errors",
-      "notify": "There are errors in the chart. Open the \"Errors\" sidebar to check."
+      "notify": "There are errors in the chart. Open the \"Errors\" sidebar to check.",
+      "check": "Check Errors",
+      "checkComplete": "Check completed. Discovered {count} error(s) in {secs} seconds."
     }
   },
   "export": {
