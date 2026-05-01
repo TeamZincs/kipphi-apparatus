@@ -26,7 +26,11 @@
         if (eventSequenceEditors.activatedEditor.autoRangeEnabled) {
             rangeInput.value = "auto";
         } else {
-            rangeInput.value = (eventSequenceEditors.activatedEditor as NumericEventCurveEditor).valueRange.join(", ");
+            let value = (eventSequenceEditors.activatedEditor as NumericEventCurveEditor).valueRange.join(", ");
+            if (eventSequenceEditors.activatedEditor.timeGridInterval) {
+                value += `, ${eventSequenceEditors.activatedEditor.timeGridInterval}`;
+            }
+            rangeInput.value = value;
         }
     }
     $effect(() => {
@@ -104,7 +108,7 @@
             eventSequenceEditors.activatedEditor.autoRangeEnabled = true;
             return;
         }
-        const match = value.match(/^(\-?\d+)[,\- ]\s?(\-?\d+)[, ]\s?(\d+)?$/);
+        const match = value.match(/^(\-?\d+)[,\- ]\s?(\-?\d+)(?:[, ]\s?(\d+))?$/);
         if (!match) {
             notify($_("main.events.invalidRange"), "error");
             restore();
