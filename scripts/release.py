@@ -67,9 +67,11 @@ def bump():
     call(["git", "commit", "-m", "chore: Bump version to " + package["version"]])
 
 
-    input("压缩提交到release分支")
-    call(["git", "checkout", "release"])
-    call(["git", "merge", "--squash", "master", "-m", "build: release " + package["version"], "-X", "theirs"])
+    input("删除重创release分支")
+    call(["git", "branch", "-D", "release"])
+    call(["git", "push", "origin", "--delete", "release"])
+    call(["git", "checkout", "-b", "release"])
+    call(["git", "push", "origin", "release"])
 
     input("推送到GitHub")
     call(["git", "push"])
