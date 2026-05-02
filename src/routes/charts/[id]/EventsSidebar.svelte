@@ -2,7 +2,7 @@
     import Label from "#/components/Label.svelte";
     import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { EventType, type ExtendedEventTypeName, KPAError, Op } from "kipphi";
-    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, eventsScopeSelectMode, operationList, useEasing, templateName, selectedLineNumber } from "./store.svelte";
+    import { eventsLayer, eventsType, eventsTimeSpan, eventsEditChecked, eventsScopeSelectMode, operationList, useEasing, templateName, selectedLineNumber, newNodeState } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
@@ -11,7 +11,7 @@
     import { EventSequenceEditor } from "kipphi-canvas-editor/eventCurveEditor";
     import { notify } from "#/notify.svelte";
     import { eventSequenceEditors } from "./store.svelte";
-    import { SelectState, NumericEventCurveEditor } from "kipphi-canvas-editor";
+    import { SelectState, NumericEventCurveEditor, NewNodeState } from "kipphi-canvas-editor";
     import { Replace, SquaresSubtract, SquaresUnite, SquareX } from "@lucide/svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
 
@@ -136,6 +136,13 @@
         
     }
 }>
+
+<PopupOption
+    bind:currentOption={$newNodeState}
+    options={[NewNodeState.controlsBoth, NewNodeState.controlsStart, NewNodeState.controlsEnd]}
+    displayTexts={["both", "start", "end"]}
+></PopupOption>
+
 {#if $eventsType !== "bpm"}
 <SuggestionInput 
 getSuggestions={async (s) => operationList.chart.templateEasingLib.easings.keys().toArray().filter(k => k.startsWith(s))}

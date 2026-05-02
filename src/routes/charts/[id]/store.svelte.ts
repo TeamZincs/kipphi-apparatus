@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState } from "kipphi-canvas-editor"
+import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState, NewNodeState } from "kipphi-canvas-editor"
 import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
@@ -70,6 +70,7 @@ export const eventsLayer = writable<"0" | "1" | "2" | "3" | "ex">("0");
 export const eventsType = writable<keyof typeof EventType>("moveX");
 export const eventsTimeSpan = writable(4);
 export const eventsScopeSelectMode = writable(SelectState.none);
+export const newNodeState = writable(NewNodeState.controlsBoth);
 
 // useEasing 和 templateName 作为独立的 writable stores
 export const useEasing = writable(1);
@@ -221,6 +222,15 @@ eventsScopeSelectMode.subscribe(v => {
         eventSequenceEditors.activatedEditor.state = EventCurveEditorState.select;
     }
 });
+
+newNodeState.subscribe(v => {
+    if (!eventSequenceEditors) return;
+    for (const key of ["alpha", "moveX", "moveY", "rotate", "speed",
+       "scaleX", "scaleY", "text", "color",
+       "bpm", "easing"] satisfies (keyof typeof EventType)[]) {
+        eventSequenceEditors[key].newNodeState = v;
+    }
+})
 
 // === useEasing 订阅 ===
 useEasing.subscribe(v => {
