@@ -73,8 +73,6 @@ def bump():
     call(["git", "checkout", "-b", "release"])
     call(["git", "push", "--set-upstream", "origin", "release"])
 
-    input("推送到GitHub")
-    call(["git", "push"])
     input("切换到master分支并推送")
     call(["git", "checkout", "master"])
 
