@@ -1,6 +1,6 @@
 {
     "name": "kipphi-apparatus",
-    "version": "2.1.3-beta.3",
+    "version": "2.1.3-beta.4",
     "description": "",
     "type": "module",
     "scripts": {
@@ -24,8 +24,8 @@
         "svelte-portal": "^2.2.1",
         "yaml": "^2.8.2",
         "kipphi": "2.1.3-beta.2",
-        "kipphi-player": "2.1.3-beta.3",
-        "kipphi-canvas-editor": "2.1.3-beta.3"
+        "kipphi-player": "2.1.3-beta.4",
+        "kipphi-canvas-editor": "2.1.3-beta.4"
     },
     "devDependencies": {
         "@internationalized/date": "^3.11.0",
