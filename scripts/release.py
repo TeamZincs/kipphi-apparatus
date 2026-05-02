@@ -71,7 +71,7 @@ def bump():
     call(["git", "branch", "-D", "release"])
     call(["git", "push", "origin", "--delete", "release"])
     call(["git", "checkout", "-b", "release"])
-    call(["git", "push", "origin", "release"])
+    call(["git", "push", "--set-upstream", "origin", "release"])
 
     input("推送到GitHub")
     call(["git", "push"])
