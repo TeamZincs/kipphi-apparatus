@@ -173,10 +173,10 @@ async function saveChartHistoryEntry(chartId: string, entry: ChartHistoryEntry) 
     await writeTextFile(filePath, JSON.stringify(history, null, 2));
 }
 
-export async function saveChart(chartId: string, chart: Chart, summary: string) {
+export async function saveChart(chartId: string, chart: Chart, summary: string, beutify = false) {
     const chartMeta = await queryChartMeta(chartId);
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
-    const chartStr = JSON.stringify(chart.dumpKPA());
+    const chartStr = beutify ? JSON.stringify(chart.dumpKPA(), null, 2) : JSON.stringify(chart.dumpKPA());
 
     const date = new Date();
     const dateStr = date.toISOString()

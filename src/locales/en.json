@@ -309,6 +309,8 @@
       "level": "Difficulty Level",
 
       "save": "Save Chart",
+      "beautify": "Beautify output",
+      "beautifyTooltip": "If enabled, it adds newlines and indentaions to the JSON so as to make it readable, but the file size will increase.",
       "forcesave": "Force Save",
       "exit": "Exit Chart",
       "confirm": "Chart is not saved. Are you sure you want to leave?",

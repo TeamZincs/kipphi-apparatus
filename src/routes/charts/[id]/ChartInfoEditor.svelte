@@ -13,6 +13,8 @@
     import { getPathOfChart } from "#/background";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
     import { goto } from "$app/navigation";
+    import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
+    import Tooltip from "#/components/Tooltip.svelte";
 
     const target = operationList.chart;
     let values = $state({
@@ -26,6 +28,7 @@
     });
 
     let message = $state("");
+    let beautify = $state(false);
 
     operationList.addEventListener("do", (op) => {
         if (op.operation.constructor.name.startsWith("Chart")) {
@@ -46,6 +49,20 @@
     function handleChange<K extends Op.ChartPropName>(key: K) {
         return (value: Chart[K]) => {
             operationList.do(new Op.ChartPropChangeOperation(target, key, value));
+        }
+    }
+    function save() {
+        
+        if (!message) {
+            notify($_("main.chart.noMessage"), 'error');
+            return;
+        }
+        try {
+            saveChart(target, message, beautify);
+            message = ""
+            notify($_("main.chart.saveSuccess"), 'info');
+        } catch (e) {
+            notify(e instanceof Error ? e.message : String(e), 'error');
         }
     }
 </script>
@@ -94,35 +111,22 @@
 
 <textarea placeholder={$_("main.chart.summary")} spellcheck="false" bind:value={message}></textarea>
 <ProgressiveButton disabled={!values.modified} onclick={
-    () => {
-        if (!message) {
-            notify($_("main.chart.noMessage"), 'error');
-            return;
-        }
-        try {
-            saveChart(target, message);
-            message = ""
-            notify($_("main.chart.saveSuccess"), 'info');
-        } catch (e) {
-            notify(e instanceof Error ? e.message : String(e), 'error');
-        }
-    }
+    save
 }>{$_("main.chart.save")}</ProgressiveButton>
 
+<div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
+<span></span>
+<TextSwitchButton wide
+    onText="Y"
+    offText="N"
+    bind:checked={beautify}
+    bgText={$_("main.chart.beautify")}
+>
+</TextSwitchButton>
+<Tooltip>{$_("main.chart.beautifyTooltip")}</Tooltip>
+</div>
 <ProgressiveButton onclick={
-    () => {
-        if (!message) {
-            notify($_("main.chart.noMessage"), 'error');
-            return;
-        }
-        try {
-            saveChart(target, message);
-            message = ""
-            notify($_("main.chart.saveSuccess"), 'info');
-        } catch (e) {
-            notify(e instanceof Error ? e.message : String(e), 'error');
-        }
-    }
+    save
 }>{$_("main.chart.forcesave")}</ProgressiveButton>
 
 <DestructiveButton onclick={

@@ -224,6 +224,8 @@ export interface I18nMapping {
 "main.chart.offset": never;
 "main.chart.level": never;
 "main.chart.save": never;
+"main.chart.beautify": never;
+"main.chart.beautifyTooltip": never;
 "main.chart.forcesave": never;
 "main.chart.exit": never;
 "main.chart.confirm": never;

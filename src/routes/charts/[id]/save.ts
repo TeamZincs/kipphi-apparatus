@@ -2,12 +2,12 @@ import { saveChart as _saveChart } from "#/background";
 import type { Chart } from "kipphi";
 import { chartId } from "./store.svelte";
 
-export async function saveChart(chart: Chart, message: string) {
+export async function saveChart(chart: Chart, message: string, beutify = false) {
     const id = chartId;
     if (!id) {
         throw new Error("Chart ID is not set");
     }
-    await _saveChart(id, chart, message);
+    await _saveChart(id, chart, message, beutify);
     chart.modified = false;
     callbackfns.forEach(fn => fn());
 }

@@ -309,6 +309,8 @@
       "level": "难度等级",
 
       "save": "保存谱面",
+      "beautify": "美观输出",
+      "beautifyTooltip": "若开启此项，JSON内容将添加换行与缩进以便识读，但文件体积也随之增大。",
       "forcesave": "强制保存",
       "exit": "退出谱面",
       "confirm": "谱面未保存，您确定要离开吗？",
