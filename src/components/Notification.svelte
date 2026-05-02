@@ -35,6 +35,7 @@
     @basic-transX: -@left + @normal-top;
     .notification {
         position: fixed;
+        z-index: 114514;
         height: @height;
         width: @width;
         left: @left;
