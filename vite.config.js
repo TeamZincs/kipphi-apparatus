@@ -9,11 +9,35 @@ const host = process.env.TAURI_DEV_HOST;
 const TAURI_CONF_VERSION = TAURI_CONF.version;
 
 
-const getNPMPackageVersion = async (/** @type {string} */packageName) => {
+const getNPMPackageVersion = async (/** @type {string} */packageName, stringified = true) => {
   const jsonContent = fs.readFileSync("./node_modules/" + packageName + "/package.json").toString();
   const version = JSON.parse(jsonContent).version;
   console.log(version)
-  return JSON.stringify(version);
+  return stringified ? JSON.stringify(version) : version;
+}
+
+const getNPMPackageLicense = async (/** @type {string} */packageName) => {
+  const jsonContent = fs.readFileSync("./node_modules/" + packageName + "/package.json").toString();
+  const version = JSON.parse(jsonContent).license;
+  return version;
+}
+
+const getDependencies = async () => {
+  const jsonContent = fs.readFileSync("./package.json").toString();
+  const dependencyVersions = JSON.parse(jsonContent).dependencies;
+  /** @type {import("./dependency").Dependency[]} */
+  const dependencies = []
+  for (const name in dependencyVersions) {
+    if (["kipphi", "kipphi-player", "kipphi-canvas-editor"].includes(name)) {
+      continue;
+    }
+    dependencies.push({
+      name,
+      version: await getNPMPackageVersion(name, false),
+      license: await getNPMPackageLicense(name)
+    })
+  }
+  return JSON.stringify(dependencies);
 }
 
 // https://vite.dev/config/
@@ -40,5 +64,6 @@ export default defineConfig(async () => ({
     "__PLAYER_VERSION": await getNPMPackageVersion("kipphi-player"),
     "__CANVAS_EDITOR_VERSION": await getNPMPackageVersion("kipphi-canvas-editor"),
     "__KIPPHI_VERSION": await getNPMPackageVersion("kipphi"),
+    "__DEPENDENCIES": await getDependencies()
   }
 }));

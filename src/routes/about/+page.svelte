@@ -16,6 +16,12 @@
             <span>{$_("about.player")}</span><span>{__PLAYER_VERSION}</span>
             <span>{$_("about.canvasEditor")}</span><span>{__CANVAS_EDITOR_VERSION}</span>
         </div>
+        
+        <div class="table-3">
+            {#each __DEPENDENCIES as dep}
+                <span>{dep.name}</span><span>{dep.version}</span><span>{dep.license}</span>
+            {/each}
+        </div>
     </div>
 </main>
 
@@ -41,6 +47,14 @@
     .table {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
+        grid-gap: 4px;
+        border-radius: var(--border-radius);
+        border: 1px solid var(--color-foreground);
+        padding: 4px;
+    } 
+    .table-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         grid-gap: 4px;
         border-radius: var(--border-radius);
         border: 1px solid var(--color-foreground);
