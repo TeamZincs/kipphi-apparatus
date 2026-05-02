@@ -702,6 +702,7 @@ updateTip();
     }
     #ne {
         position: absolute;
+        top: 0;
         height: var(--player-height);
         left: 0;
         transition: 0.3s opacity ease;
@@ -709,6 +710,7 @@ updateTip();
     }
     #ece {
         position: absolute;
+        top: 0;
         height: var(--player-height);
         right: 0;
         transition: 0.3s opacity ease;
