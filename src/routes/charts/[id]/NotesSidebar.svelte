@@ -2,7 +2,7 @@
     import { SquaresSubtract, SquaresUnite, Replace, SquareX } from "@lucide/svelte";
     import Label from "#/components/Label.svelte";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
-    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList, notesScopeSelectMode, notesTimeSpan, notesPositionCenter, notesPositionXInterval, notesEditor } from "./store.svelte";
+    import { selectedLineNumber, notesEditChecked, notesShowsNNN, notesNoteType, operationList, notesScopeSelectMode, notesTimeSpan, notesPositionCenter, notesPositionXInterval, notesEditor, notesAbove } from "./store.svelte";
 
     import { _ } from "#/i18n";
     import Tooltip from "#/components/Tooltip.svelte";
@@ -62,6 +62,13 @@
     ["Tap", "Hold", "Flick", "Drag"]
 } bind:currentOption={$notesNoteType}
 ></PopupOption>
+
+<TextSwitchButton wide
+    bind:checked={$notesAbove}
+    onText={$_("main.note.above")}
+    offText={$_("main.note.below")}
+    bgText={$_("main.note.direction")}
+></TextSwitchButton>
 
 <div class="flex">
     <TextSwitchButton wide bgText={$_("main.notes.showsNNN.term")}

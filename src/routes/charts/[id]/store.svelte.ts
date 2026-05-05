@@ -20,7 +20,8 @@ export const SecondarySidebar = {
     CHART: 4,
     MULTI_NODE: 5,
     MULTI_NOTE: 6,
-    ERRORS: 7
+    ERRORS: 7,
+    GENERAL: 8
 }
 
 export let player: Player;
@@ -54,6 +55,7 @@ export const playerShowsUI = writable(true);
 export const playerShowsLineID = writable(false);
 export const playerHitEffectNoFollows = writable(true);
 export const playerShowsCurve = writable(false);
+export const playerCameraZoom = writable(1);
 
 // NotesEditorSettings - 每个属性独立的 writable store
 export const notesEditChecked = writable(false);
@@ -63,6 +65,7 @@ export const notesTimeSpan = writable(4);
 export const notesScopeSelectMode = writable(SelectState.none);
 export const notesPositionCenter = writable(0);
 export const notesPositionXInterval = writable(135);
+export const notesAbove = writable(true);
 
 // EventSequenceEditorSettings - 每个属性独立的 writable store
 export const eventsEditChecked = writable(false);
@@ -122,6 +125,12 @@ playerShowsCurve.subscribe(v => {
     player.showsLineCurve = v;
 });
 
+playerCameraZoom.subscribe(v => {
+    if (!player) return;
+    player.cameraRatio = v;
+    player.render();
+})
+
 // === NotesEditorSettings 订阅 ===
 notesEditChecked.subscribe(v => {
     if (!notesEditor) return;
@@ -159,6 +168,7 @@ notesScopeSelectMode.subscribe(v => {
     notesEditor.selectState = v;
     if (v !== SelectState.none) {
         notesEditor.state = NotesEditorState.selectScope;
+        notesEditor.lastSelectState = v;
     } else {
         notesEditor.state = NotesEditorState.select;
     }
@@ -175,6 +185,11 @@ notesPositionXInterval.subscribe(v => {
     if (!notesEditor) return;
     notesEditor.positionGridSpan = v;
     notesEditor.draw();
+});
+
+notesAbove.subscribe(v => {
+    if (!notesEditor) return;
+    notesEditor.noteAbove = v;
 })
 
 // === EventSequenceEditorSettings 订阅 ===
@@ -218,6 +233,7 @@ eventsScopeSelectMode.subscribe(v => {
     eventSequenceEditors.activatedEditor.selectState = v;
     if (v !== SelectState.none) {
         eventSequenceEditors.activatedEditor.state = EventCurveEditorState.selectScope;
+        eventSequenceEditors.activatedEditor.lastSelectState = v;
     } else {
         eventSequenceEditors.activatedEditor.state = EventCurveEditorState.select;
     }
@@ -276,6 +292,7 @@ export function restoreStates() {
     playerShowsLineID.set(false);
     playerHitEffectNoFollows.set(true);
     playerShowsCurve.set(false);
+    playerCameraZoom.set(1);
 
     notesEditChecked.set(false);
     notesShowsNNN.set(false);
@@ -284,6 +301,7 @@ export function restoreStates() {
     notesScopeSelectMode.set(SelectState.none);
     notesPositionCenter.set(0);
     notesPositionXInterval.set(135);
+    notesAbove.set(true);
 
     eventsEditChecked.set(false);
     eventsLayer.set("0");
