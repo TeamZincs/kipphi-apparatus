@@ -523,7 +523,7 @@ updateTip();
                 options={
                     [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE,
                     SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE,
-                    SecondarySidebar.ERRORS
+                    SecondarySidebar.ERRORS, SecondarySidebar.GENERAL
                 ]
                 }
                 displayTexts={[
@@ -559,30 +559,40 @@ updateTip();
                 <ChartInfoEditor></ChartInfoEditor>
             {:else if $activeSecondarySidebar === SecondarySidebar.MULTI_NODE}
                 {#if $selectedNodes && $selectedNodes.size > 0}
-                    <MultiNodeEditor target={$selectedNodes}></MultiNodeEditor>
+                    <svelte:boundary>
+                        <MultiNodeEditor target={$selectedNodes}></MultiNodeEditor>
+                        {#snippet failed()}
+                            Error!
+                        {/snippet}
+                    </svelte:boundary>
                 {/if}
             {:else if $activeSecondarySidebar === SecondarySidebar.MULTI_NOTE}
                 {#if $selectedNotes && $selectedNotes.size > 0}
-                    <MultiNoteEditor target={$selectedNotes}></MultiNoteEditor>
+                    <svelte:boundary>
+                        <MultiNoteEditor target={$selectedNotes}></MultiNoteEditor>
+                        {#snippet failed()}
+                            Error!
+                        {/snippet}
+                    </svelte:boundary>
                 {/if}
             {:else if $activeSecondarySidebar === SecondarySidebar.ERRORS}
                 <Errors/>
             {:else if $activeSecondarySidebar === SecondarySidebar.GENERAL}
-            <Label small>
-                {$_("main.sidebar.timeDivisor.term")}
-                <Tooltip>{$_("main.sidebar.timeDivisor.desc")}</Tooltip>
-            </Label>
-            <ArrowedInput
-                bind:value={$timeDivisor}
-                />
-            <Label small>
-                {$_("main.sidebar.renderingOffset.term")}
-                <Tooltip>{$_("main.sidebar.renderingOffset.desc")}</Tooltip>
-            </Label>
-            <UnitInput
-                unit="s"
-                bind:value={renderingOffset}/>
-{/if}
+                <Label small>
+                    {$_("main.sidebar.timeDivisor.term")}
+                    <Tooltip>{$_("main.sidebar.timeDivisor.desc")}</Tooltip>
+                </Label>
+                <ArrowedInput
+                    bind:value={$timeDivisor}
+                    />
+                <Label small>
+                    {$_("main.sidebar.renderingOffset.term")}
+                    <Tooltip>{$_("main.sidebar.renderingOffset.desc")}</Tooltip>
+                </Label>
+                <UnitInput
+                    unit="s"
+                    bind:value={renderingOffset}/>
+            {/if}
         </div>
     </div>
     <div id="sidebar">
