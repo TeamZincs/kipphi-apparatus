@@ -228,13 +228,13 @@ export async function getChartProject<RT extends NonImageReturnType = ReturnType
     const music = await readAFileInChart(
         chartId,
         musicPath,
-        getMimeTypeFromName("audio", musicPath),
+        getMimeTypeFromName(musicPath),
         returning
     );
     const illustration = await readAFileInChart(
         chartId,
         illustrationPath,
-        getMimeTypeFromName("image", illustrationPath),
+        getMimeTypeFromName(illustrationPath),
         returning
     );
     return {
@@ -374,7 +374,7 @@ export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(
         
         const texturePath = await join(texturesDir, name);
         if (await exists(texturePath)) {
-            return await returningFromU8(await readFile(texturePath), returning, getMimeTypeFromName("image", name));
+            return await returningFromU8(await readFile(texturePath), returning, getMimeTypeFromName(name));
         }
     }
     // 如果不能搜索到，则在此谱面根目录搜索
@@ -390,7 +390,7 @@ export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(
             const texturePath = await join(texturesDir, name);
             await writeFile(texturePath, u8Arr);
         } catch {}
-        return await returningFromU8(u8Arr, returning, getMimeTypeFromName("image", name));
+        return await returningFromU8(u8Arr, returning, getMimeTypeFromName(name));
     }
 }
 
