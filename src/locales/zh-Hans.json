@@ -232,7 +232,8 @@
       "showsUI": "显示UI",
       "showsLineID": "显示线号",
       "hitEffectNoFollows": "打击滞留",
-      "showsCurve": "展示线轨迹"
+      "showsCurve": "展示线轨迹",
+      "cameraZoom": "镜头缩放"
     },
     "notes": {
       "showsNNN": {

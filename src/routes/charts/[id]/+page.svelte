@@ -20,7 +20,12 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import JudgeLines from "./JudgeLinesManager.svelte";
 
-import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates, operationList, eventsType, eventsLayer, playerShowsUI, playerShowsLineID, selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes, timeDivisor, playerHitEffectNoFollows, chartId, playerShowsCurve } from "./store.svelte";
+import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
+    operationList,
+    eventsType, eventsLayer,
+    playerShowsUI, playerShowsLineID, playerHitEffectNoFollows, playerShowsCurve, playerCameraZoom,
+    selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
+    timeDivisor, chartId, } from "./store.svelte";
     import NoteEditor from "./NoteEditor.svelte";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.svelte";
@@ -613,6 +618,8 @@ updateTip();
                         }
                     }
                 ></PopupOption>
+                <Label small>{$_("main.player.cameraZoom")}</Label>
+                <ArrowedInput bind:value={$playerCameraZoom}></ArrowedInput>
             {:else if $activeSidebar === Sidebar.NOTES}
                 <NotesSidebar/>
             {:else if $activeSidebar === Sidebar.EVENTS}
