@@ -13,12 +13,12 @@ export default class AutoSaveRunner {
     static run() {
         this.timeout = setInterval(() => {
             const originalChartSecs = this.chart.chartingSeconds ?? 0;
-            this.chart.chartingSeconds = originalChartSecs + Constants.AUTOSAVE_INTERVAL / 1000;
             if (this.chart.modified === false) {
                 return;
             }
+            this.chart.chartingSeconds = originalChartSecs + Constants.AUTOSAVE_INTERVAL / 1000;
             saveChart(this.chart, "Autosave " + new Date().toLocaleString());
-        }, KPASettings.autosaveInterval * 1000)
+        }, KPASettings.autosaveInterval * 1000) as unknown as number;
     }
     static stop() {
         clearInterval(this.timeout);
