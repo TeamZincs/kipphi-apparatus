@@ -121,8 +121,13 @@ function executeCode() {
 }
 
 function reverseNodes() {
-    const operations = [...target].map(n =>
-        new Op.EventNodeValueChangeOperation(n, -n.value)
+    const operations = [...target].flatMap(n =>
+        [
+            new Op.EventNodeValueChangeOperation(n, -n.value),
+            n.previous.type !== NodeType.HEAD
+                ? new Op.EventNodeValueChangeOperation(n.previous, -n.value)
+                : new Op.ComplexOperation() // 啥也不做
+        ]
     );
     operationList.do(new Op.ComplexOperation(...operations));
 }
