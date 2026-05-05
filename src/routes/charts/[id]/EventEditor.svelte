@@ -266,6 +266,7 @@ class EasingCanvas extends EventTarget {
     import { getCanvasCoordFromEvent, getOffsetCoordFromEvent, on } from "kipphi-canvas-editor/util";
     import { identity, type Matrix33 } from "kipphi-player";
     import Button from "#/components/buttons/Button.svelte";
+    import PopupOption from "#/components/PopupOption/PopupOption.svelte";
 
     function getStartNode(node: EventStartNode<any> | EventEndNode<any>) {
         return node instanceof EventEndNode ? node.previous : node;
@@ -386,6 +387,12 @@ class EasingCanvas extends EventTarget {
     function wrap(easing: Easing): EasedEvaluator<any> {
         return operationList.chart.getEasedEvaluator(easing, values.valueType, values.interpretedAs);
     }
+    function changeInterpreteAs(interpretedAs: InterpreteAs) {
+        operationList.do(new Op.EventNodeEvaluatorChangeOperation(
+            getStartNode(target),
+            operationList.chart.getEasedEvaluator((values.evaluator as EasedEvaluator<string>).easing, EventValueType.text, interpretedAs)
+        ))
+    }
 </script>
 
 <Label>
@@ -463,6 +470,18 @@ class EasingCanvas extends EventTarget {
 }>
     {#snippet page(option)}
         {#if option === EASED}
+            {#if typeof values.value === "string"}
+            <PopupOption wide
+                bind:currentOption={
+                    () => values.interpretedAs,
+                    (v) => {
+                        changeInterpreteAs(v);
+                    }
+                }
+                options={[InterpreteAs.str, InterpreteAs.int, InterpreteAs.float]}
+                displayTexts={["string", "integer", "float"]}
+            ></PopupOption>
+            {/if}
             <RadioTabs name="easing"
                 options={ [NORMAL, BEZIER, TEMPLATE] }
                 displayTexts={ [$_("main.event.easings.normal"), $_("main.event.easings.bezier"), $_("main.event.easings.template")] }
