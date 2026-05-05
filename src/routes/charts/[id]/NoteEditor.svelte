@@ -2,7 +2,7 @@
 import Label from "#/components/Label.svelte";
 import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import { NoteNode, NoteType, Op, type Note } from "kipphi";
-    import { selectedLineNumber, operationList, timeDivisor } from "./store.svelte";
+    import { selectedLineNumber, operationList, timeDivisor, notesEditor } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import ArrowedInput from "#/components/Inputs/ArrowedInput.svelte";
@@ -10,6 +10,7 @@ import PopupOption from "#/components/PopupOption/PopupOption.svelte";
     import FractionInput from "#/components/Inputs/FractionInput.svelte";
     import ColorInput from "#/components/Inputs/ColorInput.svelte";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
+    import Button from "#/components/buttons/Button.svelte";
 
 let {
     target
@@ -263,6 +264,22 @@ operationList.addEventListener("needsupdate", (opev) => {
     }
 ></ColorInput>
 </div>
+<Button onclick={
+    () => {
+        notesEditor.defaultNoteConfig = {
+            "absoluteYOffset": target.yOffset,
+            "alpha": target.alpha,
+            "visibleBeats": target.visibleBeats,
+            "size": target.size,
+            "tint": target.tint && [(target.tint >> 16) & 0xff, (target.tint >> 8) & 0xff, target.tint & 0xff],
+            "tintHitEffects": target.tintHitEffects && [(target.tintHitEffects >> 16) & 0xff, (target.tintHitEffects >> 8) & 0xff, target.tintHitEffects & 0xff],
+            "judgeSize": target.judgeSize,
+            "isFake": Number(target.isFake),
+            "speed": target.speed,
+            "isAbove": Number(target.above)
+        }
+    }
+}>{$_("main.note.setAsDefault")}</Button>
 <DestructiveButton
     onclick={
         () => operationList.do(new Op.NoteDeleteOperation(target))
