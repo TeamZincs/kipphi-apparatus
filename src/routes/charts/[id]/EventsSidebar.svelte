@@ -163,11 +163,15 @@ bind:value={$templateName}/>
         if (evSeqEditor.nodesSelection.size === 0) {
             return notify($_("main.events.noNodeSelected"), "error");
         }
+        const arr = [...evSeqEditor.nodesSelection]
+        const hasSelfNodes = arr
+            .some(node => node.parentSeq === evSeqEditor.target);
+        const selection = hasSelfNodes ? arr.filter(node => node.parentSeq === evSeqEditor.target) : arr;
         try {
             const operation = Op.EncapsuleOperation.encapsule(
                 lib,
                 evSeqEditor.target,
-                evSeqEditor.nodesSelection,
+                new Set(selection),
                 name
             );
             operationList.do(operation);
