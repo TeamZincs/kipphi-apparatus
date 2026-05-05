@@ -128,7 +128,8 @@
       "chart": "谱面信息",
       "multiNode": "多节点编辑",
       "multiNote": "多音符编辑",
-      "errors": "谱面错误"
+      "errors": "谱面错误",
+      "general": "通用设置"
     },
     "note": {
       "noNote": "没有目标音符或目标音符已被移除",

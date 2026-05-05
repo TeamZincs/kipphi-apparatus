@@ -529,7 +529,8 @@ updateTip();
                     $_("main.secondary.chart"),
                     $_("main.secondary.multiNode"),
                     $_("main.secondary.multiNote"),
-                    $_("main.secondary.errors")
+                    $_("main.secondary.errors"),
+                    $_("main.secondary.general")
                 ]}
                 bind:currentOption={$activeSecondarySidebar}
             ></PopupOption>
@@ -561,13 +562,7 @@ updateTip();
                 {/if}
             {:else if $activeSecondarySidebar === SecondarySidebar.ERRORS}
                 <Errors/>
-            {/if}
-        </div>
-    </div>
-    <div id="sidebar">
-        <div class="sidebar-shadow"></div>
-        <div class="sidebar-content">
-            <!--TimeDivisorPicker /-->
+            {:else if $activeSecondarySidebar === SecondarySidebar.GENERAL}
             <Label small>
                 {$_("main.sidebar.timeDivisor.term")}
                 <Tooltip>{$_("main.sidebar.timeDivisor.desc")}</Tooltip>
@@ -582,6 +577,13 @@ updateTip();
             <UnitInput
                 unit="s"
                 bind:value={renderingOffset}/>
+{/if}
+        </div>
+    </div>
+    <div id="sidebar">
+        <div class="sidebar-shadow"></div>
+        <div class="sidebar-content">
+            <!--TimeDivisorPicker /-->
             <Label small>{$_("main.sidebar.linenumber") + ` (${data.chart.judgeLines.length ?? 0})`}</Label>
             <ArrowedInput
                 max={(data.chart.judgeLines.length ?? 1) - 1} min={0}
