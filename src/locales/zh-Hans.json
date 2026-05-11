@@ -67,7 +67,10 @@
       "imcompleteMeta": "元数据不完整",
       "incompleteArchive": "压缩包不完整，缺少：{missing}",
       "unzipFailed": "解压缩失败，请检查文件是否损坏或格式是否正确。"
-    }
+    },
+    "unzipSuccess": "解压成功。",
+    "noMeta": "未找到元数据，自动推断",
+    "gotFile": "已获得三大文件。"
   },
   "form": {
     
@@ -326,6 +329,12 @@
       "notify": "谱面中存在错误，打开“错误”次侧栏以检查。",
       "check": "检查错误",
       "checkComplete": "检查完成。在{secs}秒内发现{count}个错误。"
+    },
+    "general": {
+      "baseOffset": "全局基准偏移量",
+      "baseOffsetDesc": "设定编辑器全局基准偏移量。\n不同环境上的实际偏移存在差异，因此设此选项。\n建议写谱前先用一张已校准谱面调整此项数值。\n打击特效早于采音点，应降低该数值，否则应升高该数值。\n此项设置持久保存。",
+      "replayCompensation": "重放后时间矫正",
+      "replayCompensationDesc": "在暂停重新播放时，将时间减去这个数值以补偿部分环境下重放时向后的偏移。"
     }
   },
   "export": {

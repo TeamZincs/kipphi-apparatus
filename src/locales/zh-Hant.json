@@ -67,7 +67,10 @@
       "imcompleteMeta": "元數據不完整",
       "incompleteArchive": "壓縮包不完整，缺少：{missing}",
       "unzipFailed": "解壓縮失敗，請檢查文件是否損壞或格式是否正確。"
-    }
+    },
+    "unzipSuccess": "解壓成功。",
+    "noMeta": "未找到後設資料，自動推斷",
+    "gotFile": "已獲得三大檔案。"
   },
   "form": {
     
@@ -128,7 +131,8 @@
       "chart": "譜面信息",
       "multiNode": "多節點編輯",
       "multiNote": "多音符編輯",
-      "errors": "譜面錯誤"
+      "errors": "譜面錯誤",
+      "general": "通用設定"
     },
     "note": {
       "noNote": "沒有目標音符或目標音符已被移除",
@@ -231,7 +235,8 @@
       "showsUI": "顯示 UI",
       "showsLineID": "顯示線號",
       "hitEffectNoFollows": "打擊滯留",
-      "showsCurve": "展示線軌跡"
+      "showsCurve": "展示線軌跡",
+      "cameraZoom": "鏡頭縮放"
     },
     "notes": {
       "showsNNN": {
@@ -317,13 +322,19 @@
       "noMessage": "寫個提交摘要吧，簡單總結自己修改了譜面的什麼，方便版本查找",
       "saveSuccess": "譜面已成功保存。",
       "summary": "寫譜摘要",
-      "openInExplorer": "在資源管理器中打開"
+      "openInExplorer": "開啟資料夾"
     },
     "errors": {
       "title": "錯誤",
       "notify": "譜面中存在錯誤，打開“錯誤“次側欄以檢視。",
       "check": "檢查錯誤",
       "checkComplete": "檢查完成。在{secs}秒內發現{count}個錯誤。"
+    },
+    "general": {
+      "baseOffset": "全域性基準偏移量",
+      "baseOffsetDesc": "設定編輯器全域性基準偏移量。\n不同環境上的實際偏移存在差異，因此設此選項。\n建議寫譜前先用一張已校準譜面調整此項數值。\n打擊特效早於採音點，應降低該數值，否則應升高該數值。\n此項設定持久儲存。",
+      "replayCompensation": "重放後時間矯正",
+      "replayCompensationDesc": "在暫停重新播放時，將時間減去這個數值以補償部分環境下重放時向後的偏移。"
     }
   },
   "export": {
@@ -364,7 +375,8 @@
       "extend": "擴選",
       "substract": "排除",
       "none": "非多選"
-    }
+    },
+    "return": "返回首頁"
   },
   "error": {
     "chart": "糟糕！我們遇到了一個錯誤。你可以按 F12 打開開發者工具以查看錯誤詳情。如果您無法弄清錯誤且錯誤持續復現，請加入官群（478824121），將譜面發給楊哲思。"

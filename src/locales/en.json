@@ -67,7 +67,10 @@
       "imcompleteMeta": "Incomplete metadata",
       "incompleteArchive": "Incomplete archive, missing: {missing}",
       "unzipFailed": "Unzip failed. Please check if the file is corrupted or in the correct format."
-    }
+    },
+    "unzipSuccess": "Unzip successful.",
+    "noMeta": "Metadata not found, inferring.",
+    "gotFile": "Got the chart, illustration and music files."
   },
   "form": {
     
@@ -128,7 +131,8 @@
       "chart": "Chart Info",
       "multiNode": "Multi-Node Editor",
       "multiNote": "Multi-Note Editor",
-      "errors": "Errors"
+      "errors": "Errors",
+      "general": "General"
     },
     "note": {
       "noNote": "No target note or target note has been removed",
@@ -231,7 +235,8 @@
       "showsUI": "Show UI",
       "showsLineID": "Show Line Number",
       "hitEffectNoFollows": "Hit Effect Lag",
-      "showsCurve": "Show Line Trail"
+      "showsCurve": "Show Line Trail",
+      "cameraZoom": "Camera Zoom"
     },
     "notes": {
       "showsNNN": {
@@ -324,6 +329,12 @@
       "notify": "There are errors in the chart. Open the \"Errors\" sidebar to check.",
       "check": "Check Errors",
       "checkComplete": "Check completed. Discovered {count} error(s) in {secs} seconds."
+    },
+    "general": {
+      "baseOffset": "Global basic offset",
+      "baseOffsetDesc": "Set the base offset of the editor.\nThis option is established since the actual offset varies depending on the environment.\nIt is recommended to adjust this option using an already adjusted chart.\nSet greater value if the sound effect is earlier than the beats, otherwise set smaller value.\nThis option is persistent and will be saved in the local storage.",
+      "replayCompensation": "Replay Time Compensation",
+      "replayCompensationDesc": "Subtracts this value from the time when replaying after pausing to compensate for backward offset in some environments."
     }
   },
   "export": {
@@ -364,7 +375,8 @@
       "extend": "Extend",
       "substract": "Subtract",
       "none": "Non-Multi"
-    }
+    },
+    "return": "Return to the Mainpage"
   },
   "error": {
     "chart": "Oops! We encountered an error. You can press F12 to open the developer tools to view the error details. If you can't figure out the error and it persists, please join the official group (478824121) and send the chart to Zes Minkey Young."

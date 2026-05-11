@@ -55,6 +55,9 @@ export interface I18nMapping {
 "import.alert.imcompleteMeta": never;
 "import.alert.incompleteArchive": "missing";
 "import.alert.unzipFailed": never;
+"import.unzipSuccess": never;
+"import.noMeta": never;
+"import.gotFile": never;
 "form.hint": never;
 "form.id": never;
 "form.music": never;
@@ -95,6 +98,7 @@ export interface I18nMapping {
 "main.secondary.multiNode": never;
 "main.secondary.multiNote": never;
 "main.secondary.errors": never;
+"main.secondary.general": never;
 "main.note.noNote": never;
 "main.note.type": never;
 "main.note.time": never;
@@ -167,6 +171,7 @@ export interface I18nMapping {
 "main.player.showsLineID": never;
 "main.player.hitEffectNoFollows": never;
 "main.player.showsCurve": never;
+"main.player.cameraZoom": never;
 "main.notes.showsNNN.term": never;
 "main.notes.showsNNN.desc": never;
 "main.notes.NNList.term": never;
@@ -237,6 +242,10 @@ export interface I18nMapping {
 "main.errors.notify": never;
 "main.errors.check": never;
 "main.errors.checkComplete": "secs" | "count";
+"main.general.baseOffset": never;
+"main.general.baseOffsetDesc": never;
+"main.general.replayCompensation": never;
+"main.general.replayCompensationDesc": never;
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;
