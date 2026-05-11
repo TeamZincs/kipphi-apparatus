@@ -24,6 +24,7 @@ export async function unzip(blob: Blob): Promise<UnzipResult> {
 
         // 通过transferable发送ArrayBuffer
         worker.postMessage(arrayBuffer, [arrayBuffer]);
+        console.log("Start decompressing")
     });
 }
 

@@ -45,5 +45,19 @@ export const KPASettings = $state({
     },
     set useRpeWheel(value: boolean) {
         localStorage.setItem("usesRpeWheel", value ? "1" : "");
-    }
+    },
+    get baseOffset() {
+        const it = localStorage.getItem("baseOffset");
+        return it === null ? -0.017 : parseFloat(it);
+    },
+    set baseOffset(value: number) {
+        localStorage.setItem("baseOffset", value.toString());
+    },
+    get replayCompensation() {
+        const it = localStorage.getItem("replayCompensation");
+        return it === null ? 0 : parseFloat(it);
+    },
+    set replayCompensation(value: number) {
+        localStorage.setItem("replayCompensation", value.toString());
+    },
 })

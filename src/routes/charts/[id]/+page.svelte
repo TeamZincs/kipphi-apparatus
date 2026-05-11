@@ -225,7 +225,7 @@ function handleWheel(event: WheelEvent) {
 
 function globalHandleWheel(event: WheelEvent) {
     if (event.ctrlKey) { // 按下CTRL则认为在切换判定线
-        selectedLineNumber.set(($selectedLineNumber + (event.deltaY > 0 ? 1 : -1) + data.chart.judgeLines.length) % data.chart.judgeLines.length);
+        selectedLineNumber.set(($selectedLineNumber + ((event.deltaY > 0 !== KPASettings.useRpeWheel) ? 1 : -1) + data.chart.judgeLines.length) % data.chart.judgeLines.length);
         return;
     }
 }
@@ -249,7 +249,7 @@ const handleKeydown = (event: KeyboardEvent) => {
         if (isPlaying) {
             player.pause();
         } else {
-            player.play();
+            play();
         }
         event.preventDefault();
         break;
@@ -326,6 +326,11 @@ const handleDelete = () => {
 
 }
 
+const play = async () => {
+    audio.currentTime -= KPASettings.replayCompensation;
+    player.play();
+}
+
 document.addEventListener("wheel", globalHandleWheel);
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("keyup", handleKeyup);
@@ -344,6 +349,7 @@ onMount(async () => {
         respack
     );
     player.hitEffectNoFollows = $playerHitEffectNoFollows;
+    player.baseOffset = KPASettings.baseOffset
     //player.cameraRatio = 0.8;
     player.addEventListener("play", () => {
         isPlaying = true;
@@ -592,6 +598,28 @@ updateTip();
                 <UnitInput
                     unit="s"
                     bind:value={renderingOffset}/>
+                <Label small>
+                    {$_("main.general.baseOffset")}
+                    <Tooltip>{$_("main.general.baseOffsetDesc")}</Tooltip>
+                </Label>
+                <UnitInput
+                    unit="s"
+                    bind:value={
+                        () => KPASettings.baseOffset,
+                        (v) => {
+                            player.baseOffset = v;
+                            KPASettings.baseOffset = v;
+                        }
+                    }
+                />
+                <Label small>
+                    {$_("main.general.replayCompensation")}
+                    <Tooltip>{$_("main.general.replayCompensationDesc")}</Tooltip>
+                </Label>
+                <UnitInput
+                    unit="s"
+                    bind:value={KPASettings.replayCompensation}
+                />
             {/if}
         </div>
     </div>
@@ -638,7 +666,7 @@ updateTip();
         </div>
     </div>
     <div id="footer">
-        <PlayButton bind:this={playButton} checked={isPlaying} onchange={(playing) => playing ? player.play() : player.pause()}/>
+        <PlayButton bind:this={playButton} checked={isPlaying} onchange={(playing) => playing ? play() : player.pause()}/>
         <GridSwitch bind:checked={showingGrid} onchange={(checked) => {
             if (checked) {
                 notesEditorCanvas.style.display = "";
