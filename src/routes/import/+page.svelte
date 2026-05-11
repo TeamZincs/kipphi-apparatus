@@ -36,6 +36,7 @@
     import { unzip } from "#/uncompress";
     import { type UnzippedFile } from "#/workers/unzip.worker";
     import Navigator from "#/components/Navigator.svelte";
+    import { notify } from "#/notify.svelte";
 
     const { data }: { data: PageData } = $props();
     const identifiers = new Set(data.chartInfos.map((info) => info.identifier));
@@ -99,12 +100,14 @@
             alert($_("import.alert.unzipFailed"));
             return;
         }
+        notify($_("import.unzipSuccess"), "info");
         const files = result.files;
         let chart: File, music: File, illustration: File;
         let mName: string, cName: string, iName: string;
         // console.log(files);
         // 我不打算写缺失元数据的补救措施了
         const infoTxt = files.find((n) => n.name === "info.txt");
+        const metadataJson = files.find((n) => n.name === "metadata.json");
         const makeFile = (name: string, mimeType: string) => {
             const entry = files.find((n) => n.name === name);
             if (!entry) {
@@ -120,23 +123,21 @@
             mName = info.Song;
             cName = info.Chart;
             iName = info.Picture;
-        } else {
-            const metadata = files.find((n) => n.name === "metadata.json");
-            if (!metadata) {
-                const filenames = files.map((n) => n.name);
-                mName = filenames.find((n) => mime.getType(n)?.includes("audio")) || "";
-                cName = filenames.find((n) => n.endsWith(".json")) || "";
-                iName = filenames.find((n) => mime.getType(n)?.includes("image")) || "";
-                if (!(mName && cName && iName)) {
-                    alert($_("import.alert.incompleteArchive", {values:{missing: "META"}}));
-                    return;
-                }
-                return;
-            }
-            const info = JSON.parse(new TextDecoder().decode(metadata.buffer)) as ChartMetadata;
+        } else if (metadataJson) {
+            const info = JSON.parse(new TextDecoder().decode(metadataJson.buffer)) as ChartMetadata;
             mName = info.music;
             cName = info.chart;
             iName = info.illustration;
+        } else {
+            notify($_("import.noMeta"), "warning")
+            const filenames = files.map((n) => n.name);
+            mName = filenames.find((n) => mime.getType(n)?.includes("audio")) || "";
+            cName = filenames.find((n) => n.endsWith(".json")) || "";
+            iName = filenames.find((n) => mime.getType(n)?.includes("image")) || "";
+            if (!(mName && cName && iName)) {
+                alert($_("import.alert.incompleteArchive", {values:{missing: "META"}}));
+                return;
+            }
         }
         if (!(mName && cName && iName)) {
             alert($_("import.alert.imcompleteMeta"));
@@ -152,6 +153,7 @@
         chart = makeFile(cName, "application/json");
         music = makeFile(mName, mime.getType(mName) as string);
         illustration = makeFile(iName, mime.getType(iName) as string);
+        notify($_("import.gotFile"), "info")
         const id = await createWithFiles(chart, music, illustration);
         if (!id) {
             return;
@@ -363,6 +365,7 @@
                 <span class="label">{$_("form.music")}</span>
                 <input type="file" bind:this={musicFileInput} accept="audio/*"/>
                 <input
+                    disabled={processing}
                     type="button"
                     value={$_("create.create")}
                     onclick={createWithRetail}
@@ -374,6 +377,7 @@
                 <span>{$_("import.archive")}</span>
                 <input type="file" bind:this={archiveFileInput} accept="application/zip, .pez"/>
                 <input
+                    disabled={processing}
                     type="button"
                     value={$_("create.create")}
                     onclick={createWithArchive}
