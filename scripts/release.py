@@ -15,13 +15,18 @@ def check_i18n():
     with open("./src/locales/en.json", "r", encoding="utf-8") as f:
         en = json.load(f)
 
-    for key in zh_hans:
-        if key not in zh_hant:
-            print(f"{key} in zh-Hans but not in zh-Hant")
-            raise KeyError(key)
-        if key not in en:
-            print(f"{key} in zh-Hans but not in en")
-            raise KeyError(key)
+    def check_recursive(s, t, e, basic=""):
+        for key in s:
+            if key not in t:
+                print(f"{basic}.{key} in zh-Hans but not in zh-Hant")
+                raise KeyError(key)
+            if key not in e:
+                print(f"{basic}.{key} in zh-Hans but not in en")
+                raise KeyError(key)
+            if isinstance(s[key], dict):
+                check_recursive(s[key], t[key], e[key], basic + "." + key)
+    check_recursive(zh_hans, zh_hant, en)         
+    print("i18n check passed")
     
 
 

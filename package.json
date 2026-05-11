@@ -10,7 +10,8 @@
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
         "tauri": "tauri",
-        "watchLocales": "bun scripts/type-i18n --watch"
+        "watchLocales": "bun scripts/type-i18n --watch",
+        "locales": "bun scripts/type-i18n"
     },
     "license": "MIT",
     "dependencies": {
