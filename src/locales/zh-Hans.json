@@ -236,7 +236,8 @@
       "showsLineID": "显示线号",
       "hitEffectNoFollows": "打击滞留",
       "showsCurve": "展示线轨迹",
-      "cameraZoom": "镜头缩放"
+      "cameraZoom": "镜头缩放",
+      "volume": "音量"
     },
     "notes": {
       "showsNNN": {
@@ -272,6 +273,7 @@
         "zeroDelta": "数值变化量为0.封装的模板缓动需要非零数值变化量，请检查头尾的蓝节点。"
       },
       "range": "数值范围",
+      "rangeTooltip": "输入格式为：下限值 上限值 数值吸附线间距",
       "invalidRange": "数值范围无效",
       "noNodeSelected": "未选中任何节点。"
     },
@@ -328,7 +330,10 @@
       "title": "错误",
       "notify": "谱面中存在错误，打开“错误”次侧栏以检查。",
       "check": "检查错误",
-      "checkComplete": "检查完成。在{secs}秒内发现{count}个错误。"
+      "checkComplete": "检查完成。在{secs}秒内发现{count}个错误。",
+
+      "nodeParentNotFound": "该节点已不在谱面中。",
+      "sequenceNotReferenced": "该节点所在序列未被引用。"
     },
     "general": {
       "baseOffset": "全局基准偏移量",

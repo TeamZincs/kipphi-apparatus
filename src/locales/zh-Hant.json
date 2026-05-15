@@ -236,7 +236,8 @@
       "showsLineID": "顯示線號",
       "hitEffectNoFollows": "打擊滯留",
       "showsCurve": "展示線軌跡",
-      "cameraZoom": "鏡頭縮放"
+      "cameraZoom": "鏡頭縮放",
+      "volume": "音量"
     },
     "notes": {
       "showsNNN": {
@@ -273,7 +274,8 @@
       },
       "range": "數值範圍",
       "invalidRange": "數值範圍無效",
-      "noNodeSelected": "未選中任何節點。"
+      "noNodeSelected": "未選中任何節點。",
+      "rangeTooltip": "輸入格式為：下限值 上限值 數值吸附線間距"
     },
     "multiNode": {
       "title": "多節點編輯 ({count} 個節點來自 {ids})",

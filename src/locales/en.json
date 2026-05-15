@@ -236,7 +236,8 @@
       "showsLineID": "Show Line Number",
       "hitEffectNoFollows": "Hit Effect Lag",
       "showsCurve": "Show Line Trail",
-      "cameraZoom": "Camera Zoom"
+      "cameraZoom": "Camera Zoom",
+      "volume": "Volume"
     },
     "notes": {
       "showsNNN": {
@@ -273,7 +274,8 @@
       },
       "range": "Value Range",
       "invalidRange": "Invalid Value Range",
-      "noNodeSelected": "No node selected."
+      "noNodeSelected": "No node selected.",
+      "rangeTooltip": "Format: <Lower Limit> <Upper Limit> <Step Size>"
     },
     "multiNode": {
       "title": "Multi-Node Editor ({count} nodes from {ids})",
