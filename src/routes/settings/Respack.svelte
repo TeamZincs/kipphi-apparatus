@@ -77,7 +77,6 @@
             box-shadow: 0.5vh 0.5vh 0.5vh #2229;
         };
         max-height: 70vh;
-        overflow-y: auto;
         scrollbar-width: none;
     }
 </style>

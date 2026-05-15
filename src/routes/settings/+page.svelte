@@ -113,14 +113,16 @@
             </div>
             <div class="settings-column-flex respacks">
                 <Label>{$_("settings.respack")}</Label>
+                <div class="respack-list">
                 <Respack pathname={null} name={"KPA-Official"} shortPathname={"Default"}></Respack>
-                {#each respackList as respackEntry}
-                    <Respack
-                        pathname={respackEntry.pathname}
-                        name={respackEntry.name}
-                        shortPathname={respackEntry.shortPathname}
-                    />
-                {/each}
+                    {#each respackList as respackEntry}
+                        <Respack
+                            pathname={respackEntry.pathname}
+                            name={respackEntry.name}
+                            shortPathname={respackEntry.shortPathname}
+                        />
+                    {/each}
+                </div>
                 <div class="flex-row">
                     <UploadButton accept="application/zip" bind:file
                     ></UploadButton>
@@ -140,6 +142,7 @@
                             try {
                                 await uploadRespack(file.name, file);
                                 notify($_("settings.uploadSuccess"), "info");
+                                respackList = await queryRespackList();
                             } catch (e) {
                                 return notify(e + "", "error");
                             }
@@ -199,6 +202,16 @@
     }
     .respacks {
         min-height: 20vh;
+        .respack-list {    
+            overflow-y: auto;
+            scrollbar-width: none;
+            width: 100%;
+            padding: 1vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+        }
     }
     input {
         width: 100%;
