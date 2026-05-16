@@ -172,6 +172,7 @@ export interface I18nMapping {
 "main.player.hitEffectNoFollows": never;
 "main.player.showsCurve": never;
 "main.player.cameraZoom": never;
+"main.player.volume": never;
 "main.notes.showsNNN.term": never;
 "main.notes.showsNNN.desc": never;
 "main.notes.NNList.term": never;
@@ -195,6 +196,7 @@ export interface I18nMapping {
 "main.events.encapsuleErr.notBelongToSourceSequence": never;
 "main.events.encapsuleErr.zeroDelta": never;
 "main.events.range": never;
+"main.events.rangeTooltip": never;
 "main.events.invalidRange": never;
 "main.events.noNodeSelected": never;
 "main.multiNode.title": "count" | "ids";
@@ -242,6 +244,8 @@ export interface I18nMapping {
 "main.errors.notify": never;
 "main.errors.check": never;
 "main.errors.checkComplete": "secs" | "count";
+"main.errors.nodeParentNotFound": never;
+"main.errors.sequenceNotReferenced": never;
 "main.general.baseOffset": never;
 "main.general.baseOffsetDesc": never;
 "main.general.replayCompensation": never;

@@ -11,7 +11,8 @@
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
         "tauri": "tauri",
         "watchLocales": "bun scripts/type-i18n --watch",
-        "locales": "bun scripts/type-i18n"
+        "locales": "bun scripts/type-i18n",
+        "release": "py scripts/release.py"
     },
     "license": "MIT",
     "dependencies": {
