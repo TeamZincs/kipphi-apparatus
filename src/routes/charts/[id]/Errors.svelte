@@ -7,7 +7,8 @@ import { EventNode, EventNodeSequence, EventType, KPAError, TC, type EventLayer,
     import { _ } from "#/i18n";
     import Button from "#/components/buttons/Button.svelte";
     import { notify } from "#/notify.svelte";
-    import { ERROR_IDS } from "../../../../../kipphi/packages/package-kipphi/env";
+    import { Environment as kEnv } from "kipphi";
+    const ERROR_IDS = kEnv.ERROR_IDS;
     let errors = $state(KPAError.buffer);
 
     const IDS = new Set([
