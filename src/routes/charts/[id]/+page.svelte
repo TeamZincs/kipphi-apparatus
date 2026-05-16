@@ -640,6 +640,7 @@ updateTip();
                 <TextSwitchButton wide bgText={$_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$playerShowsLineID}/>
                 <TextSwitchButton wide bgText={$_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$playerHitEffectNoFollows}/>
                 <TextSwitchButton wide bgText={$_("main.player.showsCurve")} onText="Y" offText="N" bind:checked={$playerShowsCurve}/>
+                <Label small>{$_("main.player.volume")}</Label>
                 <ArrowedInput bind:value={volume} step={0.5}></ArrowedInput>
                 <PopupOption wide
                     bind:currentOption={aspect}

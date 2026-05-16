@@ -14,6 +14,7 @@
     import { SelectState, NumericEventCurveEditor, NewNodeState } from "kipphi-canvas-editor";
     import { Replace, SquaresSubtract, SquaresUnite, SquareX } from "@lucide/svelte";
     import SuggestionInput from "#/components/Inputs/SuggestionInput.svelte";
+    import Tooltip from "#/components/Tooltip.svelte";
 
     let options = $derived(
         $eventsLayer === 'ex'
@@ -100,7 +101,13 @@
 </PopupOption>
 
 {#if ["moveX", "moveY", "rotate", "alpha", "speed", "easing", "scaleX", "scaleY", "bpm"].includes($eventsType)}
-<input bind:this={rangeInput} type="text" class="range" value="auto" onchange={
+<Label small>
+{$_("main.events.range")}
+<Tooltip>
+    {$_("main.events.rangeTooltip")}
+</Tooltip>
+</Label>
+<input bind:this={rangeInput} placeholder="left-right,interval" type="text" class="range" value="auto" onchange={
     (e) => {
         const target = e.target as HTMLInputElement;
         const value = target.value as string;
@@ -137,7 +144,7 @@
     }
 }>
 
-<PopupOption
+<PopupOption wide
     bind:currentOption={$newNodeState}
     options={[NewNodeState.controlsBoth, NewNodeState.controlsStart, NewNodeState.controlsEnd]}
     displayTexts={["both", "start", "end"]}
