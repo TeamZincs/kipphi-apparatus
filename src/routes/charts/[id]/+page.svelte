@@ -509,7 +509,7 @@ updateTip();
 </script>
 
 <main class="container">
-    <div id="inner" onwheel={handleWheel}>
+    <div id="inner" onwheel={handleWheel} style:--aspect-ratio={aspect}>
         <canvas bind:this={playerCanvas} id="player" width={playerWidth} height={KPASettings.playerHeight}>Your device does not support the HTML5 canvas element.</canvas>
         <canvas bind:this={notesEditorCanvas} id="ne" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
         <canvas bind:this={eventSequenceEditorCanvas} id="ece" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
@@ -707,6 +707,7 @@ updateTip();
         --player-height: 85vh;
         --bottom-bar-height: 11vh;
         --bottom-tips-height: 4vh;
+        --player-width: calc(100vw - 50vh);
         --color-foreground: white;
     }
     .container {
@@ -717,7 +718,9 @@ updateTip();
         background-color: #444;
     }
     #inner {
-        height: var(--player-height);
+        --aspect-ratio: calc(3 / 2);
+        --actual-player-height: min(var(--player-height), calc(var(--player-width) / var(--aspect-ratio)));
+        height: var(--actual-player-height);
         grid-column: 1 / 2;
         position: relative;
     }
@@ -744,12 +747,12 @@ updateTip();
         flex: 1;
     }
     #player {
-        height: var(--player-height); 
+        height: var(--actual-player-height); 
     }
     #ne {
         position: absolute;
         top: 0;
-        height: var(--player-height);
+        height: var(--actual-player-height);
         left: 0;
         transition: 0.3s opacity ease;
         //opacity: 0.3;
@@ -757,7 +760,7 @@ updateTip();
     #ece {
         position: absolute;
         top: 0;
-        height: var(--player-height);
+        height: var(--actual-player-height);
         right: 0;
         transition: 0.3s opacity ease;
         //opacity: 0.3;
