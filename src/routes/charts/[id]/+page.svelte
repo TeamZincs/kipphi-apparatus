@@ -107,13 +107,11 @@ const playerWidth = $derived(aspect * KPASettings.playerHeight);
 // svelte-ignore non_reactive_update
 let judgeLinesManager: JudgeLines;
 let progressBar: HTMLInputElement;
-let playButton: PlayButton;
+// let playButton: PlayButton;
 let isPlaying = $state(false);
 let showingGrid = $state(true);
 let speed = $state("1.0x");
 let preservesPitch = $state(true);
-let renderingOffset = $state(-0.10);
-let judgeLinesLayout = $state(0b001);
 
 let undoAvailable = $state(false);
 let redoAvailable = $state(false);
@@ -134,12 +132,6 @@ $effect(() => {
     audio.preservesPitch = preservesPitch;
 });
 
-$effect(() => {
-    renderingOffset; // 确保建立依赖追踪
-    if (player) {
-        player.renderingOffset = renderingOffset;
-    }
-});
 
 let selectedLineName = $derived.by(() => {
     const lineNumber = $selectedLineNumber;
@@ -436,7 +428,7 @@ onMount(async () => {
         selectedNodes.set(ev.nodes);
         activeSecondarySidebar.set(SecondarySidebar.MULTI_NODE);
     });
-    player.renderingOffset = renderingOffset;
+    player.renderingOffset = KPASettings.renderingOffset;
     // @ts-expect-error 仅供调试
     window.player = player;
     // @ts-expect-error 仅供调试
@@ -597,7 +589,13 @@ updateTip();
                 </Label>
                 <UnitInput
                     unit="s"
-                    bind:value={renderingOffset}/>
+                    bind:value={
+                        () => KPASettings.renderingOffset,
+                        (v) => {
+                            player.renderingOffset = v;
+                            KPASettings.renderingOffset = v;
+                        }
+                    }/>
                 <Label small>
                     {$_("main.general.baseOffset")}
                     <Tooltip>{$_("main.general.baseOffsetDesc")}</Tooltip>
@@ -667,7 +665,7 @@ updateTip();
         </div>
     </div>
     <div id="footer">
-        <PlayButton bind:this={playButton} checked={isPlaying} onchange={(playing) => playing ? play() : player.pause()}/>
+        <PlayButton checked={isPlaying} onchange={(playing) => playing ? play() : player.pause()}/>
         <GridSwitch bind:checked={showingGrid} onchange={(checked) => {
             if (checked) {
                 notesEditorCanvas.style.display = "";

@@ -60,4 +60,12 @@ export const KPASettings = $state({
     set replayCompensation(value: number) {
         localStorage.setItem("replayCompensation", value.toString());
     },
+    get renderingOffset() {
+        const it = localStorage.getItem("renderingOffset");
+        return it === null ? -0.1 : parseFloat(it);
+    },
+    set renderingOffset(value: number) {
+        localStorage.setItem("renderingOffset", value.toString());
+        
+    },
 })
