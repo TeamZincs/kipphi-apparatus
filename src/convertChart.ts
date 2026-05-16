@@ -2,16 +2,16 @@ import { RPEChartCompiler, type Chart } from "kipphi";
 import { fetchTexture, getChart, getChartProject, ReturnType } from "./background";
 import { zip } from "./compress";
 import type { FileToCompress } from "./workers/zip.worker";
-import mime from "mime";
+import mime from "./mime";
 
-export function toRPE(chart: Chart) {
+function toRPE(chart: Chart) {
     const compiler = new RPEChartCompiler(chart);
-    return JSON.stringify(compiler.compileChart())
+    return compiler.compileChart()
 }
 
 export async function convertRPEJSON(chartId: string): Promise<string> {
     const chart = await getChart(chartId);
-    return toRPE(chart);
+    return JSON.stringify(toRPE(chart));
 }
 
 const encodeText = (text: string) => (new TextEncoder().encode(text)).buffer;
@@ -32,22 +32,28 @@ export async function convertPEZ(chartId: string): Promise<ArrayBuffer> {
             throw new Error(`Texture '${texture}' not found.`);
         }
         textureFiles.push({
-            name: texture,
+            name: RPEChartCompiler.replaceFilename(texture),
             data: data,
         });
     }
     const musicExt = mime.getExtension(music.type)
     const illustrationExt = mime.getExtension(illustration.type)
+    console.log(illustration.type, illustrationExt)
+    const rpe = toRPE(chart);
     const infoTxt =
 `#
 Name: ${chart.name}
+Path: ${rpe.META.id}
 Song: music.${musicExt}
 Picture: illustration.${illustrationExt}
 Chart: chart.rpe.json
+Level: 0
 Composer: ${chart.composer}
-Charter: ${chart.charter}`
+Charter: ${chart.charter}
+Length: ${chart.duration}
+Group: Default`
     const zipResult = await zip([
-        {name: "chart.rpe.json", data: encodeText(toRPE(chart))},
+        {name: "chart.rpe.json", data: encodeText(JSON.stringify(rpe))},
         {name: "info.txt", data: encodeText(infoTxt)},
         {name: `illustration.${illustrationExt}`, data: await illustration.arrayBuffer()},
         {name: `music.${musicExt}`, data: await music.arrayBuffer()},

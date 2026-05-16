@@ -1,4 +1,4 @@
-import mime from "mime";
+import mime from "./mime";
 
 /**
  * 获取文件的扩展名。
