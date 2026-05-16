@@ -48,7 +48,7 @@ export const KPASettings = $state({
     },
     get baseOffset() {
         const it = localStorage.getItem("baseOffset");
-        return it === null ? -0.017 : parseFloat(it);
+        return it === null ? 0.036 : parseFloat(it);
     },
     set baseOffset(value: number) {
         localStorage.setItem("baseOffset", value.toString());
