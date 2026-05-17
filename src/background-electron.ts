@@ -1,0 +1,181 @@
+/**
+ * Electron IPC 客户端
+ * 通过 preload.js 暴露的 API 调用后端进程
+ */
+
+import type { Chart } from "kipphi";
+
+// 运行时检测 Electron 环境
+const isElectron = typeof window !== "undefined" && "electronAPI" in window;
+
+// 类型定义
+export interface ChartMetadata {
+    title: string;
+    chart: string;
+    music: string;
+    illustration: string;
+    type: "KPA1" | "KPA2" | "RPE";
+    durationSecs: number;
+}
+
+export interface ChartHistoryEntry {
+    time: number;
+    summary: string;
+    filename: string;
+}
+
+export enum ReturnType {
+    u8,
+    blob,
+    arrayBuffer,
+    imageBmp
+}
+
+export type NonImageReturnType = ReturnType.u8 | ReturnType.blob | ReturnType.arrayBuffer;
+
+export interface RespackEntry {
+    pathname: string;
+    shortPathname: string;
+    name: string;
+}
+
+export interface ChartStruct<RT extends NonImageReturnType = ReturnType.blob> {
+    chart: Chart;
+    music: RT extends ReturnType.u8 ? Uint8Array : Blob;
+    illustration: RT extends ReturnType.u8 ? Uint8Array : Blob;
+}
+
+// ============== IPC 客户端 ==============
+
+async function ipcCall<T>(channel: string, ...args: any[]): Promise<T> {
+    if (!isElectron) {
+        throw new Error("Electron API not available");
+    }
+    return window.electronAPI.fs[channel](...args);
+}
+
+// ============== 导出函数 ==============
+
+export async function queryMeta() {
+    return ipcCall("queryMeta");
+}
+
+export async function getPathOfChart(chartIdentifier: string) {
+    const { CHART_DIR } = await queryMeta();
+    return `${CHART_DIR}/${chartIdentifier}`;
+}
+
+export async function getTexturePathOf(chartIdentifier: string) {
+    return `${await getPathOfChart(chartIdentifier)}/textures`;
+}
+
+export async function queryCharts() {
+    return ipcCall("queryCharts");
+}
+
+export async function queryChartMeta(chartId: string) {
+    return ipcCall("queryChartMeta", chartId);
+}
+
+export async function queryChartHistory(chartId: string) {
+    return ipcCall("queryChartHistory", chartId);
+}
+
+export async function saveChartMeta(chartId: string, metadata: ChartMetadata) {
+    return ipcCall("saveChartMeta", chartId, metadata);
+}
+
+export async function saveChart(chartId: string, chart: Chart, summary: string, beutify = false) {
+    return ipcCall("saveChart", chartId, chart.dumpKPA(), summary, beutify);
+}
+
+export async function getChartProject<RT extends NonImageReturnType = ReturnType.blob>(
+    chartId: string,
+    returning?: RT
+): Promise<ChartStruct<RT>> {
+    return ipcCall("getChartProject", chartId, returning);
+}
+
+export async function getChart(chartId: string): Promise<Chart> {
+    return ipcCall("getChart", chartId);
+}
+
+export async function readAFileInChart<RT extends ReturnType = ReturnType.blob>(
+    identifier: string,
+    filename: string,
+    mimeType: string,
+    returning?: RT
+) {
+    return ipcCall("readAFileInChart", identifier, filename, mimeType, returning);
+}
+
+export async function readChart(identifier: string, filename: string) {
+    return ipcCall("readChart", identifier, filename);
+}
+
+export async function saveAFileToChart(identifier: string, filename: string, blob: Blob) {
+    return ipcCall("saveAFileToChart", identifier, filename, await blob.arrayBuffer());
+}
+
+export function parseInfoTxt(infoTxt: string) {
+    const lines = infoTxt.split("\n");
+    const info: Record<string, string> = {};
+    for (const line of lines) {
+        if (line.startsWith("#")) continue;
+        if (line.trim() === "") continue;
+        const [key, value] = line.split(":");
+        if (!key || !value) {
+            console.log(`Invalid line: '${line}'d`);
+            continue;
+        }
+        info[key.trim()] = value.trim();
+    }
+    return info;
+}
+
+export function parseRawInfoTxt(raw: Uint8Array | ArrayBuffer) {
+    let infoTxt: string;
+    try {
+        infoTxt = new TextDecoder("utf-8", { fatal: true }).decode(raw);
+    } catch (error) {
+        if (!(error instanceof TypeError)) throw error;
+        infoTxt = new TextDecoder("gbk", { fatal: true }).decode(raw);
+    }
+    return parseInfoTxt(infoTxt);
+}
+
+export async function disposeChart(identifier: string) {
+    return ipcCall("disposeChart", identifier);
+}
+
+export async function getTextures(identifier: string) {
+    return ipcCall("getTextures", identifier);
+}
+
+export async function uploadTexture(identifier: string, texture: File) {
+    return ipcCall("uploadTexture", identifier, texture.name, await texture.arrayBuffer());
+}
+
+export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(
+    identifier: string,
+    name: string,
+    returning?: RT
+) {
+    return ipcCall("fetchTexture", identifier, name, returning);
+}
+
+export async function queryRespackList() {
+    return ipcCall("queryRespackList");
+}
+
+export async function getFileInRespack(respackName: string, filename: string) {
+    return ipcCall("getFileInRespack", respackName, filename);
+}
+
+export async function uploadRespack(respackName: string, zipFile: Blob) {
+    return ipcCall("uploadRespack", respackName, await zipFile.arrayBuffer());
+}
+
+export async function downloadFile(filename: string, file: Uint8Array, opens = false) {
+    return ipcCall("downloadFile", filename, file, opens);
+}

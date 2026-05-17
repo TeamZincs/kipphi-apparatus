@@ -44,7 +44,27 @@ const getDependencies = async () => {
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [
-    sveltekit()],
+    sveltekit(),
+    electron([{
+      entry: "./electron/main.ts",
+      vite: {
+        build: {
+          outDir: 'dist-electron/main',
+        },
+      },
+    }, {
+      entry: "./electron/preload.ts",
+      vite: {
+        build: {
+          outDir: 'dist-electron/preload'
+        },
+        esbuild: {
+          format: "cjs"
+        },
+        
+      },
+    }])
+  ],
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
@@ -67,6 +87,7 @@ export default defineConfig(async () => ({
     "__PLAYER_VERSION": await getNPMPackageVersion("kipphi-player"),
     "__CANVAS_EDITOR_VERSION": await getNPMPackageVersion("kipphi-canvas-editor"),
     "__KIPPHI_VERSION": await getNPMPackageVersion("kipphi"),
-    "__DEPENDENCIES": await getDependencies()
+    "__DEPENDENCIES": await getDependencies(),
+    "import.meta.env.VITE_BACKEND": "'electron'"
   }
 }));
