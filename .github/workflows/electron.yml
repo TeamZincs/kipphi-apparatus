@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - release
+      - electron
 
 jobs:
   publish-electron:
