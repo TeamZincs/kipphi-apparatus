@@ -5,6 +5,7 @@
     import { getFileInRespack } from "#/background";
     import { respackId as currentRespackId, useRespack } from "#/respack.svelte";
     import { onDestroy } from "svelte";
+    import { ReturnType } from "#/background-electron";
 
     let {
         name,
@@ -13,8 +14,8 @@
     }: { name: string; pathname: string; shortPathname: string } = $props();
 
     async function loadImage(filename: string): Promise<string> {
-        const u8 = await getFileInRespack(shortPathname, filename);
-        return u8 ? URL.createObjectURL(new Blob([u8])) : "";
+        const blob = await getFileInRespack(shortPathname, filename, ReturnType.blob);
+        return blob && URL.createObjectURL(blob);
     }
     const tap = await loadImage("click.png");
     const flick = await loadImage("flick.png");

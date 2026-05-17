@@ -34,6 +34,27 @@ export enum ReturnType {
 
 export type NonImageReturnType = ReturnType.u8 | ReturnType.blob | ReturnType.arrayBuffer;
 
+type TypeMap<RT extends ReturnType> = RT extends ReturnType.u8 ? Uint8Array :
+RT extends ReturnType.blob ? Blob :
+RT extends ReturnType.arrayBuffer ? ArrayBuffer :
+RT extends ReturnType.imageBmp ? ImageBitmap :
+never;
+
+async function returningFromU8<RT extends ReturnType>(u8Arr: Uint8Array, type: RT, mime: string): Promise<TypeMap<RT>> {
+    switch (type) {
+        case ReturnType.u8:
+            return u8Arr as TypeMap<RT>;
+        case ReturnType.blob:
+            return new Blob([u8Arr], { type: mime }) as TypeMap<RT>;
+        case ReturnType.arrayBuffer:
+            return u8Arr.buffer.slice(u8Arr.byteOffset, u8Arr.byteOffset + u8Arr.byteLength) as TypeMap<RT>;
+        case ReturnType.imageBmp:
+            return await createImageBitmap(new Blob([u8Arr], { type: mime })) as TypeMap<RT>;
+        default:
+            return null as TypeMap<RT>;
+    }
+}
+
 export interface RespackEntry {
     pathname: string;
     shortPathname: string;
@@ -42,8 +63,8 @@ export interface RespackEntry {
 
 export interface ChartStruct<RT extends NonImageReturnType = ReturnType.blob> {
     chart: Chart;
-    music: RT extends ReturnType.u8 ? Uint8Array : Blob;
-    illustration: RT extends ReturnType.u8 ? Uint8Array : Blob;
+    music: TypeMap<RT>;
+    illustration: TypeMap<RT>;
 }
 
 // ============== IPC 客户端 ==============
@@ -71,7 +92,7 @@ export async function getTexturePathOf(chartIdentifier: string) {
 }
 
 export async function queryCharts() {
-    return await ipcCall("queryCharts") as {
+    const charts = await ipcCall("queryCharts") as {
         chartPath: string,
         identifier: string,
         title: string,
@@ -79,6 +100,15 @@ export async function queryCharts() {
         type: "KPA1" | "KPA2" | "RPE",
         lastModified: number
     }[];
+
+    // 加载插图并返回 Blob
+    return await Promise.all(charts.map(async (chart) => {
+        const blob = await readAFileInChart(chart.identifier, chart.illustration);
+        return {
+            ...chart,
+            image: blob as Blob,
+        };
+    }));
 }
 
 export async function queryChartMeta(chartId: string) {
@@ -97,9 +127,10 @@ export async function saveChart(chartId: string, chart: Chart, summary: string, 
     return ipcCall("saveChart", chartId, chart.dumpKPA(), summary, beutify);
 }
 
-export async function getChartProject(
+export async function getChartProject<RT extends NonImageReturnType = ReturnType.blob>(
     chartId: string,
-): Promise<{ chart: Chart; music: Blob; illustration: Blob }> {
+    returning?: RT
+): Promise<ChartStruct<RT>> {
     const data = await ipcCall<{
         chartData: ChartDataRPE | ChartDataKPA | ChartDataKPA2;
         chartType: "KPA1" | "KPA2" | "RPE";
@@ -112,10 +143,13 @@ export async function getChartProject(
         ? Chart.fromRPEJSON(data.chartData as ChartDataRPE, data.durationSecs)
         : Chart.fromKPAJSON(data.chartData as ChartDataKPA | ChartDataKPA2);
 
+    const musicMimeType = getMimeTypeFromName("music");
+    const illustrationMimeType = getMimeTypeFromName("illustration");
+
     return {
         chart,
-        music: new Blob([new Uint8Array(data.music)]),
-        illustration: new Blob([new Uint8Array(data.illustration)]),
+        music: await returningFromU8(data.music, returning || ReturnType.blob, musicMimeType),
+        illustration: await returningFromU8(data.illustration, returning || ReturnType.blob, illustrationMimeType),
     };
 }
 
@@ -131,14 +165,15 @@ export async function getChart(chartId: string): Promise<Chart> {
         : Chart.fromKPAJSON(data.chartData as ChartDataKPA | ChartDataKPA2);
 }
 
-export async function readAFileInChart(
+export async function readAFileInChart<RT extends ReturnType = ReturnType.blob>(
     identifier: string,
     filename: string,
-): Promise<Blob> {
+    mimeType: string,
+    returning?: RT
+) {
+    const rt = (returning || ReturnType.blob) as RT;
     const u8 = await ipcCall<Uint8Array>("readAFileInChart", identifier, filename);
-    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-    const mimeType = ext === "jpg" ? "image/jpeg" : getMimeTypeFromName(filename);
-    return new Blob([new Uint8Array(u8)], { type: mimeType });
+    return returningFromU8(u8, rt, mimeType);
 }
 
 export async function readChart(identifier: string, filename: string) {
@@ -149,12 +184,17 @@ export async function saveAFileToChart(identifier: string, filename: string, blo
     return ipcCall("saveAFileToChart", identifier, filename, await blob.arrayBuffer());
 }
 
-export async function loadChartImage(chartId: string, filename: string): Promise<Blob | null> {
+export async function loadChartImage<RT extends ReturnType = ReturnType.blob>(
+    chartId: string,
+    filename: string,
+    returning?: RT
+): Promise<TypeMap<RT> | null> {
+    const rt = (returning || ReturnType.blob) as RT;
     const u8 = await ipcCall<Uint8Array | null>("loadChartImage", chartId, filename);
     if (!u8) return null;
     const ext = filename.split(".").pop()?.toLowerCase() ?? "";
     const mimeType = ext === "jpg" ? "image/jpeg" : getMimeTypeFromName(filename);
-    return new Blob([new Uint8Array(u8)], { type: mimeType });
+    return returningFromU8(u8, rt, mimeType);
 }
 
 export function parseInfoTxt(infoTxt: string) {
@@ -196,27 +236,28 @@ export async function uploadTexture(identifier: string, texture: File) {
     return ipcCall("uploadTexture", identifier, texture.name, await texture.arrayBuffer());
 }
 
-export async function fetchTexture(
+export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(
     identifier: string,
     name: string,
-): Promise<Blob | null> {
+    returning?: RT
+): Promise<TypeMap<RT> | null> {
+    const rt = (returning || ReturnType.imageBmp) as RT;
     const u8 = await ipcCall<Uint8Array | null>("fetchTexture", identifier, name);
-    if (!u8) {
-        return null
-    }
-    const mimeType = name.endsWith(".jpg") ? "image/jpeg" : getMimeTypeFromName(name);
-    return new Blob([new Uint8Array(u8)], { type: mimeType });
+    if (!u8) return null;
+    return returningFromU8(u8, rt, getMimeTypeFromName(name));
 }
 
 export async function queryRespackList() {
     return ipcCall("queryRespackList");
 }
 
-export async function getFileInRespack(respackName: string, filename: string): Promise<Blob | null> {
+export async function getFileInRespack(respackName: string, filename: string) {
+    if (respackName === "Default") {
+        return await (await fetch("/default/" + filename)).blob();
+    }
     const u8 = await ipcCall<Uint8Array | null>("getFileInRespack", respackName, filename);
     if (!u8) return null;
-    const mimeType = filename.endsWith(".jpg") ? "image/jpeg" : getMimeTypeFromName(filename);
-    return new Blob([new Uint8Array(u8)], { type: mimeType });
+    return new Blob([u8]);
 }
 
 export async function uploadRespack(respackName: string, zipFile: Blob) {
