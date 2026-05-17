@@ -52,7 +52,7 @@ jobs:
         if: matrix.platform == 'windows-latest'
         run: |
           bun add -D electron-builder
-          bunx electron-builder --win --x64
+          bunx electron-builder --win --x64 --publish=never
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
@@ -60,7 +60,7 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           bun add -D electron-builder
-          bunx electron-builder --${{ matrix.target }} --${{ matrix.arch }}
+          bunx electron-builder --${{ matrix.target }} --${{ matrix.arch }} --publish=never
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
@@ -70,9 +70,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libnotify4-dev libnss3 libxss1 libasound2
           bun add -D electron-builder
-          bunx electron-builder --linux --x64
+          bunx electron-builder --linux --x64 --publish=never
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: KPA-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
