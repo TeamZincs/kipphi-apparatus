@@ -110,6 +110,9 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            release/${{ matrix.target }}*/**/*
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/latest*.yml
         env:
           APP_VERSION: ${{ steps.package.outputs.version }}
