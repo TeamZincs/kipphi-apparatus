@@ -10,13 +10,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
         queryChartHistory: (chartId) => ipcRenderer.invoke("fs:queryChartHistory", chartId),
         saveChartMeta: (chartId, metadata) => ipcRenderer.invoke("fs:saveChartMeta", chartId, metadata),
         saveChart: (chartId, chart, summary, beutify) => ipcRenderer.invoke("fs:saveChart", chartId, chart, summary, beutify),
-        getChart: (chartId) => ipcRenderer.invoke("fs:getChart", chartId),
-        getChartProject: (chartId, returning) => ipcRenderer.invoke("fs:getChartProject", chartId, returning),
+        getChartData: (chartId) => ipcRenderer.invoke("fs:getChartData", chartId),
+        getChartProjectData: (chartId) => ipcRenderer.invoke("fs:getChartProjectData", chartId),
         readChart: (identifier, filename) => ipcRenderer.invoke("fs:readChart", identifier, filename),
-        readAFileInChart: (identifier, filename, mimeType, returning) => 
-            ipcRenderer.invoke("fs:readAFileInChart", identifier, filename, mimeType, returning),
+        readAFileInChart: (identifier, filename) => 
+            ipcRenderer.invoke("fs:readAFileInChart", identifier, filename),
         saveAFileToChart: (identifier, filename, data) => 
             ipcRenderer.invoke("fs:saveAFileToChart", identifier, filename, data),
+        loadChartImage: (chartId, filename) =>
+            ipcRenderer.invoke("fs:loadChartImage", chartId, filename),
         
         // 谱面回收
         disposeChart: (identifier) => ipcRenderer.invoke("fs:disposeChart", identifier),
@@ -24,7 +26,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
         // 纹理
         getTextures: (identifier) => ipcRenderer.invoke("fs:getTextures", identifier),
         uploadTexture: (identifier, name, data) => ipcRenderer.invoke("fs:uploadTexture", identifier, name, data),
-        fetchTexture: (identifier, name, returning) => ipcRenderer.invoke("fs:fetchTexture", identifier, name, returning),
+        fetchTexture: (identifier, name) => ipcRenderer.invoke("fs:fetchTexture", identifier, name),
         
         // 资源包
         queryRespackList: () => ipcRenderer.invoke("fs:queryRespackList"),
@@ -33,6 +35,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
         
         // 下载
         downloadFile: (filename, data, opens) => ipcRenderer.invoke("fs:downloadFile", filename, data, opens),
+        
+        // 谱面创建/导入
+        checkChartDirExists: (chartId) => ipcRenderer.invoke("fs:checkChartDirExists", chartId),
+        createChartDir: (chartId) => ipcRenderer.invoke("fs:createChartDir", chartId),
+        saveTextFile: (chartId, filename, content) => ipcRenderer.invoke("fs:saveTextFile", chartId, filename, content),
+        saveBinaryFile: (chartId, filename, data) => ipcRenderer.invoke("fs:saveBinaryFile", chartId, filename, data),
+        createNestedDir: (chartId, subPath) => ipcRenderer.invoke("fs:createNestedDir", chartId, subPath),
+        importChart: (params) => ipcRenderer.invoke("fs:importChart", params),
+        saveChartProject: (params) => ipcRenderer.invoke("fs:saveChartProject", params),
     },
     
     // 打开系统路径
@@ -50,19 +61,50 @@ declare global {
                 queryChartHistory: (chartId: string) => Promise<any[]>;
                 saveChartMeta: (chartId: string, metadata: any) => Promise<void>;
                 saveChart: (chartId: string, chart: any, summary: string, beutify?: boolean) => Promise<void>;
-                getChart: (chartId: string) => Promise<any>;
-                getChartProject: (chartId: string, returning?: any) => Promise<any>;
+                getChartData: (chartId: string) => Promise<any>;
+                getChartProjectData: (chartId: string) => Promise<any>;
                 readChart: (identifier: string, filename: string) => Promise<any>;
-                readAFileInChart: (identifier: string, filename: string, mimeType: string, returning?: any) => Promise<any>;
+                readAFileInChart: (identifier: string, filename: string) => Promise<Uint8Array>;
                 saveAFileToChart: (identifier: string, filename: string, data: ArrayBuffer) => Promise<void>;
+                loadChartImage: (chartId: string, filename: string) => Promise<Uint8Array>;
                 disposeChart: (identifier: string) => Promise<void>;
                 getTextures: (identifier: string) => Promise<string[]>;
                 uploadTexture: (identifier: string, name: string, data: ArrayBuffer) => Promise<void>;
-                fetchTexture: (identifier: string, name: string, returning?: any) => Promise<any>;
+                fetchTexture: (identifier: string, name: string) => Promise<Uint8Array | null>;
                 queryRespackList: () => Promise<any[]>;
-                getFileInRespack: (respackName: string, filename: string) => Promise<Blob | null>;
+                getFileInRespack: (respackName: string, filename: string) => Promise<Uint8Array | null>;
                 uploadRespack: (respackName: string, data: ArrayBuffer) => Promise<void>;
                 downloadFile: (filename: string, data: Uint8Array, opens?: boolean) => Promise<void>;
+                // 谱面创建/导入
+                checkChartDirExists: (chartId: string) => Promise<boolean>;
+                createChartDir: (chartId: string) => Promise<void>;
+                saveTextFile: (chartId: string, filename: string, content: string) => Promise<void>;
+                saveBinaryFile: (chartId: string, filename: string, data: ArrayBuffer) => Promise<void>;
+                createNestedDir: (chartId: string, subPath: string) => Promise<void>;
+                importChart: (params: {
+                    id: string;
+                    chartContent: string;
+                    chartType: "RPE" | "KPA1" | "KPA2";
+                    title: string;
+                    musicData: ArrayBuffer;
+                    musicExtension: string;
+                    illustrationData: ArrayBuffer;
+                    illustrationExtension: string;
+                    durationSecs: number;
+                    extraFiles?: { name: string; data: ArrayBuffer }[];
+                }) => Promise<string>;
+                saveChartProject: (params: {
+                    id: string;
+                    chartContent: string;
+                    chartType: "RPE" | "KPA1" | "KPA2";
+                    title: string;
+                    musicData: ArrayBuffer;
+                    musicExtension: string;
+                    illustrationData: ArrayBuffer;
+                    illustrationExtension: string;
+                    durationSecs: number;
+                    extraFiles?: { name: string; data: ArrayBuffer }[];
+                }) => Promise<string>;
             };
             openPath: (path: string) => Promise<void>;
         };

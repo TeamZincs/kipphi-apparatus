@@ -26,7 +26,7 @@
           <li
             class="chart {chart.identifier === selectedChart ? 'selected' : ''}"
           >
-            <ImageLoader src={chart.image} alt={chart.identifier} />
+            <ImageLoader chartId={chart.identifier} filename={chart.illustration} alt={chart.identifier} />
             <div class="chart-title">
               {chart.title} ({chart.identifier}, {chart.type})
             </div>

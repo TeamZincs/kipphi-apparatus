@@ -1,22 +1,41 @@
 <script lang="ts">
-    import { resolve } from "@tauri-apps/api/path";
-    import { readFile } from "@tauri-apps/plugin-fs";
+    import { loadChartImage } from "#/background";
     import { onMount } from "svelte";
-    let {src, alt, style}: {src: string | Blob, alt: string, style?: string} = $props();
+    
+    let {
+        /** 直接传入 Blob（优先级高） */
+        blob,
+        /** 谱面 ID（blob 为空时使用） */
+        chartId,
+        /** 图片文件名（blob 为空时使用） */
+        filename,
+        alt,
+        style,
+    }: {
+        blob?: Blob;
+        chartId?: string;
+        filename?: string;
+        alt: string;
+        style?: string;
+    } = $props();
+    
     let generatedSrc: string = $state("");
 
     onMount(async () => {
-        let blob: Blob;
-        if (typeof src === "string") {
-            
-            const path = await resolve(src);
-            const file = await readFile(path, {});
-            blob = new Blob([file], {type: "image/" + src.split(".").pop()});
-        } else {
-            blob = src;
+        let imageBlob: Blob | null = null;
+        
+        if (blob) {
+            imageBlob = blob;
+        } else if (chartId && filename) {
+            const u8 = await loadChartImage(chartId, filename);
+            const ext = filename.split(".").pop().toLowerCase();
+            const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : `image/${ext}`;
+            imageBlob = new Blob([u8], { type: mimeType });
         }
-        generatedSrc = URL.createObjectURL(blob);
+        
+        if (imageBlob) {
+            generatedSrc = URL.createObjectURL(imageBlob);
+        }
     });
-
 </script>
 <img src={generatedSrc} alt={alt} style={style}>

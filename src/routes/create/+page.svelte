@@ -1,23 +1,17 @@
 <script lang="ts">
-  import { writeTextFile, writeFile, mkdir, exists } from "@tauri-apps/plugin-fs";
-  import { join } from "@tauri-apps/api/path";
   import { goto } from "$app/navigation";
   import { getExtension } from "#/util"
 
-
   import { type PageData } from "./$types";
   import { _ } from "#/i18n";
-  // import { _ } from "svelte-i18n";
-
-
 
   import { EasingType, EvaluatorType, EventNodeSequence, SCHEMA, VERSION, 
     type BPMSegmentData, type ChartDataKPA2, type EventLayerDataKPA2,
     type EventNodeSequenceDataKPA2, type EventType, type EventValueESType, type JudgeLineDataKPA2
   } from "kipphi";
   
-  import { type ChartMetadata } from "#/background";
-    import Navigator from "#/components/Navigator.svelte";
+  import { checkChartDirExists, saveChartProject } from "#/background";
+  import Navigator from "#/components/Navigator.svelte";
 
   const { data }: { data: PageData } = $props();
   const identifiers = new Set(data.chartInfos.map((info) => info.identifier));
@@ -170,7 +164,6 @@
       return;
     }
     const chart = await createChart(music, nameInput.value, bpm);
-    const chartData = JSON.stringify(chart, null, 2);
     const id = idInput.value.trim();
     const imageExt = getExtension(illustration);
     if (imageExt === null) {
@@ -183,29 +176,22 @@
       return;
     }
 
-    if (await exists(await join(data.meta.CHART_DIR, id))) {
+    if (await checkChartDirExists(id)) {
       alert($_("form.alert.folderOccupied", {values:{folder: id}}));
-    } else {
-      await mkdir(await join(data.meta.CHART_DIR, id));
+      return;
     }
 
-    writeTextFile(await join(data.meta.CHART_DIR, id, "metadata.json"), JSON.stringify({
-      "chart": "chart.kpa.json",
-      "illustration": `illustration.${imageExt}`,
-      "music": `music.${audioExt}`,
-      "title": nameInput.value.trim(),
-      "type": "KPA2",
-      "durationSecs": chart.duration
-    } satisfies ChartMetadata));
-    writeTextFile(await join(data.meta.CHART_DIR, id, "chart.kpa.json"), chartData);
-    writeFile(
-      await join(data.meta.CHART_DIR, id, `illustration.${imageExt}`),
-      new Uint8Array(await illustration.arrayBuffer())
-    );
-    writeFile(
-      await join(data.meta.CHART_DIR, id, `music.${audioExt}`),
-      new Uint8Array(await music.arrayBuffer())
-    );
+    await saveChartProject({
+      id,
+      chartContent: JSON.stringify(chart, null, 2),
+      chartType: "KPA2",
+      title: nameInput.value.trim(),
+      musicData: await music.arrayBuffer(),
+      musicExtension: audioExt,
+      illustrationData: await illustration.arrayBuffer(),
+      illustrationExtension: imageExt,
+      durationSecs: chart.duration,
+    });
 
     success = true;
     setTimeout(() => {

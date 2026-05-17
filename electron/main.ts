@@ -3,7 +3,6 @@ import * as path from "path";
 import * as fs from "fs/promises";
 import YAML from "yaml";
 import JSZip from "jszip";
-import { Chart, ChartDataKPA, ChartDataKPA2, ChartDataRPE } from "kipphi";
 
 let mainWindow = null;
 app.setName("com.zincs.kpa-electron");
@@ -91,12 +90,11 @@ ipcMain.handle("fs:queryCharts", async () => {
             try {
                 const metadata = JSON.parse(await fs.readFile(path.join(CHART_DIR, chart.name, "metadata.json"), "utf-8"));
                 const history = await queryChartHistory(chart.name);
-                const imageData = await fs.readFile(path.join(CHART_DIR, chart.name, metadata.illustration));
                 result.push({
                     chartPath: metadata.chart,
                     identifier: chart.name,
                     title: metadata.title,
-                    image: new Blob([imageData]),
+                    illustration: metadata.illustration,  // 返回文件名，由前端加载
                     type: metadata.type,
                     lastModified: history?.[history.length - 1]?.time ?? 0,
                 });
@@ -171,33 +169,29 @@ ipcMain.handle("fs:saveChart", async (_, chartId, chartData, summary, beutify = 
     await fs.writeFile(path.join(CHART_DIR, chartId, chartPath), chartStr, "utf-8");
 });
 
-// 获取谱面
-ipcMain.handle("fs:getChart", async (_, chartId) => {
+// 获取谱面数据（JSON）
+ipcMain.handle("fs:getChartData", async (_, chartId) => {
     const { CHART_DIR } = getAppDataDir();
     const metadata = JSON.parse(await fs.readFile(path.join(CHART_DIR, chartId, "metadata.json"), "utf-8"));
     const chartData = JSON.parse(await fs.readFile(path.join(CHART_DIR, chartId, metadata.chart), "utf-8"));
-    const chart = metadata.type === "RPE"
-        ? Chart.fromRPEJSON(chartData, metadata.durationSecs)
-        : Chart.fromKPAJSON(chartData);
-    return chart;
+    return { chartData, chartType: metadata.type, durationSecs: metadata.durationSecs };
 });
 
-// 获取谱面项目
-ipcMain.handle("fs:getChartProject", async (_, chartId, returning = "blob") => {
+// 获取谱面项目（返回 Uint8Array，由前端转换为 Blob）
+ipcMain.handle("fs:getChartProjectData", async (_, chartId) => {
     const { CHART_DIR } = getAppDataDir();
     const metadata = JSON.parse(await fs.readFile(path.join(CHART_DIR, chartId, "metadata.json"), "utf-8"));
     const chartData = JSON.parse(await fs.readFile(path.join(CHART_DIR, chartId, metadata.chart), "utf-8"));
-    const chart = metadata.type === "RPE"
-        ? Chart.fromRPEJSON(chartData, metadata.durationSecs)
-        : Chart.fromKPAJSON(chartData);
 
     const musicData = await fs.readFile(path.join(CHART_DIR, chartId, metadata.music));
     const imageData = await fs.readFile(path.join(CHART_DIR, chartId, metadata.illustration));
 
     return {
-        chart,
-        music: returning === "u8" ? musicData : new Blob([musicData]),
-        illustration: returning === "u8" ? imageData : new Blob([imageData]),
+        chartData,
+        chartType: metadata.type,
+        durationSecs: metadata.durationSecs,
+        music: musicData,
+        illustration: imageData,
     };
 });
 
@@ -207,11 +201,17 @@ ipcMain.handle("fs:readChart", async (_, identifier, filename) => {
     return JSON.parse(await fs.readFile(path.join(CHART_DIR, identifier, filename), "utf-8"));
 });
 
-// 读取谱面中的文件
-ipcMain.handle("fs:readAFileInChart", async (_, identifier, filename, mimeType, returning = "blob") => {
+// 读取谱面中的文件（返回 Uint8Array，由前端转换为 Blob）
+ipcMain.handle("fs:readAFileInChart", async (_, identifier, filename) => {
     const { CHART_DIR } = getAppDataDir();
-    const data = await fs.readFile(path.join(CHART_DIR, identifier, filename));
-    return returning === "u8" ? data : new Blob([data], { type: mimeType });
+    return await fs.readFile(path.join(CHART_DIR, identifier, filename));
+});
+
+// 加载谱面中的图片文件（返回 Uint8Array，由前端转换为 Blob）
+ipcMain.handle("fs:loadChartImage", async (_, chartId, filename) => {
+    const { CHART_DIR } = getAppDataDir();
+    const filePath = path.join(CHART_DIR, chartId, filename);
+    return await fs.readFile(filePath);
 });
 
 // 保存文件到谱面
@@ -252,7 +252,8 @@ ipcMain.handle("fs:uploadTexture", async (_, identifier, name, data) => {
 });
 
 // 获取纹理
-ipcMain.handle("fs:fetchTexture", async (_, identifier, name, returning = "imageBmp") => {
+// 获取纹理（返回 Uint8Array，由前端转换）
+ipcMain.handle("fs:fetchTexture", async (_, identifier, name) => {
     const { CHART_DIR } = getAppDataDir();
     
     // 先搜索 textures 目录
@@ -264,8 +265,7 @@ ipcMain.handle("fs:fetchTexture", async (_, identifier, name, returning = "image
         if (!await pathExists(texturePath)) return null;
     }
     
-    const data = await fs.readFile(texturePath);
-    return returning === "u8" ? data : new Blob([data]);
+    return await fs.readFile(texturePath);
 });
 
 // 查询资源包列表
@@ -296,13 +296,13 @@ ipcMain.handle("fs:queryRespackList", async () => {
     return result;
 });
 
-// 获取资源包文件
+// 获取资源包文件（返回 Uint8Array，由前端转换为 Blob）
 ipcMain.handle("fs:getFileInRespack", async (_, respackName, filename) => {
     const { RESPACK_DIR } = getAppDataDir();
     if (respackName === "Default") return null; // 由前端处理
     const filePath = path.join(RESPACK_DIR, respackName, filename);
     if (!await pathExists(filePath)) return null;
-    return new Blob([await fs.readFile(filePath)]);
+    return await fs.readFile(filePath);
 });
 
 // 上传资源包
@@ -331,6 +331,102 @@ ipcMain.handle("fs:downloadFile", async (_, filename, data, opens = false) => {
     await fs.writeFile(filePath, data);
     if (opens) shell.showItemInFolder(filePath);
 });
+
+// 检查谱面目录是否存在
+ipcMain.handle("fs:checkChartDirExists", async (_, chartId) => {
+    const { CHART_DIR } = getAppDataDir();
+    return await pathExists(path.join(CHART_DIR, chartId));
+});
+
+// 创建谱面目录
+ipcMain.handle("fs:createChartDir", async (_, chartId) => {
+    const { CHART_DIR } = getAppDataDir();
+    const chartDir = path.join(CHART_DIR, chartId);
+    await ensureDir(chartDir);
+});
+
+// 保存文本文件到谱面目录
+ipcMain.handle("fs:saveTextFile", async (_, chartId, filename, content) => {
+    const { CHART_DIR } = getAppDataDir();
+    const filePath = path.join(CHART_DIR, chartId, filename);
+    await fs.writeFile(filePath, content, "utf-8");
+});
+
+// 保存二进制文件到谱面目录
+ipcMain.handle("fs:saveBinaryFile", async (_, chartId, filename, data) => {
+    const { CHART_DIR } = getAppDataDir();
+    const filePath = path.join(CHART_DIR, chartId, filename);
+    await fs.writeFile(filePath, new Uint8Array(data));
+});
+
+// 创建嵌套目录
+ipcMain.handle("fs:createNestedDir", async (_, chartId, subPath) => {
+    const { CHART_DIR } = getAppDataDir();
+    const dirPath = path.join(CHART_DIR, chartId, subPath);
+    await ensureDir(dirPath);
+});
+
+// 保存谱面项目
+async function handleSaveChartProject(params) {
+    const { CHART_DIR } = getAppDataDir();
+    const chartDir = path.join(CHART_DIR, params.id);
+
+    // 创建目录
+    await ensureDir(chartDir);
+
+    // 构建 metadata
+    const metadata = {
+        title: params.title,
+        chart: `chart.${params.chartType === 'RPE' ? 'rpe' : 'kpa'}.json`,
+        music: `music.${params.musicExtension}`,
+        illustration: `illustration.${params.illustrationExtension}`,
+        type: params.chartType,
+        durationSecs: params.durationSecs,
+    };
+
+    // 保存 metadata.json
+    await fs.writeFile(
+        path.join(chartDir, "metadata.json"),
+        JSON.stringify(metadata, null, 4),
+        "utf-8"
+    );
+
+    // 保存谱面
+    await fs.writeFile(
+        path.join(chartDir, metadata.chart),
+        params.chartContent,
+        "utf-8"
+    );
+
+    // 保存音乐
+    await fs.writeFile(
+        path.join(chartDir, metadata.music),
+        new Uint8Array(params.musicData)
+    );
+
+    // 保存插图
+    await fs.writeFile(
+        path.join(chartDir, metadata.illustration),
+        new Uint8Array(params.illustrationData)
+    );
+
+    // 保存额外文件
+    if (params.extraFiles) {
+        for (const file of params.extraFiles) {
+            const filePath = path.join(chartDir, file.name);
+            await fs.mkdir(path.dirname(filePath), { recursive: true });
+            await fs.writeFile(filePath, new Uint8Array(file.data));
+        }
+    }
+
+    return params.id;
+}
+
+// 导入谱面 (使用 saveChartProject)
+ipcMain.handle("fs:importChart", async (_, params) => handleSaveChartProject(params));
+
+// 保存谱面项目
+ipcMain.handle("fs:saveChartProject", async (_, params) => handleSaveChartProject(params));
 
 // 打开路径
 ipcMain.handle("shell:openPath", async (_, filePath) => {

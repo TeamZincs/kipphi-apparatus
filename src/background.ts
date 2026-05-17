@@ -18,6 +18,8 @@ export type {
     NonImageReturnType,
     RespackEntry,
     ChartStruct,
+    ImportChartParams,
+    SaveChartProjectParams,
 } from "./background-tauri";
 
 export { ReturnType } from "./background-tauri";
@@ -52,3 +54,7 @@ export const queryRespackList = impl.queryRespackList;
 export const getFileInRespack = impl.getFileInRespack;
 export const uploadRespack = impl.uploadRespack;
 export const downloadFile = impl.downloadFile;
+export const importChart = impl.importChart;
+export const saveChartProject = impl.saveChartProject;
+export const checkChartDirExists = impl.checkChartDirExists;
+export const loadChartImage = impl.loadChartImage;

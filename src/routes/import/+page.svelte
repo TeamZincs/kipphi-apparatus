@@ -1,11 +1,4 @@
 <script lang="ts">
-    import {
-        writeTextFile,
-        writeFile,
-        mkdir,
-        exists,
-    } from "@tauri-apps/plugin-fs";
-    import { join } from "@tauri-apps/api/path";
     import mime from "mime";
 
     import { goto } from "$app/navigation";
@@ -13,28 +6,19 @@
 
     import { type PageData } from "./$types";
     import { _ } from "#/i18n";
-    // import { _ } from "svelte-i18n";
 
     import {
-        EasingType,
-        EvaluatorType,
-        EventNodeSequence,
-        SCHEMA,
-        VERSION,
-        type BPMSegmentData,
         type ChartDataKPA,
         type ChartDataKPA2,
         type ChartDataRPE,
-        type EventLayerDataKPA2,
-        type EventNodeSequenceDataKPA2,
-        type EventType,
-        type EventValueESType,
-        type JudgeLineDataKPA2,
     } from "kipphi";
 
-    import { parseRawInfoTxt, parseInfoTxt, saveAFileToChart, type ChartMetadata } from "#/background";
+    import { 
+        importChart,
+        parseRawInfoTxt,
+        type ChartMetadata 
+    } from "#/background";
     import { unzip } from "#/uncompress";
-    import { type UnzippedFile } from "#/workers/unzip.worker";
     import Navigator from "#/components/Navigator.svelte";
     import { notify } from "#/notify.svelte";
 
@@ -153,25 +137,23 @@
         chart = makeFile(cName, "application/json");
         music = makeFile(mName, mime.getType(mName) as string);
         illustration = makeFile(iName, mime.getType(iName) as string);
+
+        // 收集额外文件
+        const extraFiles = result.files
+            .filter(f => 
+                f.name !== "info.txt" && 
+                f.name !== "metadata.json" &&
+                f.name !== cName && 
+                f.name !== mName && 
+                f.name !== iName
+            )
+            .map(f => ({ name: f.name, data: f.buffer }));
+
         notify($_("import.gotFile"), "info")
-        const id = await createWithFiles(chart, music, illustration);
-        if (!id) {
-            return;
-        }
-        // 其他文件也传上去
-        for (const file of result.files) {
-            if (file.name === "info.txt" || file.name === "metadata.json" ||
-            file.name === cName || file.name === mName || file.name === iName) {
-                continue;
-            }
-            const parentDir = await join(data.meta.CHART_DIR, id, file.name.split("/").slice(0, -1).join("/"));
-            await mkdir(parentDir, {
-                "recursive": true
-            });
-            await writeFile(await join(data.meta.CHART_DIR, id, file.name), new Uint8Array(file.buffer));
-        }
+        await createWithFiles(chart, music, illustration, extraFiles);
+
         success = true;
-        setTimeout(() => goto(`/charts/${id}`), 3000);
+        setTimeout(() => goto(`/charts/${idInput.value}`), 3000);
     }
 
     function getTypeAndTitle(content: string): ["RPE" | "KPA1" | "KPA2", string] {
@@ -209,46 +191,44 @@
     }
 
 
-    async function createWithFiles(chart: File, music: File, illustration: File) {
+    async function createWithFiles(
+        chart: File, 
+        music: File, 
+        illustration: File,
+        extraFiles?: { name: string; data: ArrayBuffer }[]
+    ) {
         const id = idInput.value.trim();
         if (id === "") {
             idState = EMPTY;
             return;
         }
-        const duration = await getDuration(music);
 
         const musicExtension = getExtension(music);
         const illustrationExtension = getExtension(illustration);
         if (!musicExtension) {
             alert($_("form.alert.unknownAudioType"));
+            return;
         }
         if (!illustrationExtension) {
             alert($_("form.alert.unknownImageType"));
+            return;
         }
+
         const chartContent = await chart.text();
         const [chartType, title] = getTypeAndTitle(chartContent);
-        const musicName = `music.${musicExtension}`;
-        const chartName = `chart.${chartType === 'RPE' ? 'rpe' : 'kpa'}.json`;
-        const illustrationName = `illustration.${illustrationExtension}`;
-        const metadata = {
-            "chart": chartName,
-            "durationSecs": await getDuration(music),
-            "illustration": illustrationName,
-            "music": musicName,
-            "type": chartType,
-            "title": title
-        } satisfies ChartMetadata;
-        const chartDir = await join(data.meta.CHART_DIR, id);
 
-        if (!await exists(chartDir)) {
-            await mkdir(chartDir);
-        }
-        
-        await writeTextFile(await join(chartDir, "metadata.json"), JSON.stringify(metadata, null, 4));
-        await writeTextFile(await join(chartDir, chartName), chartContent);
-        await saveAFileToChart(id, musicName, music);
-        await saveAFileToChart(id, illustrationName, illustration);
-        return id;
+        await importChart({
+            id,
+            chartContent,
+            chartType,
+            title,
+            musicData: await music.arrayBuffer(),
+            musicExtension,
+            illustrationData: await illustration.arrayBuffer(),
+            illustrationExtension,
+            durationSecs: await getDuration(music),
+            extraFiles,
+        });
     }
 
     //#endregion
