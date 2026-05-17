@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "vite dev",
         "build": "vite build",
+        "build:electron": "vite build -c electron.vite.config.js",
         "preview": "vite preview",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -14,6 +15,47 @@
         "locales": "bun scripts/type-i18n",
         "release": "py scripts/release.py",
         "ele": "vite -c electron.vite.config.js"
+    },
+    "build": {
+        "appId": "com.zincs.kpa",
+        "productName": "KPA",
+        "directories": {
+            "output": "release"
+        },
+        "files": [
+            "dist/**/*",
+            "dist-electron/**/*",
+            "static/**/*"
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": ["x64"]
+                }
+            ],
+            "icon": "src-tauri/icons/icon.ico"
+        },
+        "mac": {
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": ["x64", "arm64"]
+                }
+            ],
+            "icon": "src-tauri/icons/icon.icns",
+            "category": "public.app-category.music"
+        },
+        "linux": {
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": ["x64", "arm64"]
+                }
+            ],
+            "icon": "src-tauri/icons",
+            "category": "Audio"
+        }
     },
     "license": "MIT",
     "dependencies": {
