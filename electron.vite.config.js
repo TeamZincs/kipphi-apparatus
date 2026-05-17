@@ -81,6 +81,7 @@ export default defineConfig(async () => ({
   },
   build: {
     minify: false,
+    target: "es2022"
   },
   define: {
     "__APP_VERSION": JSON.stringify(TAURI_CONF_VERSION),
