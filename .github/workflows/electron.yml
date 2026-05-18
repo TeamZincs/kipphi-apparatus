@@ -75,7 +75,6 @@ jobs:
             release/*.dmg
             release/*.zip
             release/*.AppImage
-            release/*.deb
             release/*.blockmap
             release/latest*.yml
 
@@ -117,7 +116,6 @@ jobs:
             release/*.dmg
             release/*.zip
             release/*.AppImage
-            release/*.deb
             release/*.blockmap
             release/latest*.yml
         env:
