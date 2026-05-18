@@ -41,10 +41,11 @@ const getDependencies = async () => {
   return JSON.stringify(dependencies);
 }
 
+
+
 // https://vite.dev/config/
-export default defineConfig(async () => ({
-  plugins: [
-    sveltekit(),
+export default defineConfig(async () => {
+  const plugins = [
     electron([{
       entry: "./electron/main.ts",
       vite: {
@@ -64,7 +65,11 @@ export default defineConfig(async () => ({
         
       },
     }])
-  ],
+  ];
+  if (!process.argv.includes("--no-frontend")) {
+    plugins.unshift(sveltekit());
+  }
+  return {plugins,
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
@@ -91,4 +96,5 @@ export default defineConfig(async () => ({
     "__DEPENDENCIES": await getDependencies(),
     "import.meta.env.VITE_BACKEND": "'electron'"
   }
-}));
+}
+});

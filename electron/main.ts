@@ -4,6 +4,7 @@ import * as fs from "fs/promises";
 import YAML from "yaml";
 import JSZip from "jszip";
 import { autoUpdater } from "electron-updater";
+import { existsSync } from "fs";
 
 let mainWindow = null;
 app.setName("com.zincs.kpa-electron");
@@ -39,15 +40,21 @@ const createWindow = () => {
 
         protocol.handle('app', (request) => {
             // 1. 解析 URL，获取文件路径
+            console.log(request);
             const url = new URL(request.url);
-            const filePath = path.join(__dirname, 'build', url.pathname);
-
-            // 2. 使用 net.fetch 返回 file:// 协议的文件流
-            return net.fetch(`file://${filePath}`);
+            const filePath = path.join(import.meta.dirname, "../../", url.pathname);
+            if (existsSync(filePath)) {
+                return net.fetch(`file://${filePath}`);
+            } else {
+                return net.fetch(`file://${path.join(import.meta.dirname, "../../index.html")}`)
+            }
         });
 
         // 创建窗口时加载
-        mainWindow.loadURL('app://./index.html');
+        console.log("App started.")
+        mainWindow.loadURL('app://./').then(() => {
+            console.log("first page loaded")
+        });
     } else {
         mainWindow.loadURL("http://localhost:1420");
     }
@@ -569,12 +576,12 @@ ipcMain.handle("updater:status", () => {
     };
 });
 
-// 应用启动后自动检查更新
-app.whenReady().then(() => {
-    // 延迟几秒检查，避免影响启动
-    setTimeout(() => {
-        if (app.isPackaged) {
-            autoUpdater.checkForUpdates().catch(console.error);
-        }
-    }, 3000);
-});
+// // 应用启动后自动检查更新
+// app.whenReady().then(() => {
+//     // 延迟几秒检查，避免影响启动
+//     setTimeout(() => {
+//         if (app.isPackaged) {
+//             autoUpdater.checkForUpdates().catch(console.error);
+//         }
+//     }, 3000);
+// });
