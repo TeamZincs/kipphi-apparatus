@@ -1,18 +1,89 @@
 {
     "name": "kipphi-apparatus",
     "version": "2.1.4",
-    "description": "",
+    "description": "Kipphi Apparatus - Rhythm Game Chart Editor",
+    "author": "TeamZincs",
     "type": "module",
     "scripts": {
         "dev": "vite dev",
         "build": "vite build",
+        "build:electron": "vite build -c electron.vite.config.js",
         "preview": "vite preview",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
         "tauri": "tauri",
         "watchLocales": "bun scripts/type-i18n --watch",
         "locales": "bun scripts/type-i18n",
-        "release": "py scripts/release.py"
+        "release": "py scripts/release.py",
+        "ele": "vite -c electron.vite.config.js"
+    },
+    "build": {
+        "appId": "com.zincs.kpa",
+        "productName": "KPA",
+        "directories": {
+            "output": "release"
+        },
+        "publish": {
+            "provider": "github",
+            "owner": "TeamZincs",
+            "repo": "kipphi-apparatus"
+        },
+        "files": [
+            "package.json",
+            {
+                "from": "build",
+                "to": ".",
+                "filter": [
+                    "**/*"
+                ]
+            },
+            "dist-electron/**/*"
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "icon": "src-tauri/icons/icon.ico",
+            "signAndEditExecutable": false
+        },
+        "mac": {
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
+            ],
+            "icon": "src-tauri/icons/icon.icns",
+            "category": "public.app-category.music"
+        },
+        "linux": {
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
+            ],
+            "icon": "src-tauri/icons",
+            "category": "Audio"
+        }
     },
     "license": "MIT",
     "dependencies": {
@@ -20,14 +91,16 @@
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-fs": "^2.4.5",
         "@tauri-apps/plugin-opener": "^2.5.3",
+        "electron-updater": "^6.8.3",
         "jszip": "^3.10.1",
+        "kipphi": "2.1.4",
+        "kipphi-canvas-editor": "2.1.4",
+        "kipphi-player": "2.1.4",
         "mime": "^4.1.0",
         "svelte-i18n": "^4.0.1",
         "svelte-portal": "^2.2.1",
-        "yaml": "^2.8.2",
-        "kipphi": "2.1.4",
-        "kipphi-player": "2.1.4",
-        "kipphi-canvas-editor": "2.1.4"
+        "vite-plugin-electron": "^0.29.1",
+        "yaml": "^2.8.2"
     },
     "devDependencies": {
         "@internationalized/date": "^3.11.0",
@@ -37,10 +110,13 @@
         "@tauri-apps/cli": "^2.10.0",
         "@types/node": "^25.5.0",
         "clsx": "^2.1.1",
+        "electron": "^42.1.0",
         "less": "^4.5.1",
         "svelte": "^5.53.6",
         "svelte-check": "^4.4.4",
         "typescript": "~5.6.3",
-        "vite": "^6.4.1"
-    }
+        "vite": "^6.4.1",
+        "electron-builder": "^26.8.1"
+    },
+    "main": "dist-electron/main/main.js"
 }

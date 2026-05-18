@@ -5,6 +5,7 @@
     import { disposeChart as delChart } from "#/background";
     import ImageLoader from "#/components/ImageLoader.svelte";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
+    import { chartId } from "../store.svelte";
 
     const { data }: { data: PageData } = $props();
     async function deleteChart() {
@@ -41,7 +42,7 @@
         {/if}
     </div>
     {#if data.chartInfo}
-    <ImageLoader src={data.chartInfo?.image} alt={data.chartInfo?.identifier} style="object-fit: cover; height: 100%"/>
+    <ImageLoader chartId={data.chartInfo?.identifier} filename={data.chartInfo?.illustration} alt={data.chartInfo?.identifier} style="object-fit: cover; height: 100%"/>
     {/if}
 </main>
 

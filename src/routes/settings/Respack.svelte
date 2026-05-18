@@ -5,16 +5,22 @@
     import { getFileInRespack } from "#/background";
     import { respackId as currentRespackId, useRespack } from "#/respack.svelte";
     import { onDestroy } from "svelte";
+    import { ReturnType } from "#/background-electron";
 
     let {
         name,
         pathname,
         shortPathname,
     }: { name: string; pathname: string; shortPathname: string } = $props();
-    const tap = URL.createObjectURL(await getFileInRespack(shortPathname, "click.png"));
-    const flick = URL.createObjectURL(await getFileInRespack(shortPathname, "flick.png"));
-    const hold = URL.createObjectURL(await getFileInRespack(shortPathname, "hold.png"));
-    const drag = URL.createObjectURL(await getFileInRespack(shortPathname, "drag.png"));
+
+    async function loadImage(filename: string): Promise<string> {
+        const blob = await getFileInRespack(shortPathname, filename, ReturnType.blob);
+        return blob && URL.createObjectURL(blob);
+    }
+    const tap = await loadImage("click.png");
+    const flick = await loadImage("flick.png");
+    const hold = await loadImage("hold.png");
+    const drag = await loadImage("drag.png");
     onDestroy(() => {
         URL.revokeObjectURL(tap);
         URL.revokeObjectURL(flick);

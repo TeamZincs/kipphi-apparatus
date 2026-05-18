@@ -61,9 +61,11 @@ audio.addEventListener("timeupdate", () => {
 audio.addEventListener("ended", () => {
     player.pause();
     isPlaying = false;
-})
+});
 // 这里启用了实验性功能，随时都有可能出现破坏性更改，如果出现，需要修改此处
 await waitRespack();
+
+console.log("11");
 const illustration = await createImageBitmap(data.illustration);
 let audioProcessor: AudioProcessor;
 if (respack.TAP_SE && respack.DRAG_SE && respack.FLICK_SE) {

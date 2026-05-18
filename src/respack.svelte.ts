@@ -27,7 +27,8 @@ export async function useUserRespack(respackName: string) {
     respackId.set(respackName);
     respack = await Respack.loadFromPhira(
         async (filename) => {
-            return await getFileInRespack(respackName, filename);
+            const u8 = await getFileInRespack(respackName, filename);
+            return u8 ? new Blob([u8]) : null;
         }
     )
     KPASettings.respack = respackName

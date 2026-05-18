@@ -1,0 +1,122 @@
+name: 'electron'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - release
+      - electron
+
+jobs:
+  # 跨平台构建 job
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - macos-latest
+          - ubuntu-22.04
+          - windows-latest
+        include:
+          - platform: macos-latest
+            target: mac
+            arch: x64
+          - platform: macos-latest
+            target: mac
+            arch: arm64
+          - platform: ubuntu-22.04
+            target: linux
+            arch: x64
+          - platform: ubuntu-22.04
+            target: linux
+            arch: arm64
+          - platform: windows-latest
+            target: win
+            arch: x64
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 'latest'
+
+      - name: install dependencies
+        run: bun install
+        env:
+          BUN_CONFIG_REGISTRY: 'https://registry.npmjs.org/'
+
+      - name: Build Electron
+        run: bun run build:electron
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libnotify-dev libnss3 libxss1 libasound2
+
+      - name: Build distributable
+        run: |
+          bun add -D electron-builder
+          bunx electron-builder --${{ matrix.target }} --${{ matrix.arch }} --publish=never
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: KPA-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.blockmap
+            release/latest*.yml
+
+  # Release job（依赖所有构建）
+  create-release:
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: KPA-*
+          path: release/
+          merge-multiple: true
+
+      - name: Generate build info
+        id: build_info
+        run: |
+          if "${{ github.ref_name }}" == "release"; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            ts=$(date +%Y%m%d-%H%M%S)
+            echo "is_release=false" >> $GITHUB_OUTPUT
+            echo "timestamp=$ts" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.build_info.outputs.is_release == 'true' && 'app-v' || '' }}${{ steps.build_info.outputs.is_release == 'true' && env.APP_VERSION || steps.build_info.outputs.timestamp }}
+          name: ${{ steps.build_info.outputs.is_release == 'true' && 'KPA v' || 'KPA (dev build ' }}${{ steps.build_info.outputs.is_release == 'true' && env.APP_VERSION || steps.build_info.outputs.timestamp }}${{ steps.build_info.outputs.is_release != 'true' && ')' || '' }}
+          body: ${{ steps.build_info.outputs.is_release == 'true' && '如果你是Windows用户且是小白，直接选下面的.exe文件进行安装。' || '这是从非 release 分支构建的开发版本，可能不稳定。' }}
+          draft: ${{ steps.build_info.outputs.is_release != 'true' }}
+          prerelease: ${{ steps.build_info.outputs.is_release != 'true' }}
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.blockmap
+            release/latest*.yml
+        env:
+          APP_VERSION: ${{ steps.package.outputs.version }}
