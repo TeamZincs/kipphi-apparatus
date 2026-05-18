@@ -8,8 +8,23 @@ on:
       - electron
 
 jobs:
+  # 获取版本（只运行一次）
+  get-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
   # 跨平台构建 job
   build:
+    needs: [get-version]
     permissions:
       contents: write
     strategy:
@@ -78,18 +93,9 @@ jobs:
             release/*.blockmap
             release/latest*.yml
 
-      - name: Get version
-        id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-
   # Release job（依赖所有构建）
   create-release:
-    needs: [build]
+    needs: [get-version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -128,4 +134,4 @@ jobs:
             release/*.blockmap
             release/latest*.yml
         env:
-          APP_VERSION: ${{ needs.build.outputs.version }}
+          APP_VERSION: ${{ needs.get-version.outputs.version }}
