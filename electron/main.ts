@@ -7,6 +7,19 @@ import JSZip from "jszip";
 let mainWindow = null;
 app.setName("com.zincs.kpa-electron");
 
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: {
+      standard: true,        // 声明为标准 URI 协议
+      secure: true,          // 启用安全上下文（类似 https）
+      supportFetchAPI: true, // 允许 fetch 请求
+      bypassCSP: false       // 除非必要，否则保持 false
+    }
+  }
+]);
+
+
 const createWindow = () => {
     mainWindow = new BrowserWindow({
         width: 1400,
@@ -40,11 +53,11 @@ const createWindow = () => {
 };
 
 // ============== 目录路径 ==============
-let APP_DATA_DIR;
-let CHART_DIR;
-let TRASH_DIR;
-let RESPACK_DIR;
-let DOWNLOAD_DIR;
+let APP_DATA_DIR: string;
+let CHART_DIR: string;
+let TRASH_DIR: string;
+let RESPACK_DIR: string;
+let DOWNLOAD_DIR: string;
 
 function getAppDataDir() {
     if (!APP_DATA_DIR) {
@@ -57,7 +70,7 @@ function getAppDataDir() {
     return { APP_DATA_DIR, CHART_DIR, TRASH_DIR, RESPACK_DIR, DOWNLOAD_DIR };
 }
 
-async function ensureDir(dirPath) {
+async function ensureDir(dirPath: string) {
     try {
         await fs.access(dirPath);
     } catch {
@@ -449,11 +462,11 @@ ipcMain.handle("shell:openPath", async (_, filePath) => {
 // ============== 启动 ==============
 getAppDataDir();
 Promise.all([
-    ensureDir(APP_DATA_DIR),
-    ensureDir(CHART_DIR),
-    ensureDir(TRASH_DIR),
-    ensureDir(RESPACK_DIR),
-    ensureDir(DOWNLOAD_DIR),
+    ensureDir(APP_DATA_DIR!),
+    ensureDir(CHART_DIR!),
+    ensureDir(TRASH_DIR!),
+    ensureDir(RESPACK_DIR!),
+    ensureDir(DOWNLOAD_DIR!),
     app.whenReady()
 ]).then(() => {
     createWindow();
