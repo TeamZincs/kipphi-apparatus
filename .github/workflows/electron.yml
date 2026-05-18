@@ -73,6 +73,7 @@ jobs:
           path: |
             release/*.exe
             release/*.dmg
+            release/*.zip
             release/*.AppImage
             release/*.deb
             release/*.blockmap
@@ -114,8 +115,10 @@ jobs:
           files: |
             release/*.exe
             release/*.dmg
+            release/*.zip
             release/*.AppImage
             release/*.deb
+            release/*.blockmap
             release/latest*.yml
         env:
           APP_VERSION: ${{ steps.package.outputs.version }}

@@ -22,6 +22,11 @@
         "directories": {
             "output": "release"
         },
+        "publish": {
+            "provider": "github",
+            "owner": "TeamZincs",
+            "repo": "kipphi-apparatus"
+        },
         "files": [
             "package.json",
             {
@@ -52,6 +57,13 @@
                         "x64",
                         "arm64"
                     ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 }
             ],
             "icon": "src-tauri/icons/icon.icns",
@@ -61,6 +73,13 @@
             "target": [
                 {
                     "target": "AppImage",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                },
+                {
+                    "target": "deb",
                     "arch": [
                         "x64",
                         "arm64"
@@ -77,6 +96,7 @@
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-fs": "^2.4.5",
         "@tauri-apps/plugin-opener": "^2.5.3",
+        "electron-updater": "^6.8.3",
         "jszip": "^3.10.1",
         "kipphi": "2.1.4",
         "kipphi-canvas-editor": "2.1.4",

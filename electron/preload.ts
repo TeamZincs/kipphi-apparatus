@@ -48,6 +48,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
     
     // 打开系统路径
     openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
+
+    // 增量更新
+    updater: {
+        check: () => ipcRenderer.invoke("updater:check"),
+        download: () => ipcRenderer.invoke("updater:download"),
+        install: () => ipcRenderer.invoke("updater:install"),
+        status: () => ipcRenderer.invoke("updater:status"),
+        onChecking: (callback) => ipcRenderer.on("updater:checking", callback),
+        onAvailable: (callback) => ipcRenderer.on("updater:available", (_, info) => callback(info)),
+        onNotAvailable: (callback) => ipcRenderer.on("updater:not-available", (_, info) => callback(info)),
+        onProgress: (callback) => ipcRenderer.on("updater:progress", (_, progress) => callback(progress)),
+        onDownloaded: (callback) => ipcRenderer.on("updater:downloaded", (_, info) => callback(info)),
+        onError: (callback) => ipcRenderer.on("updater:error", (_, error) => callback(error)),
+        removeAllListeners: () => {
+            ipcRenderer.removeAllListeners("updater:checking");
+            ipcRenderer.removeAllListeners("updater:available");
+            ipcRenderer.removeAllListeners("updater:not-available");
+            ipcRenderer.removeAllListeners("updater:progress");
+            ipcRenderer.removeAllListeners("updater:downloaded");
+            ipcRenderer.removeAllListeners("updater:error");
+        },
+    },
 });
 
 // 类型声明
@@ -107,6 +129,20 @@ declare global {
                 }) => Promise<string>;
             };
             openPath: (path: string) => Promise<void>;
+            // 增量更新
+            updater: {
+                check: () => Promise<{ checking: boolean; reason?: string; updateInfo?: any; error?: string }>;
+                download: () => Promise<{ success: boolean; error?: string }>;
+                install: () => Promise<{ success: boolean; error?: string }>;
+                status: () => Promise<{ updateAvailable: boolean; updateDownloaded: boolean; updateInfo: any }>;
+                onChecking: (callback: () => void) => void;
+                onAvailable: (callback: (info: any) => void) => void;
+                onNotAvailable: (callback: (info: any) => void) => void;
+                onProgress: (callback: (progress: any) => void) => void;
+                onDownloaded: (callback: (info: any) => void) => void;
+                onError: (callback: (error: string) => void) => void;
+                removeAllListeners: () => void;
+            };
         };
     }
 }

@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, shell, protocol, net } from "electron";
+import { app, BrowserWindow, ipcMain, shell, protocol, net, dialog } from "electron";
 import * as path from "path";
 import * as fs from "fs/promises";
 import YAML from "yaml";
 import JSZip from "jszip";
+import { autoUpdater } from "electron-updater";
 
 let mainWindow = null;
 app.setName("com.zincs.kpa-electron");
@@ -478,4 +479,102 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+// ============== 增量更新 ==============
+
+// 配置 autoUpdater 日志
+autoUpdater.logger = console;
+
+// 禁用自动下载，让用户手动触发
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+// 更新状态
+let updateAvailable = false;
+let updateDownloaded = false;
+let updateInfo = null;
+
+// 监听更新事件
+autoUpdater.on("checking-for-update", () => {
+    mainWindow?.webContents.send("updater:checking");
+});
+
+autoUpdater.on("update-available", (info) => {
+    updateAvailable = true;
+    updateInfo = info;
+    mainWindow?.webContents.send("updater:available", info);
+});
+
+autoUpdater.on("update-not-available", (info) => {
+    updateAvailable = false;
+    mainWindow?.webContents.send("updater:not-available", info);
+});
+
+autoUpdater.on("download-progress", (progress) => {
+    mainWindow?.webContents.send("updater:progress", progress);
+});
+
+autoUpdater.on("update-downloaded", (info) => {
+    updateDownloaded = true;
+    mainWindow?.webContents.send("updater:downloaded", info);
+});
+
+autoUpdater.on("error", (err) => {
+    mainWindow?.webContents.send("updater:error", err.message);
+});
+
+// IPC: 检查更新
+ipcMain.handle("updater:check", async () => {
+    if (!app.isPackaged) {
+        // 开发环境不检查更新
+        return { checking: false, reason: "development" };
+    }
+    try {
+        const result = await autoUpdater.checkForUpdates();
+        return { checking: true, updateInfo: result?.updateInfo };
+    } catch (error) {
+        return { checking: false, error: error.message };
+    }
+});
+
+// IPC: 下载更新
+ipcMain.handle("updater:download", async () => {
+    if (!updateAvailable) {
+        return { success: false, error: "No update available" };
+    }
+    try {
+        await autoUpdater.downloadUpdate();
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// IPC: 安装更新并重启
+ipcMain.handle("updater:install", () => {
+    if (!updateDownloaded) {
+        return { success: false, error: "Update not downloaded" };
+    }
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
+});
+
+// IPC: 获取更新状态
+ipcMain.handle("updater:status", () => {
+    return {
+        updateAvailable,
+        updateDownloaded,
+        updateInfo
+    };
+});
+
+// 应用启动后自动检查更新
+app.whenReady().then(() => {
+    // 延迟几秒检查，避免影响启动
+    setTimeout(() => {
+        if (app.isPackaged) {
+            autoUpdater.checkForUpdates().catch(console.error);
+        }
+    }, 3000);
 });
