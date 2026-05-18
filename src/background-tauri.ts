@@ -652,3 +652,30 @@ export async function saveChartProject(params: SaveChartProjectParams): Promise<
 
     return params.id;
 }
+
+// ============== 谱面图片加载函数 ==============
+
+/**
+ * 从谱面目录加载图片文件
+ * @param chartId 谱面ID
+ * @param filename 图片文件名
+ * @param returning 返回类型
+ */
+export async function loadChartImage<RT extends ReturnType = ReturnType.blob>(
+    chartId: string,
+    filename: string,
+    returning?: RT
+): Promise<TypeMap<RT> | null> {
+    const rt = (returning || ReturnType.blob) as RT;
+    const { CHART_DIR } = await queryMeta();
+    const filePath = await join(CHART_DIR, chartId, filename);
+
+    if (!(await exists(filePath))) {
+        return null;
+    }
+
+    const u8Arr = await readFile(filePath);
+    const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+    const mimeType = ext === "jpg" ? "image/jpeg" : getMimeTypeFromName(filename);
+    return await returningFromU8(u8Arr, rt, mimeType);
+}
