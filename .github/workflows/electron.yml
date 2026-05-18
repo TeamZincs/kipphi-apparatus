@@ -103,14 +103,14 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: KPA-*
+          pattern: kipphi-apparatus-electron-*
           path: release/
           merge-multiple: true
 
       - name: Generate build info
         id: build_info
         run: |
-          if "${{ github.ref_name }}" == "release"; then
+          if [ "${{ github.ref_name }}" = "release" ]; then
             echo "is_release=true" >> $GITHUB_OUTPUT
           else
             ts=$(date +%Y%m%d-%H%M%S)
