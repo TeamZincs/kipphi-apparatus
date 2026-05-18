@@ -23,15 +23,22 @@
             "output": "release"
         },
         "files": [
-            "dist/**/*",
-            "dist-electron/**/*",
-            "static/**/*"
+            {
+                "from": "build",
+                "to": ".",
+                "filter": [
+                    "**/*"
+                ]
+            },
+            "dist-electron/**/*"
         ],
         "win": {
             "target": [
                 {
                     "target": "nsis",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 }
             ],
             "icon": "src-tauri/icons/icon.ico"
@@ -40,7 +47,10 @@
             "target": [
                 {
                     "target": "dmg",
-                    "arch": ["x64", "arm64"]
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 }
             ],
             "icon": "src-tauri/icons/icon.icns",
@@ -50,7 +60,10 @@
             "target": [
                 {
                     "target": "AppImage",
-                    "arch": ["x64", "arm64"]
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 }
             ],
             "icon": "src-tauri/icons",

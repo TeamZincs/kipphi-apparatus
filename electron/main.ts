@@ -20,7 +20,7 @@ const createWindow = () => {
     });
 
     if (app.isPackaged) {
-        mainWindow.loadFile(path.join(import.meta.dirname, "../../build/index.html"));
+        mainWindow.loadFile(path.join(import.meta.dirname, "../../index.html"));
     } else {
         mainWindow.loadURL("http://localhost:1420");
     }
