@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell, protocol, net } from "electron";
 import * as path from "path";
 import * as fs from "fs/promises";
 import YAML from "yaml";
@@ -20,7 +20,20 @@ const createWindow = () => {
     });
 
     if (app.isPackaged) {
-        mainWindow.loadFile(path.join(import.meta.dirname, "../../index.html"));
+        // 因为SvelteKit输出的link的href都是/开头，用file协议加载会加载错地方
+        // ✅ 新标准：使用 protocol.handle + net.fetch
+
+        protocol.handle('app', (request) => {
+            // 1. 解析 URL，获取文件路径
+            const url = new URL(request.url);
+            const filePath = path.join(__dirname, 'build', url.pathname);
+
+            // 2. 使用 net.fetch 返回 file:// 协议的文件流
+            return net.fetch(`file://${filePath}`);
+        });
+
+        // 创建窗口时加载
+        mainWindow.loadURL('app://./index.html');
     } else {
         mainWindow.loadURL("http://localhost:1420");
     }

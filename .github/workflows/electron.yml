@@ -33,7 +33,7 @@ jobs:
             target: linux
             arch: arm64
           - platform: windows-latest
-            target: win32
+            target: win
             arch: x64
 
     runs-on: ${{ matrix.platform }}
