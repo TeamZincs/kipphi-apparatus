@@ -76,7 +76,7 @@
         <p>{$_("about.desc")}</p>
         <div class="table">
 
-            <span>{$_("about.apparatus")}</span><span>{__APP_VERSION}</span>
+            <span>{$_("about.apparatus")}</span><span>{__APP_VERSION} ({ isElectron ? "Electron" : "Tauri"})</span>
             <span>{$_("about.kipphi")}</span><span>{__KIPPHI_VERSION}</span>
             <span>{$_("about.player")}</span><span>{__PLAYER_VERSION}</span>
             <span>{$_("about.canvasEditor")}</span><span>{__CANVAS_EDITOR_VERSION}</span>
@@ -136,6 +136,7 @@
         height: 100vh;
         display: flex;
         flex-direction: column;
+        overflow-y: auto;
     }
     .table {
         display: grid;
