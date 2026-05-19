@@ -19,7 +19,7 @@
     },
     "build": {
         "appId": "com.zincs.kpa",
-        "productName": "KPA",
+        "productName": "kipphi-apparatus-electron",
         "directories": {
             "output": "release"
         },

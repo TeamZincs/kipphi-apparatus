@@ -16,3 +16,4 @@ project-rules.json
 
 target/rust-analyzer
 release
+dist-electron
