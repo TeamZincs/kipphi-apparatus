@@ -49,7 +49,8 @@
                 }
             ],
             "icon": "src-tauri/icons/icon.ico",
-            "signAndEditExecutable": false
+            "signAndEditExecutable": false,
+            "artifactName": "${productName}-Setup-${version}.${ext}"
         },
         "mac": {
             "target": [
