@@ -510,7 +510,15 @@ autoUpdater.on("checking-for-update", () => {
 autoUpdater.on("update-available", (info) => {
     updateAvailable = true;
     updateInfo = info;
-    mainWindow?.webContents.send("updater:available", info);
+    // 计算总下载大小和是否为增量更新
+    const files = info.files || [];
+    const totalSize = files.reduce((sum: number, f: any) => sum + (f.size || 0), 0);
+    const hasIncremental = files.some((f: any) => f.isIncremental);
+    mainWindow?.webContents.send("updater:available", {
+        ...info,
+        totalSize,
+        isIncremental: hasIncremental,
+    });
 });
 
 autoUpdater.on("update-not-available", (info) => {

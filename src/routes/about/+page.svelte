@@ -10,6 +10,8 @@
     let updateError = "";
     let downloadProgress = 0;
     let newVersion = "";
+    let totalDownloadSize = 0;
+    let isIncrementalUpdate = false;
 
     onMount(() => {
         isElectron = !!window.electronAPI?.updater;
@@ -34,6 +36,8 @@
         window.electronAPI.updater.onAvailable((info) => {
             updateStatus = "available";
             newVersion = info.version;
+            totalDownloadSize = info.totalSize || 0;
+            isIncrementalUpdate = info.isIncremental || false;
         });
 
         window.electronAPI.updater.onNotAvailable(() => {
@@ -67,6 +71,13 @@
     async function installUpdate() {
         await window.electronAPI.updater.install();
     }
+
+    function formatBytes(bytes: number): string {
+        if (bytes === 0) return "未知";
+        const units = ["B", "KiB", "MiB", "GiB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return (bytes / Math.pow(1024, i)).toFixed(1) + " " + units[i];
+    }
 </script>
 
 <main class="container">
@@ -99,6 +110,9 @@
                         <span>正在检查更新...</span>
                     {:else if updateStatus === "available"}
                         <span>发现新版本: {newVersion}</span>
+                        {#if totalDownloadSize > 0}
+                            <span>需下载: {formatBytes(totalDownloadSize)}{isIncrementalUpdate ? " (增量更新)" : " (完整更新)"}</span>
+                        {/if}
                         <button onclick={downloadUpdate}>下载更新</button>
                     {:else if updateStatus === "downloading"}
                         <span>正在下载: {downloadProgress.toFixed(1)}%</span>

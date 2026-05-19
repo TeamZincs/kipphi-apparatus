@@ -136,7 +136,7 @@ declare global {
                 install: () => Promise<{ success: boolean; error?: string }>;
                 status: () => Promise<{ updateAvailable: boolean; updateDownloaded: boolean; updateInfo: any }>;
                 onChecking: (callback: () => void) => void;
-                onAvailable: (callback: (info: any) => void) => void;
+                onAvailable: (callback: (info: { version: string; totalSize?: number; isIncremental?: boolean }) => void) => void;
                 onNotAvailable: (callback: (info: any) => void) => void;
                 onProgress: (callback: (progress: any) => void) => void;
                 onDownloaded: (callback: (info: any) => void) => void;
