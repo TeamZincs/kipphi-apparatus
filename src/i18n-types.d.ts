@@ -99,6 +99,7 @@ export interface I18nMapping {
 "main.secondary.multiNote": never;
 "main.secondary.errors": never;
 "main.secondary.general": never;
+"main.secondary.script": never;
 "main.note.noNote": never;
 "main.note.type": never;
 "main.note.time": never;
@@ -250,6 +251,9 @@ export interface I18nMapping {
 "main.general.baseOffsetDesc": never;
 "main.general.replayCompensation": never;
 "main.general.replayCompensationDesc": never;
+"main.script.run": never;
+"main.script.close": never;
+"main.script.open": never;
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;
