@@ -42,6 +42,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     import { fetchTexture } from "#/background";
     import Errors from "./Errors.svelte";
     import { Redo2, Undo2 } from "@lucide/svelte";
+    import MonacoEdtior from "./MonacoEdtior.svelte";
 
 
 let {
@@ -523,7 +524,7 @@ updateTip();
                 options={
                     [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE,
                     SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE,
-                    SecondarySidebar.ERRORS, SecondarySidebar.GENERAL
+                    SecondarySidebar.ERRORS, SecondarySidebar.GENERAL, SecondarySidebar.SCRIPT
                 ]
                 }
                 displayTexts={[
@@ -535,7 +536,8 @@ updateTip();
                     $_("main.secondary.multiNode"),
                     $_("main.secondary.multiNote"),
                     $_("main.secondary.errors"),
-                    $_("main.secondary.general")
+                    $_("main.secondary.general"),
+                    $_("main.secondary.script")
                 ]}
                 bind:currentOption={$activeSecondarySidebar}
             ></PopupOption>
@@ -621,6 +623,9 @@ updateTip();
                     bind:value={KPASettings.replayCompensation}
                 />
             {/if}
+            <div class="monaco-sidebar" style:display={$activeSecondarySidebar === SecondarySidebar.SCRIPT ? '' : 'none'}>
+            <MonacoEdtior></MonacoEdtior>
+            </div>
         </div>
     </div>
     <div id="sidebar">
@@ -822,7 +827,12 @@ updateTip();
     }
 
 
-
+    .monaco-sidebar {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
 
 
 </style>

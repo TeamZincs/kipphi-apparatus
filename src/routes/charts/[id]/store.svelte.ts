@@ -21,7 +21,8 @@ export const SecondarySidebar = {
     MULTI_NODE: 5,
     MULTI_NOTE: 6,
     ERRORS: 7,
-    GENERAL: 8
+    GENERAL: 8,
+    SCRIPT: 9
 }
 
 export let player: Player;
