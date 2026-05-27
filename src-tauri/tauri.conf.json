@@ -24,6 +24,19 @@
                     "asset:",
                     "data:",
                     "blob:"
+                ],
+                "script-src": [
+                    "'self'",
+                    "https://esm.sh",
+                    "blob:",
+                    "'unsafe-eval'"
+                ],
+                "connect-src": [
+                    "'self'",
+                    "ipc:",
+                    "https://esm.sh",
+                    "http://ipc.localhost",
+                    "http://tauri.localhost"
                 ]
             },
             "assetProtocol": {
