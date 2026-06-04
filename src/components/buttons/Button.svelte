@@ -33,6 +33,7 @@
         background-color: #f9f9f9;
         color: black;
         font-size: 2.5vh;
+        font-family: 'phigros', Consolas;
         appearance: none;
         // border: 1px solid grey;
         border: none;
