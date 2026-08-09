@@ -386,7 +386,6 @@ onMount(async () => {
         judgeLinesManager?.update();
     });
     const updateUndoRedoAvailability = () => {
-        console.log("???")
         undoAvailable = operationList.operations.length > 0;
         redoAvailable = operationList.undoneOperations.length > 0;
     }
@@ -431,6 +430,12 @@ onMount(async () => {
         selectedNodes.set(ev.nodes);
         activeSecondarySidebar.set(SecondarySidebar.MULTI_NODE);
     });
+    eventSequenceEditors.addEventListener("eventtypechange", (e) => {
+        eventsType.set(e.eventType);
+    });
+    eventSequenceEditors.addEventListener("layerchange", (e) => {
+        eventsLayer.set(e.layer);
+    })
     player.renderingOffset = KPASettings.renderingOffset;
     // @ts-expect-error 仅供调试
     window.player = player;
@@ -468,6 +473,7 @@ onDestroy(() => {
     // 停止播放器
     if (player) {
         player.pause();
+        player.destroy();
     }
 
     

@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState, NewNodeState } from "kipphi-canvas-editor"
+import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState, NewNodeState, EventSequenceEditor } from "kipphi-canvas-editor"
 import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
@@ -71,7 +71,7 @@ export const notesAbove = writable(true);
 // EventSequenceEditorSettings - 每个属性独立的 writable store
 export const eventsEditChecked = writable(false);
 export const eventsLayer = writable<"0" | "1" | "2" | "3" | "ex">("0");
-export const eventsType = writable<keyof typeof EventType>("moveX");
+export const eventsType = writable<keyof typeof EventType | "general">("general");
 export const eventsTimeSpan = writable(4);
 export const eventsScopeSelectMode = writable(SelectState.none);
 export const newNodeState = writable(NewNodeState.controlsBoth);
@@ -197,6 +197,9 @@ notesAbove.subscribe(v => {
 eventsEditChecked.subscribe(v => {
     if (!eventSequenceEditors) return;
     const activatedEditor = eventSequenceEditors.activatedEditor;
+    if (!(activatedEditor instanceof EventSequenceEditor)) {
+        return
+    }
     if (v) {
         activatedEditor.state = EventCurveEditorState.edit;
     } else {
@@ -211,9 +214,12 @@ eventsLayer.subscribe(v => {
 
 eventsType.subscribe(v => {
     if (!eventSequenceEditors) return;
-    // @ts-expect-error TSC又在发什么颠
-    eventSequenceEditors.activatedEditor = eventSequenceEditors[v];
-    eventsEditChecked.set(eventSequenceEditors.activatedEditor.state === EventCurveEditorState.edit);
+    if (v === "general") {
+        eventSequenceEditors.activatedEditor = eventSequenceEditors.general;
+        return;
+    }
+    const e = eventSequenceEditors.activatedEditor = eventSequenceEditors[v];
+    eventsEditChecked.set(e.state === EventCurveEditorState.edit);
     if (v === "easing") {
         switchEasing(get(templateName))
     }
@@ -226,17 +232,22 @@ eventsTimeSpan.subscribe(v => {
        "bpm", "easing"] satisfies (keyof typeof EventType)[]) {
         eventSequenceEditors[key].timeSpan = v;
     }
+    eventSequenceEditors.general.timeSpan = v;
     eventSequenceEditors.draw();
 });
 
 eventsScopeSelectMode.subscribe(v => {
     if (!eventSequenceEditors) return;
-    eventSequenceEditors.activatedEditor.selectState = v;
+    const activatedEditor = eventSequenceEditors.activatedEditor;
+    if (!(activatedEditor instanceof EventSequenceEditor)) {
+        return
+    }
+    activatedEditor.selectState = v;
     if (v !== SelectState.none) {
-        eventSequenceEditors.activatedEditor.state = EventCurveEditorState.selectScope;
-        eventSequenceEditors.activatedEditor.lastSelectState = v;
+        activatedEditor.state = EventCurveEditorState.selectScope;
+        activatedEditor.lastSelectState = v;
     } else {
-        eventSequenceEditors.activatedEditor.state = EventCurveEditorState.select;
+        activatedEditor.state = EventCurveEditorState.select;
     }
 });
 
@@ -306,7 +317,7 @@ export function restoreStates() {
 
     eventsEditChecked.set(false);
     eventsLayer.set("0");
-    eventsType.set("moveX");
+    eventsType.set("general");
     eventsTimeSpan.set(4);
     eventsScopeSelectMode.set(SelectState.none);
 
