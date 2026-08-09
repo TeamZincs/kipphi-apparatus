@@ -142,7 +142,7 @@
 <Label small>{$_("main.judgeline.father.term")}
     <Tooltip>{$_("main.judgeline.father.desc")}</Tooltip>
 </Label>
-<ArrowedInput max={chart.judgeLines.length - 1} min={0}
+<ArrowedInput max={chart.judgeLines.length - 1} min={-1}
     bind:value={
         () => values.father,
         (value) => {
