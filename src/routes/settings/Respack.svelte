@@ -1,12 +1,10 @@
 <script lang="ts">
     import Button from "#/components/buttons/Button.svelte";
     import { _ } from "#/i18n";
-    import { openPath as openPath } from "#/opener";
-    import { getFileInRespack } from "#/background";
+    import { getFileInRespack, openPath } from "#/background";
     import { respackId as currentRespackId, useRespack } from "#/respack.svelte";
     import { onDestroy } from "svelte";
-    import { ReturnType } from "#/background-electron";
-
+    import { _ReturnType } from "#/background-tauri";
     let {
         name,
         pathname,
@@ -14,7 +12,7 @@
     }: { name: string; pathname: string; shortPathname: string } = $props();
 
     async function loadImage(filename: string): Promise<string> {
-        const blob = await getFileInRespack(shortPathname, filename, ReturnType.blob);
+        const blob = await getFileInRespack(shortPathname, filename);
         return blob && URL.createObjectURL(blob);
     }
     const tap = await loadImage("click.png");

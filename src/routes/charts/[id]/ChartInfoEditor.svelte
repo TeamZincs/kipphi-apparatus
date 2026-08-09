@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { openPath as tauriOpenPath } from "#/opener"
 
     import Label from "#/components/Label.svelte";
     import { _ } from "#/i18n";
@@ -10,7 +9,7 @@
     import { onSave, saveChart } from "./save";
     import { notify } from "#/notify.svelte";
     import Button from "#/components/buttons/Button.svelte";
-    import { getPathOfChart } from "#/background";
+    import { getPathOfChart, openPath } from "#/background";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
     import { goto } from "$app/navigation";
     import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.svelte";
@@ -105,7 +104,7 @@
 
 <Button onclick={
     async () => {
-        tauriOpenPath(await getPathOfChart(chartId));
+        openPath(await getPathOfChart(chartId));
     }
 }>{$_("main.chart.openInExplorer")}</Button>
 
