@@ -14,18 +14,30 @@ def check_i18n():
     
     with open("./src/locales/en.json", "r", encoding="utf-8") as f:
         en = json.load(f)
+    pass_check = True
+    kv_pairs: set[tuple[str, str]] = set()
 
     def check_recursive(s, t, e, basic=""):
+        nonlocal pass_check
         for key in s:
             if key not in t:
                 print(f"{basic}.{key} in zh-Hans but not in zh-Hant")
-                raise KeyError(key)
+                kv_pairs.add((key, s[key] if type(s) is str else json.dumps(s[key], ensure_ascii=False, indent=4)))
+                pass_check = False
             if key not in e:
                 print(f"{basic}.{key} in zh-Hans but not in en")
-                raise KeyError(key)
+                kv_pairs.add((key, s[key] if type(s) is str else json.dumps(s[key], ensure_ascii=False, indent=4)))
+                pass_check = False
+            if key not in t or key not in e:
+                continue
             if isinstance(s[key], dict):
-                check_recursive(s[key], t[key], e[key], basic + "." + key)
-    check_recursive(zh_hans, zh_hant, en)         
+                check_recursive(s[key], t[key], e[key], basic + "." + key if basic else key)
+    check_recursive(zh_hans, zh_hant, en)
+    if not pass_check:
+        for (k, v) in kv_pairs:
+            print(f'"{k}": "{v}",')
+        print("i18n check failed")
+        raise KeyError("i18n check failed")
     print("i18n check passed")
     
 
