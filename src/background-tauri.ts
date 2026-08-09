@@ -1,6 +1,6 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, readTextFile, mkdir, readFile, writeFile, rename, writeTextFile } from "@tauri-apps/plugin-fs";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openPath as topenPath } from "@tauri-apps/plugin-opener";
 
 import YAML from "yaml";
 
@@ -23,26 +23,26 @@ export interface ChartHistoryEntry {
     filename: string;
 }
 
-export enum ReturnType {
+export enum _ReturnType {
     u8,
     blob,
     arrayBuffer,
     imageBmp
 }
 
-export type NonImageReturnType = ReturnType.u8 | ReturnType.blob | ReturnType.arrayBuffer;
+export type NonImageReturnType = _ReturnType.u8 | _ReturnType.blob | _ReturnType.arrayBuffer;
 
-type TypeMap<RT extends ReturnType> = RT extends ReturnType.u8 ? Uint8Array<ArrayBuffer> :
-RT extends ReturnType.blob ? Blob :
-RT extends ReturnType.arrayBuffer ? ArrayBuffer :
-RT extends ReturnType.imageBmp ? ImageBitmap :
+export type TypeMap<RT extends _ReturnType> = RT extends _ReturnType.u8 ? Uint8Array<ArrayBuffer> :
+RT extends _ReturnType.blob ? Blob :
+RT extends _ReturnType.arrayBuffer ? ArrayBuffer :
+RT extends _ReturnType.imageBmp ? ImageBitmap :
 null;
 
-const returningFromU8 = async <RT extends ReturnType>(u8Arr: Uint8Array<ArrayBuffer>, type: RT, mime: string): Promise<TypeMap<RT> > =>
-    type === ReturnType.u8 ? u8Arr as TypeMap<RT> :
-    type === ReturnType.blob ? new Blob([u8Arr], { type: mime }) as TypeMap<RT> :
-    type === ReturnType.arrayBuffer ? u8Arr.buffer as TypeMap<RT> :
-    type === ReturnType.imageBmp ? await createImageBitmap(new Blob([u8Arr], { type: mime })) as TypeMap<RT> :
+const returningFromU8 = async <RT extends _ReturnType>(u8Arr: Uint8Array<ArrayBuffer>, type: RT, mime: string): Promise<TypeMap<RT> > =>
+    type === _ReturnType.u8 ? u8Arr as TypeMap<RT> :
+    type === _ReturnType.blob ? new Blob([u8Arr], { type: mime }) as TypeMap<RT> :
+    type === _ReturnType.arrayBuffer ? u8Arr.buffer as TypeMap<RT> :
+    type === _ReturnType.imageBmp ? await createImageBitmap(new Blob([u8Arr], { type: mime })) as TypeMap<RT> :
     null;
 
 type ChartHistory = ChartHistoryEntry[];
@@ -203,7 +203,7 @@ export async function saveChart(chartId: string, chart: Chart, summary: string, 
     await writeTextFile(filePath, chartStr);
 }
 
-interface ChartStruct<RT extends NonImageReturnType = ReturnType.blob> {
+interface ChartStruct<RT extends NonImageReturnType = _ReturnType.blob> {
     chart: Chart;
     music: TypeMap<RT>;
     illustration: TypeMap<RT>;
@@ -215,7 +215,7 @@ interface ChartStruct<RT extends NonImageReturnType = ReturnType.blob> {
  * @param returning 使用此参数指定返回的音乐背景资源类型
  * @returns 
  */
-export async function getChartProject<RT extends NonImageReturnType = ReturnType.blob>(chartId: string, returning?: RT): Promise<ChartStruct<RT>> {
+export async function getChartProject<RT extends NonImageReturnType = _ReturnType.blob>(chartId: string, returning?: RT): Promise<ChartStruct<RT>> {
     const metadata = await queryChartMeta(chartId);
     const chartPath = await join(CHART_DIR, chartId, metadata.chart);
     const chartType = metadata.type;
@@ -256,8 +256,8 @@ export async function getChart(chartId: string): Promise<Chart> {
     return chart;
 }
 
-export async function readAFileInChart<RT extends ReturnType = ReturnType.blob>(identifier: string, filename: string, mimeType: string, returning?: RT) {
-    returning = returning || ReturnType.blob as RT;
+export async function readAFileInChart<RT extends _ReturnType = _ReturnType.blob>(identifier: string, filename: string, mimeType: string, returning?: RT) {
+    returning = returning || _ReturnType.blob as RT;
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     return returningFromU8(
         await readFile(await join(CHART_DIRECTORY, identifier, filename)),
@@ -366,8 +366,8 @@ export async function uploadTexture(identifier: string, texture: File) {
     await writeFile(texturePath, new Uint8Array(await texture.arrayBuffer()));
 }
 
-export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(identifier: string, name: string, returning?: RT): Promise<TypeMap<RT> > {
-    returning = returning || ReturnType.imageBmp as RT;
+export async function fetchTexture<RT extends _ReturnType = _ReturnType.imageBmp>(identifier: string, name: string, returning?: RT): Promise<TypeMap<RT> | null> {
+    returning = returning || _ReturnType.imageBmp as RT;
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
     if (await exists(texturesDir)) {
@@ -392,6 +392,7 @@ export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(
         } catch {}
         return await returningFromU8(u8Arr, returning, getMimeTypeFromName(name));
     }
+    return null
 }
 
 export interface RespackEntry {
@@ -470,7 +471,7 @@ export async function downloadFile(filename: string, file: Uint8Array, opens: bo
         await mkdir(downloadDirectory);
     }
     await writeFile(await join(downloadDirectory, filename), file);
-    if (opens) openPath(downloadDirectory);
+    if (opens) topenPath(downloadDirectory);
 }
 
 // ============== 谱面创建/导入函数 ==============
@@ -661,12 +662,12 @@ export async function saveChartProject(params: SaveChartProjectParams): Promise<
  * @param filename 图片文件名
  * @param returning 返回类型
  */
-export async function loadChartImage<RT extends ReturnType = ReturnType.blob>(
+export async function loadChartImage<RT extends _ReturnType = _ReturnType.blob>(
     chartId: string,
     filename: string,
     returning?: RT
 ): Promise<TypeMap<RT> | null> {
-    const rt = (returning || ReturnType.blob) as RT;
+    const rt = (returning || _ReturnType.blob) as RT;
     const { CHART_DIR } = await queryMeta();
     const filePath = await join(CHART_DIR, chartId, filename);
 
@@ -678,4 +679,8 @@ export async function loadChartImage<RT extends ReturnType = ReturnType.blob>(
     const ext = filename.split(".").pop()?.toLowerCase() ?? "";
     const mimeType = ext === "jpg" ? "image/jpeg" : getMimeTypeFromName(filename);
     return await returningFromU8(u8Arr, rt, mimeType);
+}
+
+export function openPath(path: string, openWith?: string) {
+    topenPath(path, openWith);
 }

@@ -462,9 +462,9 @@ ipcMain.handle("fs:importChart", async (_, params) => handleSaveChartProject(par
 // 保存谱面项目
 ipcMain.handle("fs:saveChartProject", async (_, params) => handleSaveChartProject(params));
 
-// 打开路径
+// 打开路径（用系统默认应用）
 ipcMain.handle("shell:openPath", async (_, filePath) => {
-    shell.showItemInFolder(filePath);
+    return shell.openPath(filePath);
 });
 
 // ============== 启动 ==============

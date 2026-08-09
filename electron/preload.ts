@@ -44,10 +44,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
         createNestedDir: (chartId, subPath) => ipcRenderer.invoke("fs:createNestedDir", chartId, subPath),
         importChart: (params) => ipcRenderer.invoke("fs:importChart", params),
         saveChartProject: (params) => ipcRenderer.invoke("fs:saveChartProject", params),
+
+        // 打开系统路径
+        openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
     },
-    
-    // 打开系统路径
-    openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
 
     // 增量更新
     updater: {
@@ -115,6 +115,7 @@ declare global {
                     durationSecs: number;
                     extraFiles?: { name: string; data: ArrayBuffer }[];
                 }) => Promise<string>;
+                openPath: (path: string) => Promise<string>;
                 saveChartProject: (params: {
                     id: string;
                     chartContent: string;
@@ -128,7 +129,6 @@ declare global {
                     extraFiles?: { name: string; data: ArrayBuffer }[];
                 }) => Promise<string>;
             };
-            openPath: (path: string) => Promise<void>;
             // 增量更新
             updater: {
                 check: () => Promise<{ checking: boolean; reason?: string; updateInfo?: any; error?: string }>;

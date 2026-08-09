@@ -17,13 +17,12 @@ export type {
     ChartHistoryEntry,
     NonImageReturnType,
     RespackEntry,
-    ChartStruct,
     ImportChartParams,
     SaveChartProjectParams,
 } from "./background-tauri";
 
-export { ReturnType } from "./background-tauri";
-export type { ReturnType as BGReturnType } from "./background-tauri";
+export { _ReturnType as ReturnType } from "./background-tauri";
+export type { _ReturnType as BGReturnType } from "./background-tauri";
 
 // ============== 实现加载 ==============
 const impl = isElectronBuild
@@ -58,3 +57,5 @@ export const importChart = impl.importChart;
 export const saveChartProject = impl.saveChartProject;
 export const checkChartDirExists = impl.checkChartDirExists;
 export const loadChartImage = impl.loadChartImage;
+export const openPath = impl.openPath;
+

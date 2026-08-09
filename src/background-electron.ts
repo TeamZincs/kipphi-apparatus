@@ -5,6 +5,7 @@
 
 import { Chart, type ChartDataKPA, type ChartDataKPA2, type ChartDataRPE } from "kipphi";
 import { getMimeTypeFromName } from "#/util";
+import { _ReturnType, type TypeMap } from "./background-tauri";
 
 // 运行时检测 Electron 环境
 const isElectron = typeof window !== "undefined" && "electronAPI" in window;
@@ -25,30 +26,20 @@ export interface ChartHistoryEntry {
     filename: string;
 }
 
-export enum ReturnType {
-    u8,
-    blob,
-    arrayBuffer,
-    imageBmp
-}
 
-export type NonImageReturnType = ReturnType.u8 | ReturnType.blob | ReturnType.arrayBuffer;
 
-type TypeMap<RT extends ReturnType> = RT extends ReturnType.u8 ? Uint8Array :
-RT extends ReturnType.blob ? Blob :
-RT extends ReturnType.arrayBuffer ? ArrayBuffer :
-RT extends ReturnType.imageBmp ? ImageBitmap :
-never;
+export type NonImageReturnType = _ReturnType.u8 | _ReturnType.blob | _ReturnType.arrayBuffer;
 
-async function returningFromU8<RT extends ReturnType>(u8Arr: Uint8Array, type: RT, mime: string): Promise<TypeMap<RT>> {
+
+async function returningFromU8<RT extends _ReturnType>(u8Arr: Uint8Array, type: RT, mime: string): Promise<TypeMap<RT>> {
     switch (type) {
-        case ReturnType.u8:
+        case _ReturnType.u8:
             return u8Arr as TypeMap<RT>;
-        case ReturnType.blob:
+        case _ReturnType.blob:
             return new Blob([u8Arr], { type: mime }) as TypeMap<RT>;
-        case ReturnType.arrayBuffer:
+        case _ReturnType.arrayBuffer:
             return u8Arr.buffer.slice(u8Arr.byteOffset, u8Arr.byteOffset + u8Arr.byteLength) as TypeMap<RT>;
-        case ReturnType.imageBmp:
+        case _ReturnType.imageBmp:
             return await createImageBitmap(new Blob([u8Arr], { type: mime })) as TypeMap<RT>;
         default:
             return null as TypeMap<RT>;
@@ -61,7 +52,7 @@ export interface RespackEntry {
     name: string;
 }
 
-export interface ChartStruct<RT extends NonImageReturnType = ReturnType.blob> {
+export interface ChartStruct<RT extends NonImageReturnType = _ReturnType.blob> {
     chart: Chart;
     music: TypeMap<RT>;
     illustration: TypeMap<RT>;
@@ -78,7 +69,7 @@ async function ipcCall<T>(channel: string, ...args: any[]): Promise<T> {
 
 // ============== 导出函数 ==============
 
-export async function queryMeta() {
+export async function queryMeta(): ReturnType<typeof import("./background-tauri.ts").queryMeta> {
     return ipcCall("queryMeta");
 }
 
@@ -127,7 +118,7 @@ export async function saveChart(chartId: string, chart: Chart, summary: string, 
     return ipcCall("saveChart", chartId, chart.dumpKPA(), summary, beutify);
 }
 
-export async function getChartProject<RT extends NonImageReturnType = ReturnType.blob>(
+export async function getChartProject<RT extends NonImageReturnType = _ReturnType.blob>(
     chartId: string,
     returning?: RT
 ): Promise<ChartStruct<RT>> {
@@ -148,8 +139,8 @@ export async function getChartProject<RT extends NonImageReturnType = ReturnType
 
     return {
         chart,
-        music: await returningFromU8(data.music, returning || ReturnType.blob, musicMimeType),
-        illustration: await returningFromU8(data.illustration, returning || ReturnType.blob, illustrationMimeType),
+        music: await returningFromU8(data.music, returning || _ReturnType.blob, musicMimeType),
+        illustration: await returningFromU8(data.illustration, returning || _ReturnType.blob, illustrationMimeType),
     };
 }
 
@@ -165,13 +156,13 @@ export async function getChart(chartId: string): Promise<Chart> {
         : Chart.fromKPAJSON(data.chartData as ChartDataKPA | ChartDataKPA2);
 }
 
-export async function readAFileInChart<RT extends ReturnType = ReturnType.blob>(
+export async function readAFileInChart<RT extends _ReturnType = _ReturnType.blob>(
     identifier: string,
     filename: string,
     mimeType: string,
     returning?: RT
 ) {
-    const rt = (returning || ReturnType.blob) as RT;
+    const rt = (returning || _ReturnType.blob) as RT;
     const u8 = await ipcCall<Uint8Array>("readAFileInChart", identifier, filename);
     return returningFromU8(u8, rt, mimeType);
 }
@@ -184,12 +175,12 @@ export async function saveAFileToChart(identifier: string, filename: string, blo
     return ipcCall("saveAFileToChart", identifier, filename, await blob.arrayBuffer());
 }
 
-export async function loadChartImage<RT extends ReturnType = ReturnType.blob>(
+export async function loadChartImage<RT extends _ReturnType = _ReturnType.blob>(
     chartId: string,
     filename: string,
     returning?: RT
 ): Promise<TypeMap<RT> | null> {
-    const rt = (returning || ReturnType.blob) as RT;
+    const rt = (returning || _ReturnType.blob) as RT;
     const u8 = await ipcCall<Uint8Array | null>("loadChartImage", chartId, filename);
     if (!u8) return null;
     const ext = filename.split(".").pop()?.toLowerCase() ?? "";
@@ -236,12 +227,12 @@ export async function uploadTexture(identifier: string, texture: File) {
     return ipcCall("uploadTexture", identifier, texture.name, await texture.arrayBuffer());
 }
 
-export async function fetchTexture<RT extends ReturnType = ReturnType.imageBmp>(
+export async function fetchTexture<RT extends _ReturnType = _ReturnType.imageBmp>(
     identifier: string,
     name: string,
     returning?: RT
 ): Promise<TypeMap<RT> | null> {
-    const rt = (returning || ReturnType.imageBmp) as RT;
+    const rt = (returning || _ReturnType.imageBmp) as RT;
     const u8 = await ipcCall<Uint8Array | null>("fetchTexture", identifier, name);
     if (!u8) return null;
     return returningFromU8(u8, rt, getMimeTypeFromName(name));
@@ -373,4 +364,8 @@ export async function saveChartProject(params: SaveChartProjectParams): Promise<
         data: new Uint8Array(f.data instanceof ArrayBuffer ? f.data : f.data.buffer)
     }));
     return ipcCall("saveChartProject", { ...params, extraFiles });
+}
+
+export function openPath(path: string): void {
+    ipcCall("openPath", path);
 }
