@@ -13,20 +13,20 @@ const noFrontend = process.argv.includes("--no-frontend");
 const isElectron = process.argv.includes("--electron");
 
 
-const getNPMPackageVersion = async (/** @type {string} */packageName, stringified = true) => {
+const getNPMPackageVersion = (/** @type {string} */packageName, stringified = true) => {
     const jsonContent = fs.readFileSync("./node_modules/" + packageName + "/package.json").toString();
     const version = JSON.parse(jsonContent).version;
     console.log(version)
     return stringified ? JSON.stringify(version) : version;
 }
 
-const getNPMPackageLicense = async (/** @type {string} */packageName) => {
+const getNPMPackageLicense = (/** @type {string} */packageName) => {
     const jsonContent = fs.readFileSync("./node_modules/" + packageName + "/package.json").toString();
     const version = JSON.parse(jsonContent).license;
     return version;
 }
 
-const getDependencies = async () => {
+const getDependencies = () => {
     const jsonContent = fs.readFileSync("./package.json").toString();
     const dependencyVersions = JSON.parse(jsonContent).dependencies;
     /** @type {import("./dependency").Dependency[]} */
@@ -37,22 +37,28 @@ const getDependencies = async () => {
         }
         dependencies.push({
             name,
-            version: await getNPMPackageVersion(name, false),
-            license: await getNPMPackageLicense(name)
+            version: getNPMPackageVersion(name, false),
+            license: getNPMPackageLicense(name)
         })
     }
     return JSON.stringify(dependencies);
 }
 
+// compute at top level so defineConfig stays sync
+const __playerVersion = getNPMPackageVersion("kipphi-player");
+const __canvasEditorVersion = getNPMPackageVersion("kipphi-canvas-editor");
+const __kipphiVersion = getNPMPackageVersion("kipphi");
+const __dependencies = getDependencies();
+
 
 
 // https://vite.dev/config/
-export default defineConfig(async () => {
+export default defineConfig(() => {
 
     const plugins = []
 
     if (!noFrontend) {
-        plugins.push(await sveltekit());
+        plugins.push(sveltekit());
     }
     if (isElectron) {
         plugins.push(electron([{
@@ -93,14 +99,16 @@ export default defineConfig(async () => {
         },
         build: {
             minify: false,
+            sourcemap: false,
+            cssMinify: false,
             target: "es2022"
         },
         define: {
             "__APP_VERSION": JSON.stringify(TAURI_CONF_VERSION),
-            "__PLAYER_VERSION": await getNPMPackageVersion("kipphi-player"),
-            "__CANVAS_EDITOR_VERSION": await getNPMPackageVersion("kipphi-canvas-editor"),
-            "__KIPPHI_VERSION": await getNPMPackageVersion("kipphi"),
-            "__DEPENDENCIES": await getDependencies(),
+            "__PLAYER_VERSION": __playerVersion,
+            "__CANVAS_EDITOR_VERSION": __canvasEditorVersion,
+            "__KIPPHI_VERSION": __kipphiVersion,
+            "__DEPENDENCIES": __dependencies,
             "import.meta.env.VITE_BACKEND": isElectron ? "'electron'" : "'tauri'"
         }
     }

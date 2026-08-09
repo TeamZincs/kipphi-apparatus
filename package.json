@@ -15,7 +15,7 @@
         "watchLocales": "bun scripts/type-i18n --watch",
         "locales": "bun scripts/type-i18n",
         "release": "py scripts/release.py",
-        "ele": "vite -c electron.vite.config.js"
+        "ele": "electron-builder --publish=never"
     },
     "build": {
         "appId": "com.zincs.kpa",
