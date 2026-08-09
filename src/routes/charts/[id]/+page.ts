@@ -11,7 +11,7 @@ export const load: PageLoad = async (event) => {
     // 防止缓冲区堆积错误
     KPAError.flush();
     try {
-        const {chart, music, illustration} = await getChartProject(chartId)
+        const {chart, music, illustration} = await getChartProject(chartId);
         return {
             chart,
             music,

@@ -66,7 +66,8 @@ export default {
             "Error: Cannot create an instance of abstract class 'Fruit' at line 3 '我不吃苹果和香蕉，医生让我吃水果'",
             "讲个笑话：睡眠排序的时间复杂度是O(N)",
             "宇宙中质量最大的物体是什么？",
-            "npm install -g bun; npm install -g pnpm"
+            "npm install -g bun; npm install -g pnpm",
+            "很难想象在一个项目里集齐了target和node_modules两位卧龙凤雏"
         ],
 
         [ // 奶椰语/KPA群祖传笑话
