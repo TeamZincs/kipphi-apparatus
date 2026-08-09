@@ -224,6 +224,7 @@ operationList.addEventListener("needsupdate", (opev) => {
         () => values.yOffset,
         (v) => operationList.do(new Op.NoteYOffsetChangeOperation(target, v, target.parentNode.parentSeq.parentLine))
     }
+    disabled={values.speed === 0}
     unit="px"
 ></UnitInput>
 <Label small>{$_("main.note.visibleBeats")}</Label>
