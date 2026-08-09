@@ -1,8 +1,8 @@
 <script lang="ts">
-    import * as MNC from "https://esm.sh/monaco-editor@0.55.1?bundle";
+    import * as MNC from "monaco-editor";
     const M = MNC as typeof import("monaco-editor");
     import { onDestroy, onMount } from "svelte";
-    import tsWorker from 'https://esm.sh/monaco-editor@0.55.1/esm/vs/language/typescript/ts.worker?worker';
+    import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
     import Portal from "svelte-portal";
     import TYPES from "./defs.d.ts?raw";
     import KIPPHI_TYPES from "kipphi/index.d.ts?raw";
@@ -25,7 +25,7 @@
     
     import { Note, EventNode, EventStartNode, type EventValueESType, Chart, JudgeLine, Op } from "kipphi"; 
     import * as KP from "kipphi";
-    import { operationList, selectedLineNumber, selectedNode, selectedNodes, selectedNote, selectedNotes } from "./store.svelte";
+    import { eventsType, notesEditor, operationList, selectedLineNumber, selectedNode, selectedNodes, selectedNote, selectedNotes } from "./store.svelte";
     import Button from "#/components/buttons/Button.svelte";
     import DestructiveButton from "#/components/buttons/DestructiveButton.svelte";
     import { _ } from "#/i18n";
@@ -108,6 +108,23 @@ return ${code}
             return new tsWorker();
         }
     };
+
+    const TYPES_TEMPLATE = TYPES.slice(1).replace("__GLOBAL__", "global");
+    const getTypes = (eventsType: keyof typeof KP.EventType) => {
+        return TYPES_TEMPLATE.replace(
+            "__ENS_T__",
+            eventsType === "text"
+                ? "string"
+            : eventsType === "color"
+                ? "RGB"
+            : "number"
+        ).replace("__NNLIST_SPECIFIED__", notesEditor?.targetNNList ? "true" : "false")
+    }
+    $effect(() => {
+        if (!hidden) {
+            M.typescript.javascriptDefaults.addExtraLib(getTypes($eventsType), "file:///index.d.ts");
+        }
+    })
     
     const model = M.editor.createModel(defaultVal, "javascript", M.Uri.parse("file:///tmp.js"));
     onMount(() => {
@@ -131,7 +148,7 @@ return ${code}
         
         
         M.typescript.javascriptDefaults.addExtraLib(KIPPHI_TYPES, "file:///kipphi.d.ts");
-        M.typescript.javascriptDefaults.addExtraLib(TYPES.slice(1).replace("__GLOBAL__", "global"), "file:///index.d.ts");
+        M.typescript.javascriptDefaults.addExtraLib(getTypes($eventsType), "file:///index.d.ts");
         
         (M as typeof import("monaco-editor")).typescript.javascriptDefaults.setCompilerOptions({
             target: M.typescript.ScriptTarget.ES2020,

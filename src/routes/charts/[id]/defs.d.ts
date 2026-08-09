@@ -1,12 +1,11 @@
 /// <reference types="kipphi" />
 
 
-import { Note, EventNode, EventStartNode, type EventValueESType, Chart, JudgeLine, NNList } from "index";
+import { Note, EventNode, EventStartNode, type EventValueESType, Chart, JudgeLine, NNList, RGB } from "index";
 import { OperationList } from "operation/basic";
 import { ToOperable } from "operation/easy";
 
 declare __GLOBAL__ {
-
     interface ScriptingContext {
         /** 被单选选中的音符 */
         selectedNote: Note;
@@ -19,9 +18,9 @@ declare __GLOBAL__ {
         /** 被选中的判定线 */
         selectedLine: JudgeLine;
         /** 当前音符节点序列 */
-        currentNNList: NNList | null;
+        currentNNList: __NNLIST_SPECIFIED__ extends true ? NNList : null;
         /** 当前事件节点序列 */
-        currentEventNodeSequence: EventNodeSequence<T>;
+        currentEventNodeSequence: EventNodeSequence<__ENS_T__>;
         /** 谱面 */
         chart: Chart;
         /** 操作栈 */
