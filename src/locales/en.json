@@ -186,7 +186,7 @@
       },
       "father": {
         "term": "Father Line",
-        "desc": "Allows this judge line to inherit the coordinate system of the father line."
+        "desc": "Allows this judge line to inherit the coordinate system of the father line.\nSetting it to -1 means not having a father and using global coordinate system."
       },
       "anchor": {
         "term": "Anchor Position",
@@ -375,7 +375,8 @@
       "text": "Text",
       "speed": "Speed",
       "easing": "Easing",
-      "bpm": "BPM"
+      "bpm": "BPM",
+      "general": "RO Overview"
     },
     "beat": "beat",
     "wheel": "wheel",
