@@ -97,6 +97,7 @@ jobs:
             release/*.blockmap
             release/latest*.yml
             ${{ matrix.target == 'win' && 'release/win-unpacked/resources/app.asar' || '' }}
+          # ccb
 
   # Release job（依赖所有构建）
   create-release:
