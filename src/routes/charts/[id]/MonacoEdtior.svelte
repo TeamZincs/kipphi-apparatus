@@ -1,8 +1,8 @@
 <script lang="ts">
-    import * as MNC from "monaco-editor";
+    import * as MNC from "https://esm.sh/monaco-editor@0.55.1?bundle";
     const M = MNC as typeof import("monaco-editor");
     import { onDestroy, onMount } from "svelte";
-    import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+    import tsWorker from 'https://esm.sh/monaco-editor@0.55.1/esm/vs/language/typescript/ts.worker?worker';
     import Portal from "svelte-portal";
     import TYPES from "./defs.d.ts?raw";
     import KIPPHI_TYPES from "kipphi/index.d.ts?raw";
