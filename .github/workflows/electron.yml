@@ -96,7 +96,7 @@ jobs:
             release/*.AppImage
             release/*.blockmap
             release/latest*.yml
-            release/app.asar
+            ${{ matrix.target == 'win' && 'release/win-unpacked/resources/app.asar' || '' }}
 
   # Release job（依赖所有构建）
   create-release:
@@ -138,7 +138,7 @@ jobs:
             release/*.AppImage
             release/*.blockmap
             release/latest*.yml
-            release/app.asar
+            release/win-unpacked/resources/app.asar
         env:
           APP_VERSION: ${{ needs.get-version.outputs.version }}
 
