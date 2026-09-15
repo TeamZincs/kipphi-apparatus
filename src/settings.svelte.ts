@@ -1,22 +1,30 @@
+
+let useRpeEasingId = $state(!!localStorage.getItem('useRpeEasingId'));
+let lang = $state(localStorage.getItem('lang') || 'zh-Hans');
+let autosaveEnabled = $state(!!localStorage.getItem('autosaveEnabled'));
+
+
 export const KPASettings = $state({
     get useRpeEasingId() {
-        return !!localStorage.getItem('useRpeEasingId')
+        return useRpeEasingId;
     },
     set useRpeEasingId(value: boolean) {
         localStorage.setItem('useRpeEasingId', value ? '1' : '');
+        useRpeEasingId = value;
     },
     get lang() {
-        return localStorage.getItem('lang') || 'zh-Hans'
+        return lang
     },
     set lang(value: string) {
         localStorage.setItem('lang', value);
+        lang = value;
     },
     get autosaveEnabled() {
-        const it = localStorage.getItem('autosaveEnabled')
-        return it === null ? true : !!it;
+        return autosaveEnabled
     },
     set autosaveEnabled(value: boolean) {
         localStorage.setItem('autosaveEnabled', value ? '1' : '');
+        autosaveEnabled = value;
     },
     get autosaveInterval() {
         const it = localStorage.getItem('autosaveInterval')
