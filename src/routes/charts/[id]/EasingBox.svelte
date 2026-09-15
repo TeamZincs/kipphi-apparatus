@@ -5,7 +5,12 @@
     import { KPASettings } from "#/settings.svelte";
 
 
-    let { value = $bindable(1) }: { value: number } = $props();
+    let {
+        value = $bindable(1)
+    }: {
+        /** 非RPE ID */
+        value: number
+    } = $props();
     let easingId = $state(value);
     let easeType: "in" | "out" | "inout" = $state("in");
     let funcType: keyof typeof easingMap = $state("linear");

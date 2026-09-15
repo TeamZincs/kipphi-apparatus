@@ -277,6 +277,19 @@ ipcMain.handle("fs:getTextures", async (_, identifier) => {
     return names;
 });
 
+ipcMain.handle("fs:getVideos", async (_, identifier) => {
+    const { CHART_DIR } = getAppDataDir();
+    const texturesDir = path.join(CHART_DIR, identifier, "textures");
+    if (!await pathExists(texturesDir)) return [];
+    
+    const textures = await readDirEntries(texturesDir);
+    const names = textures
+        .filter(t => !t.isDirectory)
+        .map(t => t.name)
+        .filter(n => /\.(mp4|webm|mov|mkv)$/i.test(n));
+    return names;
+})
+
 // 上传纹理
 ipcMain.handle("fs:uploadTexture", async (_, identifier, name, data) => {
     const { CHART_DIR } = getAppDataDir();

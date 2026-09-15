@@ -283,10 +283,10 @@
     function getEasingId(): number {
         const inner = easing instanceof SegmentedEasing ? easing.easing : easing;
         console.log("!11")
-        return inner instanceof NormalEasing ? inner.rpeId : 1;
+        return inner instanceof NormalEasing ? inner.id : 1;
     }
     function setEasingId(v: number) {
-        const newInner = rpeEasingArray[v];
+        const newInner = easingArray[v];
         easing = easing instanceof SegmentedEasing
             ? new SegmentedEasing(newInner, easing.left, easing.right)
             : newInner;
