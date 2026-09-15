@@ -367,7 +367,8 @@
     "player": "奇谱播放器版本",
     "canvasEditor": "奇谱画布编辑器版本",
     "apparatus": "本软件版本",
-    "kipphi": "奇谱内核版本"
+    "kipphi": "奇谱内核版本",
+    "webdemuxer": "本软件使用了B站GitHub开源账号下托管的WebDemuxer项目。web-demuxer.wasm是FFMPEG的编译产物，按照 LGPL 协议授权。"
   },
   "general": {
     "pixel": "像素",
