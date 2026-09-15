@@ -34,3 +34,6 @@
 | 版本控制       |   Y   |   Y   |
 | 宏            |   N   |   N   |
 | 模组          |   Y   |   N   |
+
+## 许可
+本项目按照 MIT 许可证发布。`/static/web-demuxer.wasm` 来自 `web-demuxer` 项目，为 FFMpeg 衍生作品，按照 LGPL 许可证授权。
