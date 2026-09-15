@@ -27,20 +27,20 @@ bind:value
 onchange={() => {
     // 设置一个防抖，因为后面点击了一下li之前已经触发了一次input的onchange，那个时候的文本内容可能是不准确的
     timer = setTimeout(() => {
-        console.log(value)
         onchange?.(value)
     }, 150)
 }}
 oninput={deliverSuggestions}
-onfocusout={() => setTimeout(() => displaysSuggestions = false, 100)}>
+onfocusout={() => setTimeout(() => {
+    displaysSuggestions = false;
+}, 100)}>
 {#if displaysSuggestions}
 <span class="suggestions-outer">
     <ul class="suggestions">
         {#each suggestions as suggestion}
-        <li class="suggestion" role="button" onclick={() => {
+        <li class="suggestion" role="button" onmousedown={() => {
             value = suggestion;
             onchange?.(suggestion);
-            console.log("cto")
             if (timer) clearTimeout(timer);
             timer = null;
         }}>
