@@ -169,7 +169,14 @@
       "evaluators": {
         "eased": "缓动求值器",
         "expression": "表达式求值器",
-        "macro": "宏求值器"
+        "macro": "宏求值器",
+        "constant": "（常值求值器）"
+      },
+      "videoscale": {
+        "desc": "视频缩放模式",
+        "cropCenter": "裁取中心（保持比例）",
+        "fit": "强行拉伸",
+        "inside": "恰好包含（保持比例）"
       },
       "easings": {
         "normal": "普通缓动",
@@ -260,7 +267,8 @@
         "1": "普1层(1)",
         "2": "普2层(2)",
         "3": "普3层(3)",
-        "ex": "特殊层(ex)"
+        "ex": "特殊层(ex)",
+        "glb": "全局层(glb)"
       },
       "timeSpan": "时间跨度",
       "addNodePair": "添加节点对",
@@ -376,7 +384,10 @@
       "speed": "流速",
       "easing": "缓动",
       "bpm": "BPM",
-      "general": "只读性总览"
+      "general": "只读性总览",
+      "video": "BGA",
+      "videoAlpha": "BGA不透明度",
+      "videoDim": "BGA暗化度"
     },
     "beat": "拍",
     "wheel": "滚轮",

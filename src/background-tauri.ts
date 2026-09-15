@@ -356,6 +356,21 @@ export async function getTextures(identifier: string): Promise<string[]> {
     return names;
 }
 
+export async function getVideos(identifier: string): Promise<string[]> {
+    const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
+    const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
+    if (!await exists(texturesDir)) {
+        return [];
+    }
+    const textures = await readDir(texturesDir);
+
+    const names = textures
+        .filter(texture => texture.isFile)
+        .map(file => file.name)
+        .filter(name => name.match(/\.(mp4|webm|mov|mkv)$/i));
+    return names;
+}
+
 export async function uploadTexture(identifier: string, texture: File) {
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");

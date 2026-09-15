@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Player, AudioProcessor, Images } from "kipphi-player";
+import { Player, AudioProcessor, Images, VideoFrameSource, setWasmPath } from "kipphi-player";
 import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
 import type { PageData } from "./$types";
 import { onMount, tick, onDestroy } from "svelte";
@@ -39,17 +39,21 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     import { KPASettings } from "#/settings.svelte";
     import { notify } from "#/notify.svelte";
     import { respack, waitRespack } from "#/respack.svelte";
-    import { fetchTexture } from "#/background";
+    import { fetchTexture, fetchVideo } from "#/background";
     import Errors from "./Errors.svelte";
     import { Redo2, Undo2 } from "@lucide/svelte";
     import MonacoEdtior from "./MonacoEdtior.svelte";
+    import { _ReturnType } from "#/background-tauri";
 
 
 let {
     data
 }: {data: PageData} = $props();
 
-
+setWasmPath(new URL(
+  '/web-demuxer.wasm',
+  window.location.origin
+).href);
 
 const audio = new Audio(URL.createObjectURL(data.music));
 audio.addEventListener("timeupdate", () => {
@@ -332,6 +336,7 @@ document.addEventListener("keyup", handleKeyup);
 
 window.addEventListener("beforeunload", handleExit);
 
+let initialized = $state(false);
 
 onMount(async () => {
     await tick();
@@ -441,8 +446,10 @@ onMount(async () => {
     window.player = player;
     // @ts-expect-error 仅供调试
     window.operationList = operationList;
-    player.receive(chart, (name) => {
+    await player.receive(chart, (name) => {
         return fetchTexture(chartId, name)
+    }, (name) => {
+        return fetchVideo(chartId, name);
     });
 
     if (KPAError.buffer.length > 0) {
@@ -459,6 +466,9 @@ onMount(async () => {
 
     EditorGlobalInit(notesEditor, eventSequenceEditors, operationList, player);
     restoreStates();
+
+    initialized = true;
+
     // 释放内存
     // data.chart = null;
 });
@@ -715,6 +725,8 @@ updateTip();
     </div>
 </main>
 
+<div id="cover" style:display={initialized ? 'none' : ''}>LOADING</div>
+
 <style lang="less">
     :root {
         --player-height: 85vh;
@@ -840,5 +852,20 @@ updateTip();
         align-items: center;
     }
 
+    #cover {
+        position: fixed;
+        background-color: #0007;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1145141919;
+        top: 0;
+        left: 0;
+        font-size: large;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10vh;
+    }
 
 </style>

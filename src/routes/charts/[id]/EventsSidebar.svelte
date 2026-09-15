@@ -18,8 +18,10 @@
 
     let options = $derived(
         $eventsLayer === 'ex'
-        ? ["general", "scaleX", "scaleY", "text", "color"] satisfies (ExtendedEventTypeName | "general")[]
-        : ["general", "moveX", "moveY", "rotate", "alpha", "speed", "easing", "bpm"] satisfies (Exclude<keyof typeof EventType, ExtendedEventTypeName> | "general")[])
+            ? ["general", "scaleX", "scaleY", "text", "color"] satisfies (ExtendedEventTypeName | "general")[]
+        : $eventsLayer === 'glb' 
+            ? ["general", "bpm", "video", "videoAlpha", "videoDim"]
+        : ["general", "moveX", "moveY", "rotate", "alpha", "speed", "easing"] satisfies (Exclude<keyof typeof EventType, ExtendedEventTypeName> | "general")[])
     let texts = $derived(options.map(name => $_(`general.eventTypes.${name}`)));
 
     let rangeInput: HTMLInputElement = $state(null);
@@ -49,7 +51,7 @@
 <Label small>{$_("main.events.layerAndSeq")}</Label>
 <PopupOption wide
     options={
-        ["0", "1", "2", "3", 'ex']
+        ["0", "1", "2", "3", 'ex', 'glb']
     }
     displayTexts={
         [
@@ -57,7 +59,8 @@
             $_("main.events.layers.1"),
             $_("main.events.layers.2"),
             $_("main.events.layers.3"),
-            $_("main.events.layers.ex")
+            $_("main.events.layers.ex"),
+            $_("main.events.layers.glb")
         ]
     }
     bind:currentOption={$eventsLayer}

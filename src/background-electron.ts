@@ -26,6 +26,8 @@ export interface ChartHistoryEntry {
     filename: string;
 }
 
+type ChartHistory = ChartHistoryEntry[];
+
 
 
 export type NonImageReturnType = _ReturnType.u8 | _ReturnType.blob | _ReturnType.arrayBuffer;
@@ -82,40 +84,52 @@ export async function getTexturePathOf(chartIdentifier: string) {
     return `${await getPathOfChart(chartIdentifier)}/textures`;
 }
 
-export async function queryCharts() {
-    const charts = await ipcCall("queryCharts") as {
+export async function queryCharts(): Promise<{
+    chartPath: string;
+    identifier: string;
+    title: string;
+    illustration: string;
+    image: Blob;
+    type: "KPA1" | "KPA2" | "RPE";
+    lastModified: number;
+}[]> {
+    const charts = await ipcCall<{
         chartPath: string,
         identifier: string,
         title: string,
         illustration: string,
         type: "KPA1" | "KPA2" | "RPE",
         lastModified: number
-    }[];
+    }[]>("queryCharts");
 
     // 加载插图并返回 Blob
     return await Promise.all(charts.map(async (chart) => {
-        const blob = await readAFileInChart(chart.identifier, chart.illustration);
+        const blob = await readAFileInChart(
+            chart.identifier,
+            chart.illustration,
+            getMimeTypeFromName(chart.illustration)
+        );
         return {
             ...chart,
-            image: blob as Blob,
+            image: blob,
         };
     }));
 }
 
-export async function queryChartMeta(chartId: string) {
-    return ipcCall("queryChartMeta", chartId);
+export async function queryChartMeta(chartId: string): Promise<ChartMetadata> {
+    return ipcCall<ChartMetadata>("queryChartMeta", chartId);
 }
 
-export async function queryChartHistory(chartId: string) {
-    return ipcCall("queryChartHistory", chartId);
+export async function queryChartHistory(chartId: string): Promise<ChartHistory> {
+    return ipcCall<ChartHistory>("queryChartHistory", chartId);
 }
 
-export async function saveChartMeta(chartId: string, metadata: ChartMetadata) {
-    return ipcCall("saveChartMeta", chartId, metadata);
+export async function saveChartMeta(chartId: string, metadata: ChartMetadata): Promise<void> {
+    return ipcCall<void>("saveChartMeta", chartId, metadata);
 }
 
-export async function saveChart(chartId: string, chart: Chart, summary: string, beutify = false) {
-    return ipcCall("saveChart", chartId, chart.dumpKPA(), summary, beutify);
+export async function saveChart(chartId: string, chart: Chart, summary: string, beutify = false): Promise<void> {
+    return ipcCall<void>("saveChart", chartId, chart.dumpKPA(), summary, beutify);
 }
 
 export async function getChartProject<RT extends NonImageReturnType = _ReturnType.blob>(
@@ -167,12 +181,12 @@ export async function readAFileInChart<RT extends _ReturnType = _ReturnType.blob
     return returningFromU8(u8, rt, mimeType);
 }
 
-export async function readChart(identifier: string, filename: string) {
-    return ipcCall("readChart", identifier, filename);
+export async function readChart(identifier: string, filename: string): Promise<ChartDataRPE | ChartDataKPA | ChartDataKPA2> {
+    return ipcCall<ChartDataRPE | ChartDataKPA | ChartDataKPA2>("readChart", identifier, filename);
 }
 
-export async function saveAFileToChart(identifier: string, filename: string, blob: Blob) {
-    return ipcCall("saveAFileToChart", identifier, filename, await blob.arrayBuffer());
+export async function saveAFileToChart(identifier: string, filename: string, blob: Blob): Promise<void> {
+    return ipcCall<void>("saveAFileToChart", identifier, filename, await blob.arrayBuffer());
 }
 
 export async function loadChartImage<RT extends _ReturnType = _ReturnType.blob>(
@@ -215,16 +229,20 @@ export function parseRawInfoTxt(raw: Uint8Array | ArrayBuffer) {
     return parseInfoTxt(infoTxt);
 }
 
-export async function disposeChart(identifier: string) {
-    return ipcCall("disposeChart", identifier);
+export async function disposeChart(identifier: string): Promise<void> {
+    return ipcCall<void>("disposeChart", identifier);
 }
 
-export async function getTextures(identifier: string) {
-    return ipcCall("getTextures", identifier);
+export async function getTextures(identifier: string): Promise<string[]> {
+    return ipcCall<string[]>("getTextures", identifier);
 }
 
-export async function uploadTexture(identifier: string, texture: File) {
-    return ipcCall("uploadTexture", identifier, texture.name, await texture.arrayBuffer());
+export async function getVideos(identifier: string): Promise<string[]> {
+    return ipcCall<string[]>("getVideos", identifier);
+}
+
+export async function uploadTexture(identifier: string, texture: File): Promise<void> {
+    return ipcCall<void>("uploadTexture", identifier, texture.name, await texture.arrayBuffer());
 }
 
 export async function fetchTexture<RT extends _ReturnType = _ReturnType.imageBmp>(
@@ -238,8 +256,8 @@ export async function fetchTexture<RT extends _ReturnType = _ReturnType.imageBmp
     return returningFromU8(u8, rt, getMimeTypeFromName(name));
 }
 
-export async function queryRespackList() {
-    return ipcCall("queryRespackList");
+export async function queryRespackList(): Promise<RespackEntry[]> {
+    return ipcCall<RespackEntry[]>("queryRespackList");
 }
 
 export async function getFileInRespack(respackName: string, filename: string) {
@@ -251,12 +269,12 @@ export async function getFileInRespack(respackName: string, filename: string) {
     return new Blob([u8]);
 }
 
-export async function uploadRespack(respackName: string, zipFile: Blob) {
-    return ipcCall("uploadRespack", respackName, await zipFile.arrayBuffer());
+export async function uploadRespack(respackName: string, zipFile: Blob): Promise<void> {
+    return ipcCall<void>("uploadRespack", respackName, await zipFile.arrayBuffer());
 }
 
-export async function downloadFile(filename: string, file: Uint8Array, opens = false) {
-    return ipcCall("downloadFile", filename, file, opens);
+export async function downloadFile(filename: string, file: Uint8Array, opens = false): Promise<void> {
+    return ipcCall<void>("downloadFile", filename, file, opens);
 }
 
 // ============== 谱面创建/导入函数 ==============
@@ -265,21 +283,21 @@ export async function downloadFile(filename: string, file: Uint8Array, opens = f
  * 检查谱面目录是否存在
  */
 export async function checkChartDirExists(chartId: string): Promise<boolean> {
-    return ipcCall("checkChartDirExists", chartId);
+    return ipcCall<boolean>("checkChartDirExists", chartId);
 }
 
 /**
  * 创建谱面目录
  */
 export async function createChartDir(chartId: string): Promise<void> {
-    return ipcCall("createChartDir", chartId);
+    return ipcCall<void>("createChartDir", chartId);
 }
 
 /**
  * 保存文本文件到谱面目录
  */
 export async function saveTextFile(chartId: string, filename: string, content: string): Promise<void> {
-    return ipcCall("saveTextFile", chartId, filename, content);
+    return ipcCall<void>("saveTextFile", chartId, filename, content);
 }
 
 /**
@@ -287,14 +305,14 @@ export async function saveTextFile(chartId: string, filename: string, content: s
  */
 export async function saveBinaryFile(chartId: string, filename: string, data: Uint8Array | ArrayBuffer): Promise<void> {
     const buffer = data instanceof ArrayBuffer ? data : data.buffer;
-    return ipcCall("saveBinaryFile", chartId, filename, new Uint8Array(buffer));
+    return ipcCall<void>("saveBinaryFile", chartId, filename, new Uint8Array(buffer));
 }
 
 /**
  * 创建嵌套目录
  */
 export async function createNestedDir(chartId: string, subPath: string): Promise<void> {
-    return ipcCall("createNestedDir", chartId, subPath);
+    return ipcCall<void>("createNestedDir", chartId, subPath);
 }
 
 // ============== 谱面导入函数 ==============
@@ -363,9 +381,9 @@ export async function saveChartProject(params: SaveChartProjectParams): Promise<
         name: f.name,
         data: new Uint8Array(f.data instanceof ArrayBuffer ? f.data : f.data.buffer)
     }));
-    return ipcCall("saveChartProject", { ...params, extraFiles });
+    return ipcCall<string>("saveChartProject", { ...params, extraFiles });
 }
 
-export function openPath(path: string): void {
-    ipcCall("openPath", path);
+export function openPath(path: string, openWith?: string): void {
+    ipcCall("openPath", path, openWith);
 }

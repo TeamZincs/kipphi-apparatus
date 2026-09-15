@@ -6,6 +6,9 @@
  * - "electron"：使用 Electron IPC 调用后端
  */
 
+import { VideoFrameSource } from "kipphi-player";
+import { _ReturnType } from "./background-tauri";
+
 // 运行环境检测
 const isElectronBuild = import.meta.env.VITE_BACKEND === "electron";
 
@@ -47,6 +50,7 @@ export const parseInfoTxt = impl.parseInfoTxt;
 export const parseRawInfoTxt = impl.parseRawInfoTxt;
 export const disposeChart = impl.disposeChart;
 export const getTextures = impl.getTextures;
+export const getVideos = impl.getVideos;
 export const uploadTexture = impl.uploadTexture;
 export const fetchTexture = impl.fetchTexture;
 export const queryRespackList = impl.queryRespackList;
@@ -59,3 +63,14 @@ export const checkChartDirExists = impl.checkChartDirExists;
 export const loadChartImage = impl.loadChartImage;
 export const openPath = impl.openPath;
 
+export async function fetchVideo(chartId: string, name: string) {
+    const blob = await fetchTexture(chartId, name, _ReturnType.blob);
+    const file = new File([blob], "file.mp4", {
+        type: blob.type,
+        lastModified: Date.now()
+    });
+    const vfs = await VideoFrameSource.from(file, {
+        bufferSize: 6
+    });
+    return vfs;
+}

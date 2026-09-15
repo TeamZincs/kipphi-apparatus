@@ -15,7 +15,7 @@
         "watchLocales": "bun scripts/type-i18n --watch",
         "locales": "bun scripts/type-i18n",
         "release": "py scripts/release.py",
-        "ele": "electron-builder --publish=never"
+        "ele": "py scripts/build_local.py"
     },
     "build": {
         "appId": "com.zincs.kpa",

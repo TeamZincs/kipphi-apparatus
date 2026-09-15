@@ -70,7 +70,7 @@ export const notesAbove = writable(true);
 
 // EventSequenceEditorSettings - 每个属性独立的 writable store
 export const eventsEditChecked = writable(false);
-export const eventsLayer = writable<"0" | "1" | "2" | "3" | "ex">("0");
+export const eventsLayer = writable<"0" | "1" | "2" | "3" | "ex" | "glb">("0");
 export const eventsType = writable<keyof typeof EventType | "general">("general");
 export const eventsTimeSpan = writable(4);
 export const eventsScopeSelectMode = writable(SelectState.none);

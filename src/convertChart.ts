@@ -1,4 +1,4 @@
-import { RPEChartCompiler, type Chart } from "kipphi";
+import { RPEChartCompiler, ExtraJsonCompiler, type Chart } from "kipphi";
 import { fetchTexture, getChart, getChartProject, ReturnType } from "./background";
 import { zip } from "./compress";
 import type { FileToCompress } from "./workers/zip.worker";
@@ -36,6 +36,14 @@ export async function convertPEZ(chartId: string): Promise<ArrayBuffer> {
             data: data,
         });
     }
+    const videos = chart.scanAllVideos();
+    for (const video of videos) {
+        const data = await fetchTexture(chartId, video, ReturnType.arrayBuffer);
+        textureFiles.push({
+            name: RPEChartCompiler.replaceFilename(video),
+            data: data,
+        });
+    }
     const musicExt = mime.getExtension(music.type)
     const illustrationExt = mime.getExtension(illustration.type)
     console.log(illustration.type, illustrationExt)
@@ -51,14 +59,21 @@ Level: 0
 Composer: ${chart.composer}
 Charter: ${chart.charter}
 Length: ${chart.duration}
-Group: Default`
-    const zipResult = await zip([
+Group: Default`;
+    const files = [
         {name: "chart.rpe.json", data: encodeText(JSON.stringify(rpe))},
         {name: "info.txt", data: encodeText(infoTxt)},
         {name: `illustration.${illustrationExt}`, data: await illustration.arrayBuffer()},
         {name: `music.${musicExt}`, data: await music.arrayBuffer()},
         ...textureFiles,
-    ]);
+    ];
+    if (videos.size > 0) {
+        files.push({
+            name: "extra.json",
+            data: encodeText(JSON.stringify((new ExtraJsonCompiler(chart).compile())))
+        })
+    }
+    const zipResult = await zip(files);
     if (!zipResult.success) {
         throw new Error("Failed to zip");
     }

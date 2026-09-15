@@ -130,6 +130,11 @@ export interface I18nMapping {
 "main.event.evaluators.eased": never;
 "main.event.evaluators.expression": never;
 "main.event.evaluators.macro": never;
+"main.event.evaluators.constant": never;
+"main.event.videoscale.desc": never;
+"main.event.videoscale.cropCenter": never;
+"main.event.videoscale.fit": never;
+"main.event.videoscale.inside": never;
 "main.event.easings.normal": never;
 "main.event.easings.template": never;
 "main.event.easings.bezier": never;
@@ -187,6 +192,7 @@ export interface I18nMapping {
 "main.events.layers.2": never;
 "main.events.layers.3": never;
 "main.events.layers.ex": never;
+"main.events.layers.glb": never;
 "main.events.timeSpan": never;
 "main.events.addNodePair": never;
 "main.events.encapsule": never;
@@ -276,6 +282,10 @@ export interface I18nMapping {
 "general.eventTypes.speed": never;
 "general.eventTypes.easing": never;
 "general.eventTypes.bpm": never;
+"general.eventTypes.general": never;
+"general.eventTypes.video": never;
+"general.eventTypes.videoAlpha": never;
+"general.eventTypes.videoDim": never;
 "general.beat": never;
 "general.wheel": never;
 "general.pressIconToReturn": never;

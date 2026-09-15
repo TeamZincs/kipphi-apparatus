@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
         
         // 纹理
         getTextures: (identifier) => ipcRenderer.invoke("fs:getTextures", identifier),
+        getVideos: (identifier) => ipcRenderer.invoke("fs:getVideos", identifier),
         uploadTexture: (identifier, name, data) => ipcRenderer.invoke("fs:uploadTexture", identifier, name, data),
         fetchTexture: (identifier, name) => ipcRenderer.invoke("fs:fetchTexture", identifier, name),
         
