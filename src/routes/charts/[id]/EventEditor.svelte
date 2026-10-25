@@ -11,6 +11,7 @@
 <!-- svelte-ignore state_referenced_locally -->
 <script lang="ts">
     import Label from "#/components/Label.svelte";
+    import Button from "#/components/buttons/Button.svelte";
     import {
         selectedNode,
         operationList,
@@ -18,11 +19,15 @@
         templateName,
         chartId,
         player,
+        gotoMacro,
+        type AnyMacro,
     } from "./store.svelte";
     import {
         EasedEvaluator,
         easingArray,
         EventEndNode,
+        EventMacroTime,
+        EventMacroValue,
         EventStartNode,
         NodeType,
         Op,
@@ -80,6 +85,9 @@
         isFilename: target.parentSeq.type === EventType.video,
         scale: (getStartNode(target) as unknown as VideoEventStartNode).scale,
         interpretedAs: (target.evaluator as TextEasedEvaluator)?.interpretedAs,
+        macro: target.macro,
+        macroTime: getStartNode(target).macroTime,
+        linkedMacros: [...(target.linkedMacros ?? [])] as AnyMacro[],
     });
     const updateStates = () => {
         const _values = getValues();
@@ -130,6 +138,36 @@
             ),
         );
     });
+
+    // 谱面的宏库统一管理所有事件宏，直接从其中取用
+    let valueMacros = $derived.by(() => [...(operationList?.chart?.macroLib?.valueMacros.values() ?? [])]);
+    let timeMacros = $derived.by(() => [...(operationList?.chart?.macroLib?.timeMacros.values() ?? [])]);
+
+    /** 绑定、切换（传入另一个宏）或解绑（传入null）本节点的数值宏 */
+    function setValueMacro(macro: EventMacroValue | null) {
+        const node = target as EventStartNode<any>;
+        if (macro) {
+            if (macro === node.macro) { return; }
+            operationList.do(new Op.MacroValueAssignOperation(macro, node));
+        } else {
+            if (!node.macro) { return; }
+            operationList.do(new Op.MacroValueDeassginOperation(node));
+        }
+        values.macro = node.macro;
+    }
+
+    /** 绑定、切换（传入另一个宏）或解绑（传入null）起始节点的时间宏 */
+    function setTimeMacro(macro: EventMacroTime | null) {
+        const node = getStartNode(target);
+        if (macro) {
+            if (macro === node.macroTime) { return; }
+            operationList.do(new Op.MacroTimeAssignOperation(macro, node));
+        } else {
+            if (!node.macroTime) { return; }
+            operationList.do(new Op.MacroTimeDeassginOperation(node));
+        }
+        values.macroTime = node.macroTime;
+    }
 
     function setExpressionEvaluator() {
         if (!expressionContent) {
@@ -389,6 +427,49 @@
     </RadioTabs>
 {/if}
 
+<Label small>{$_("main.event.macro")}</Label>
+{#if values.macro}
+<Button onclick={() => gotoMacro(values.macro)}
+    >{$_("main.event.macroValue", { values: { id: values.macro.id } })}</Button
+>
+{:else}
+<span class="no-macro">{$_("main.event.noMacro")}</span>
+{/if}
+{#if values.macroTime}
+<Button onclick={() => gotoMacro(values.macroTime)}
+    >{$_("main.event.macroTime", { values: { id: values.macroTime.id } })}</Button
+>
+{/if}
+{#if valueMacros.length > 0}
+<Label small>{$_("main.macro.switchValue")}</Label>
+<PopupOption wide
+    options={[null, ...valueMacros]}
+    displayTexts={[$_("main.event.noMacro"), ...valueMacros.map(macro => macro.id)]}
+    bind:currentOption={
+        () => values.macro ?? null,
+        () => {}
+    }
+    onchange={(macro) => setValueMacro(macro)}
+></PopupOption>
+{/if}
+{#if timeMacros.length > 0}
+<Label small>{$_("main.macro.switchTime")}</Label>
+<PopupOption wide
+    options={[null, ...timeMacros]}
+    displayTexts={[$_("main.event.noMacro"), ...timeMacros.map(macro => macro.id)]}
+    bind:currentOption={
+        () => values.macroTime ?? null,
+        () => {}
+    }
+    onchange={(macro) => setTimeMacro(macro)}
+></PopupOption>
+{/if}
+{#each values.linkedMacros as linkedMacro}
+<Button onclick={() => gotoMacro(linkedMacro)}
+    >{$_("main.event.macroLinked", { values: { id: linkedMacro.id } })}</Button
+>
+{/each}
+
 <DestructiveButton
     onclick={() => {
         operationList.do(
@@ -405,6 +486,12 @@
         grid-template-columns: auto 1fr;
         align-items: center;
         gap: 4px;
+    }
+
+    .no-macro {
+        color: var(--color-foreground);
+        font-size: var(--font-size-small);
+        opacity: 0.75;
     }
 
     input {

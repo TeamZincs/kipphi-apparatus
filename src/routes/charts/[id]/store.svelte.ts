@@ -1,6 +1,6 @@
 import { get, writable } from "svelte/store";
 import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState, NewNodeState, EventSequenceEditor } from "kipphi-canvas-editor"
-import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type ExtendedEventTypeName, type Op } from "kipphi";
+import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type EventMacroTime, type EventMacroValue, type ExtendedEventTypeName, type MacroEvaluator, type NoteMacro, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
 
@@ -22,8 +22,12 @@ export const SecondarySidebar = {
     MULTI_NOTE: 6,
     ERRORS: 7,
     GENERAL: 8,
-    SCRIPT: 9
+    SCRIPT: 9,
+    MACRO: 10
 }
+
+/** 谱面中可能出现的宏的类型 */
+export type AnyMacro = NoteMacro | EventMacroTime | EventMacroValue | MacroEvaluator<any>;
 
 export let player: Player;
 export let notesEditor: NotesEditor;
@@ -50,6 +54,14 @@ export const selectedNotes = writable<Set<Note> | null>(null);
 export const selectedNode = writable<EventStartNode<any> | EventEndNode<any> | null>(null);
 export const selectedNodes = writable<Set<EventStartNode<any>> | null>(null);
 export const timeDivisor = writable(4);
+/** 宏次侧栏中正在编辑的宏 */
+export const selectedMacro = writable<AnyMacro | null>(null);
+
+/** 跳转到宏次侧栏，并选中给定的宏 */
+export function gotoMacro(macro: AnyMacro) {
+    selectedMacro.set(macro);
+    activeSecondarySidebar.set(SecondarySidebar.MACRO);
+}
 
 // PlayerSettings - 每个属性独立的 writable store
 export const playerShowsUI = writable(true);
@@ -299,6 +311,7 @@ export function restoreStates() {
     selectedNode.set(null);
     selectedNodes.set(null);
     timeDivisor.set(4);
+    selectedMacro.set(null);
 
     playerShowsUI.set(true);
     playerShowsLineID.set(false);

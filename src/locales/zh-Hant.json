@@ -133,7 +133,29 @@
       "multiNote": "多音符編輯",
       "errors": "譜面錯誤",
       "general": "通用設定",
-      "script": "使用者指令碼"
+      "script": "使用者指令碼",
+      "macro": "宏"
+    },
+    "macro": {
+      "noMacro": "沒有選中的宏",
+      "id": "宏ID",
+      "kind": {
+        "note": "音符宏",
+        "value": "數值宏",
+        "time": "時間宏",
+        "evaluator": "宏求值器"
+      },
+      "expression": "宏表達式",
+      "expressionDesc": "以@開頭的記號會被替換為對應元素的值，如@note.positionX。離開輸入框時更新。",
+      "parametric": "參數宏",
+      "consumers": "綁定元素數",
+      "protos": "原形元素數",
+      "apply": "套用到所有綁定元素",
+      "applyDesc": "重新求值宏，並把結果寫入所有綁定了該宏的元素。",
+      "applied": "已套用宏到{count}個元素",
+      "switch": "切換宏",
+      "switchValue": "切換數值宏",
+      "switchTime": "切換時間宏"
     },
     "note": {
       "noNote": "沒有目標音符或目標音符已被移除",
@@ -156,7 +178,11 @@
       "delete": "刪除音符",
 
       "warning-not-from-selected-line": "警告：這個 Note 不屬於選中的判定線{line}。",
-      "warning-lone-note": "警告：這個 Note 不存在於譜面中。"
+      "warning-lone-note": "警告：這個 Note 不存在於譜面中。",
+      "macro": "宏",
+      "macroBound": "綁定的宏：{id}",
+      "macroLinked": "連結的宏：{id}",
+      "noMacro": "無宏"
     },
     "event": {
       "noEvent": "沒有目標事件或目標事件已被移除",
@@ -177,7 +203,12 @@
         "bezier": "貝塞爾緩動"
       },
       "delete": "刪除節點對",
-      "goto": "前往該緩動"
+      "goto": "前往該緩動",
+      "macro": "宏",
+      "macroValue": "數值宏：{id}",
+      "macroTime": "時間宏：{id}",
+      "macroLinked": "連結的宏：{id}",
+      "noMacro": "無宏"
     },
     "judgeline": {
       "cover": {

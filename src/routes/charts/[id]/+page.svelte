@@ -34,12 +34,13 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     import EventsSidebar from "./EventsSidebar.svelte";
     import EventEditor from "./EventEditor.svelte";
     import ChartInfoEditor from "./ChartInfoEditor.svelte";
+    import MacroEditor from "./MacroEditor.svelte";
     import MultiNodeEditor from "./MultiNodeEditor.svelte";
     import MultiNoteEditor from "./MultiNoteEditor.svelte";
     import { KPASettings } from "#/settings.svelte";
     import { notify } from "#/notify.svelte";
     import { respack, waitRespack } from "#/respack.svelte";
-    import { fetchTexture, fetchVideo } from "#/background";
+    import { fetchShader, fetchTexture, fetchVideo } from "#/background";
     import Errors from "./Errors.svelte";
     import { Redo2, Undo2 } from "@lucide/svelte";
     import MonacoEdtior from "./MonacoEdtior.svelte";
@@ -89,6 +90,7 @@ await Images.loadAndOptimize({
     anchor: data.anchorImg,
     below: data.belowImg
 });
+console.log([Images]);
 await Images.initImagesForEditor({
     selectNote: data.selectNoteImg,
     startNode: data.startNodeImg,
@@ -341,12 +343,16 @@ let initialized = $state(false);
 onMount(async () => {
     await tick();
     const chart = data.chart;
-    player = new Player(
+    player = await Player.create(
         playerCanvas,
         audioProcessor,
         audio,
         illustration,
-        respack
+        respack,
+        {
+            renderer: "webgl1",
+            showStats: true
+        }
     );
     player.hitEffectNoFollows = $playerHitEffectNoFollows;
     player.baseOffset = KPASettings.baseOffset
@@ -401,12 +407,7 @@ onMount(async () => {
     operationList.addEventListener("needsupdate", () => {
         player.render();
     });
-    operationList.addEventListener("maxcombochanged", (ev) => {
-        chart.maxCombo += ev.comboDelta;
-        if (isNaN(chart.maxCombo)) {
-            chart.countMaxCombo();
-        }
-    });
+    // maxCombo 由 kipphi 的 OperationList 自己维护，这里不需要再算
     operationList.addEventListener("firstmodified", (ev) => {
         chart.modified = true;
     });
@@ -446,11 +447,15 @@ onMount(async () => {
     window.player = player;
     // @ts-expect-error 仅供调试
     window.operationList = operationList;
-    await player.receive(chart, (name) => {
-        return fetchTexture(chartId, name)
-    }, (name) => {
-        return fetchVideo(chartId, name);
+    // 贴图 / 视频 / 着色器都由适配器提供，播放器自己决定什么时候要
+    player.use({
+        texture: (name) => fetchTexture(chartId, name),
+        video: (name) => fetchVideo(chartId, name),
+        shader: (path) => fetchShader(chartId, path),
     });
+    await player.receive(chart);
+    // 编辑过程中新加的贴图 / 视频 / 着色器会自动补上，不用手动重扫
+    player.watch(operationList);
 
     if (KPAError.buffer.length > 0) {
         setTimeout(() => {
@@ -540,7 +545,8 @@ updateTip();
                 options={
                     [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE,
                     SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE,
-                    SecondarySidebar.ERRORS, SecondarySidebar.GENERAL, SecondarySidebar.SCRIPT
+                    SecondarySidebar.ERRORS, SecondarySidebar.GENERAL, SecondarySidebar.SCRIPT,
+                    SecondarySidebar.MACRO
                 ]
                 }
                 displayTexts={[
@@ -553,7 +559,8 @@ updateTip();
                     $_("main.secondary.multiNote"),
                     $_("main.secondary.errors"),
                     $_("main.secondary.general"),
-                    $_("main.secondary.script")
+                    $_("main.secondary.script"),
+                    $_("main.secondary.macro")
                 ]}
                 bind:currentOption={$activeSecondarySidebar}
             ></PopupOption>
@@ -595,6 +602,8 @@ updateTip();
                 {/if}
             {:else if $activeSecondarySidebar === SecondarySidebar.ERRORS}
                 <Errors/>
+            {:else if $activeSecondarySidebar === SecondarySidebar.MACRO}
+                <MacroEditor/>
             {:else if $activeSecondarySidebar === SecondarySidebar.GENERAL}
                 <Label small>
                     {$_("main.sidebar.timeDivisor.term")}
@@ -640,7 +649,12 @@ updateTip();
                 />
             {/if}
             <div class="monaco-sidebar" style:display={$activeSecondarySidebar === SecondarySidebar.SCRIPT ? '' : 'none'}>
-            <MonacoEdtior></MonacoEdtior>
+            <svelte:boundary>
+                <MonacoEdtior></MonacoEdtior>
+                        {#snippet failed()}
+                            Error!
+                        {/snippet}
+            </svelte:boundary>
             </div>
         </div>
     </div>
@@ -719,7 +733,9 @@ updateTip();
         <TextSwitchButton onText="Y" offText="N" bgText={$_("general.preservesPitch")} bind:checked={preservesPitch} />
     </div>
     <div id="secondary-footer">
-        <span id="tips" onclick={() => {clearTimeout(timeout);updateTip()}}>Tips: {Constants.tips[tipIndex]}</span>
+        <span id="tips" onclick={() => {clearTimeout(timeout);updateTip()}}>Tips: {
+            "怎么突然Phigros自制谱界都在vibe coding了，那我也不忍了。我将证明，我，奇谱发生器开发者，也是高效的LLM掌舵人！"
+            }</span>
         <Undo2 size={"4vh"} opacity={undoAvailable ? 1 : 0.2} onclick={() => operationList.undo()}/>
         <Redo2 size={"4vh"} opacity={redoAvailable ? 1 : 0.2} onclick={() => operationList.redo()}/>
     </div>

@@ -133,7 +133,29 @@
       "multiNote": "Multi-Note Editor",
       "errors": "Errors",
       "general": "General",
-      "script": "User Scripts"
+      "script": "User Scripts",
+      "macro": "Macro"
+    },
+    "macro": {
+      "noMacro": "No macro is selected",
+      "id": "Macro ID",
+      "kind": {
+        "note": "Note Macro",
+        "value": "Value Macro",
+        "time": "Time Macro",
+        "evaluator": "Macro Evaluator"
+      },
+      "expression": "Macro Expression",
+      "expressionDesc": "Tokens starting with @ are replaced with the value of the corresponding element, e.g. @note.positionX. Applied when the input loses focus.",
+      "parametric": "Parametric",
+      "consumers": "Bound Elements",
+      "protos": "Proto Elements",
+      "apply": "Apply to All Bound Elements",
+      "applyDesc": "Re-evaluates the macro and writes the results into every element bound to it.",
+      "applied": "Applied macro to {count} element(s)",
+      "switch": "Switch Macro",
+      "switchValue": "Switch Value Macro",
+      "switchTime": "Switch Time Macro"
     },
     "note": {
       "noNote": "No target note or target note has been removed",
@@ -156,7 +178,11 @@
       "delete": "Delete",
 
       "warning-not-from-selected-line": "Warning: This Note does not belong to the selected judge line {line}.",
-      "warning-lone-note": "Warning: This Note does not exist in the chart."
+      "warning-lone-note": "Warning: This Note does not exist in the chart.",
+      "macro": "Macro",
+      "macroBound": "Bound macro: {id}",
+      "macroLinked": "Linked macro: {id}",
+      "noMacro": "No macro"
     },
     "event": {
       "noEvent": "No target event or target event has been removed",
@@ -177,7 +203,12 @@
         "bezier": "Bezier Easing"
       },
       "delete": "Delete Node Pair",
-      "goto": "Go to This Easing"
+      "goto": "Go to This Easing",
+      "macro": "Macro",
+      "macroValue": "Value macro: {id}",
+      "macroTime": "Time macro: {id}",
+      "macroLinked": "Linked macro: {id}",
+      "noMacro": "No macro"
     },
     "judgeline": {
       "cover": {

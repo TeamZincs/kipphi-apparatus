@@ -1,8 +1,8 @@
 <script lang="ts">
 import Label from "#/components/Label.svelte";
 import PopupOption from "#/components/PopupOption/PopupOption.svelte";
-    import { NoteNode, NoteType, Op, type Note } from "kipphi";
-    import { selectedLineNumber, operationList, timeDivisor, notesEditor } from "./store.svelte";
+    import { NoteNode, NoteType, Op, type Note, type NoteMacro } from "kipphi";
+    import { gotoMacro, selectedLineNumber, operationList, timeDivisor, notesEditor } from "./store.svelte";
     import { _ } from "#/i18n";
     import UnitInput from "#/components/Inputs/UnitInput.svelte";
     import ArrowedInput from "#/components/Inputs/ArrowedInput.svelte";
@@ -34,6 +34,8 @@ let values: {
     judgeSize: number;
     tint: number;
     tintHitEffects: number;
+    macro?: NoteMacro;
+    linkedMacros: NoteMacro[];
 } = $state(target ? {
     parentNode: target.parentNode,
 
@@ -51,6 +53,8 @@ let values: {
     judgeSize: target.judgeSize,
     tint: target.tint,
     tintHitEffects: target.tintHitEffects,
+    macro: target.macro,
+    linkedMacros: [...(target.linkedMacros ?? [])],
 
 } : null);
 
@@ -72,12 +76,29 @@ $effect(() => { // 如果用derived的话，响应式变量会是不可写的，
         judgeSize: target.judgeSize,
         tint: target.tint,
         tintHitEffects: target.tintHitEffects,
+        macro: target.macro,
+        linkedMacros: [...(target.linkedMacros ?? [])],
 
     }
 })
 
 let parentSeq = $derived(values.parentNode?.parentSeq)
 let parentLine = $derived(parentSeq?.parentLine)
+
+// 谱面的宏库统一管理所有音符宏，直接从其中取用
+let noteMacros = $derived.by(() => [...(operationList?.chart?.macroLib?.noteMacros.values() ?? [])]);
+
+/** 绑定、切换（传入另一个宏）或解绑（传入null）音符的宏 */
+function setMacro(macro: NoteMacro | null) {
+    if (macro) {
+        if (macro === target.macro) { return; }
+        operationList.do(new Op.NoteMacroAssignOperation(macro, target));
+    } else {
+        if (!target.macro) { return; }
+        operationList.do(new Op.NoteMacroDeassginOperation(target));
+    }
+    values.macro = target.macro;
+}
 
 console.log(operationList)
 
@@ -265,6 +286,31 @@ operationList.addEventListener("needsupdate", (opev) => {
     }
 ></ColorInput>
 </div>
+<Label small>{$_("main.note.macro")}</Label>
+{#if values.macro}
+<Button onclick={() => gotoMacro(values.macro)}>
+    {$_("main.note.macroBound", { values: { id: values.macro.id } })}
+</Button>
+{:else}
+<span class="no-macro">{$_("main.note.noMacro")}</span>
+{/if}
+{#if noteMacros.length > 0}
+<Label small>{$_("main.macro.switch")}</Label>
+<PopupOption wide
+    options={[null, ...noteMacros]}
+    displayTexts={[$_("main.note.noMacro"), ...noteMacros.map(macro => macro.id)]}
+    bind:currentOption={
+        () => values.macro ?? null,
+        () => {}
+    }
+    onchange={(macro) => setMacro(macro)}
+></PopupOption>
+{/if}
+{#each values.linkedMacros as linkedMacro}
+<Button onclick={() => gotoMacro(linkedMacro)}>
+    {$_("main.note.macroLinked", { values: { id: linkedMacro.id } })}
+</Button>
+{/each}
 <Button onclick={
     () => {
         notesEditor.defaultNoteConfig = {
@@ -305,5 +351,10 @@ operationList.addEventListener("needsupdate", (opev) => {
         gap: 4px;
         align-items: center;
         box-sizing: border-box;
+    }
+    .no-macro {
+        color: var(--color-foreground);
+        font-size: var(--font-size-small);
+        opacity: 0.75;
     }
 </style>

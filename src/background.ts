@@ -6,7 +6,7 @@
  * - "electron"：使用 Electron IPC 调用后端
  */
 
-import { VideoFrameSource } from "kipphi-player";
+import { VideoFrameSource, type EffectShader } from "kipphi-player";
 import { _ReturnType } from "./background-tauri";
 
 // 运行环境检测
@@ -73,4 +73,13 @@ export async function fetchVideo(chartId: string, name: string) {
         bufferSize: 6
     });
     return vfs;
+}
+
+export async function fetchShader(chartId: string, name: string): Promise<EffectShader> {
+    const arr = await fetchTexture(chartId, name, _ReturnType.u8);
+    const code = new TextDecoder().decode(arr);
+    return {
+        glsl: code,
+        name: name
+    };
 }

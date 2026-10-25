@@ -5,7 +5,7 @@ import { openPath as topenPath } from "@tauri-apps/plugin-opener";
 import YAML from "yaml";
 
 import { getExtensionFromName, getMimeTypeFromName } from "#/util";
-import { Chart, type ChartDataKPA, type ChartDataKPA2, type ChartDataRPE } from "kipphi";
+import { Chart, type ChartDataKPA, type ChartDataKPA2, type ChartDataRPE, type PhiraExtraJson } from "kipphi";
 import { unzip } from "./uncompress";
 
 export interface ChartMetadata {
@@ -218,12 +218,14 @@ interface ChartStruct<RT extends NonImageReturnType = _ReturnType.blob> {
 export async function getChartProject<RT extends NonImageReturnType = _ReturnType.blob>(chartId: string, returning?: RT): Promise<ChartStruct<RT>> {
     const metadata = await queryChartMeta(chartId);
     const chartPath = await join(CHART_DIR, chartId, metadata.chart);
+    const extraJsonPath = await join(CHART_DIR, chartId, "extra.json");
     const chartType = metadata.type;
     const musicPath = metadata.music;
     const illustrationPath = metadata.illustration;
     const chartData = JSON.parse(await readTextFile(chartPath)) as ChartDataRPE | ChartDataKPA | ChartDataKPA2;
+    const extraJson = await exists(extraJsonPath) ? JSON.parse(await readTextFile(extraJsonPath)) as PhiraExtraJson : null;
     const chart = chartType === "RPE"
-        ? Chart.fromRPEJSON(chartData as ChartDataRPE, metadata.durationSecs)
+        ? Chart.fromRPEJSON(chartData as ChartDataRPE, metadata.durationSecs, extraJson)
         : Chart.fromKPAJSON(chartData as ChartDataKPA | ChartDataKPA2);
     const music = await readAFileInChart(
         chartId,
@@ -382,7 +384,7 @@ export async function uploadTexture(identifier: string, texture: File) {
 }
 
 export async function fetchTexture<RT extends _ReturnType = _ReturnType.imageBmp>(identifier: string, name: string, returning?: RT): Promise<TypeMap<RT> | null> {
-    returning = returning || _ReturnType.imageBmp as RT;
+    returning = returning ?? _ReturnType.imageBmp as RT;
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const texturesDir = await join(CHART_DIRECTORY, identifier, "textures");
     if (await exists(texturesDir)) {
