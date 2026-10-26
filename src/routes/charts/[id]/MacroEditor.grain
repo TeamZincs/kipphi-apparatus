@@ -24,8 +24,6 @@
         return "evaluator";
     }
 
-    // 模板里用到的 store：各开一个本地别名
-    const selectedMacroValue = $node({ get: () => selectedMacro.get(), listen: (update) => selectedMacro.subscribe(update) });
 </script>
 
 <script>
@@ -35,7 +33,11 @@
     import Button from "#/components/buttons/Button.grain";
     import { operationList, selectedMacro } from "./store";
 
-    const target = $node<AnyMacro | null>({ get: () => selectedMacroValue });
+    /** 选中的宏：store 一变就重新取值（原先是绕一层模块级别的别名） */
+    const target = $node<AnyMacro | null>({
+        get: () => selectedMacro.get(),
+        listen: (update) => selectedMacro.subscribe(update)
+    });
 
     let expression = $state('');
     let syntaxError = $state('');

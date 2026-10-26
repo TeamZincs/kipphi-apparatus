@@ -1,6 +1,3 @@
-<script module>
-</script>
-
 <script>
 import { EventNode, EventNodeSequence, EventType, KPAError, TC, type EventLayer, type EventValueESType, type ExtendedLayer } from "kipphi";
     import { activeSecondarySidebar, eventsLayer, eventsType, operationList, player, SecondarySidebar, selectedLineNumber, selectedNode } from "./store";
