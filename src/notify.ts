@@ -6,7 +6,8 @@ export function notify(message: string, type: 'info' | 'error' | 'warning') {
     // grain 没有 unmount：把这一次弹出来占的节点记下来，自己收
     const before = new Set<Node>(Array.from(target.childNodes));
 
-    Notification.create(
+    // 第三个参数是插入点（挂到哪个节点里），`*.grain` 的环境声明里没写它，转成 any
+    (Notification.create as any)(
         {
             message,
             type,
@@ -17,6 +18,6 @@ export function notify(message: string, type: 'info' | 'error' | 'warning') {
             }
         },
         null,
-        { parent: target, before: null } as never
+        { parent: target, before: null }
     );
 }

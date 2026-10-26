@@ -3,7 +3,7 @@
         "target": "ES2022",
         "module": "ESNext",
         "moduleResolution": "bundler",
-        "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+        "lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
         "strict": true,
         "strictNullChecks": false,
         "noUnusedLocals": false,
@@ -22,5 +22,8 @@
             "#/*": ["./src/*"]
         }
     },
-    "include": ["src", "electron", "vite.config.mts", "dependency.ts"]
+    "include": ["src", "vite.config.mts", "dependency.ts"],
+    // `defs.d.ts` 是喂给 monaco 的脚本文本（用 `?raw` 读进来），里面是自定义的
+    // `declare __GLOBAL__ {}` 语法，不是合法的 TS，别让 tsc 去解析它
+    "exclude": ["node_modules", "src/routes/charts/[id]/defs.d.ts"]
 }

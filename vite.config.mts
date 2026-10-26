@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { defineConfig } from 'vite';
+import { defineConfig, type PluginOption } from 'vite';
 import electron from 'vite-plugin-electron';
 
 import grain from '@graints/vite-plugin';
@@ -53,10 +53,12 @@ const __dependencies = getDependencies();
 
 // https://vite.dev/config/
 export default defineConfig(() => {
-    const plugins = [];
+    const plugins: PluginOption[] = [];
 
     if (!noFrontend) {
-        plugins.push(grain());
+        // grain 的 d.ts 是对着它自己仓库里的 vite 8 生成的，跟本项目的 vite 6
+        // 的 `Plugin` 类型不是同一份声明，这里按 PluginOption 收一下
+        plugins.push(grain() as unknown as PluginOption);
     }
     if (isElectron) {
         plugins.push(
