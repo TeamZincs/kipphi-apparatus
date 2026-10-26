@@ -87,10 +87,10 @@
     },
     "license": "MIT",
     "dependencies": {
-        "@graints/runtime": "^0.4.2",
-        "@tauri-apps/api": "^2.10.1",
-        "@tauri-apps/plugin-fs": "^2.4.5",
-        "@tauri-apps/plugin-opener": "^2.5.3",
+        "@graints/runtime": "link:@graints/runtime",
+        "@tauri-apps/api": "^2.12.4",
+        "@tauri-apps/plugin-fs": "^2.7.1",
+        "@tauri-apps/plugin-opener": "^2.7.2",
         "electron-updater": "^6.8.3",
         "jszip": "^3.10.1",
         "kipphi": "2.2.0-beta.1",
@@ -100,9 +100,9 @@
         "yaml": "^2.8.2"
     },
     "devDependencies": {
-        "@graints/vite-plugin": "^0.4.2",
+        "@graints/vite-plugin": "link:@graints/vite-plugin",
         "@internationalized/date": "^3.11.0",
-        "@tauri-apps/cli": "^2.10.0",
+        "@tauri-apps/cli": "^2.12.4",
         "@types/node": "^25.5.0",
         "clsx": "^2.1.1",
         "electron": "^42.1.0",
