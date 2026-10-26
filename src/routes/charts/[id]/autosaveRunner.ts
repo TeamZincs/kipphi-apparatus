@@ -1,7 +1,7 @@
 import type { Chart } from "kipphi";
 import Constants from "./constants";
 import { saveChart } from "./save";
-import { KPASettings } from "#/settings.svelte";
+import { KPASettings } from "#/settings";
 
 export default class AutoSaveRunner {
     static chart: Chart;

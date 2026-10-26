@@ -1,0 +1,38 @@
+<script>
+    let { name, options, displayTexts, currentOption = $bindable('') } = $props<{
+        name: string;
+        options: any[];
+        displayTexts?: string[];
+        currentOption?: any;
+    }>();
+</script>
+
+<div class="radio-tabs">
+    {#for option of options}
+        <label class="radio-tab">
+            <input type="radio" name={name} value={option} checked={option === currentOption} onchange={() => currentOption = option}>
+            {
+                displayTexts ? displayTexts[options.indexOf(option)] : option
+            }
+        </label>
+    {/for}
+</div>
+
+<style>
+.radio-tabs {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.radio-tab {
+  font-size: var(--font-size-small);
+  color: var(--color-foreground);
+  display: flex;
+  align-items: center;
+}
+input[type="radio"] {
+  transform: scale(1.5);
+}
+</style>

@@ -42,3 +42,124 @@ span[role="link"]:hover {
     text-decoration: underline;
     color: #6fd;
 }
+
+/*
+ * RadioTabs 的"页面"区域。
+ *
+ * 原先它是组件里的具名 snippet（`{#snippet page(option)}`），grain 的 children 是零参的、
+ * 而且传进子组件的 children 不会跟着父组件状态刷新，所以内容反过来由调用方渲染，
+ * 这层容器就落在全局样式里。
+ */
+.radio-tabs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 100%;
+}
+
+.radio-tabs-page {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background-color: #bbb3;
+    border-radius: var(--border-radius);
+    padding: var(--border-radius);
+    box-shadow: 1px 1px 1px black inset;
+}
+
+/*
+ * 图标按钮的外壳。
+ *
+ * 原来它是 SwitchButton 的 scoped 样式，靠 `content(on)` 这个带参 snippet 让
+ * IconSwitchButton / TextSwitchButton / GridSwitch 复用外壳。grain 没有带参 snippet，
+ * 传进子组件的 children 也不会跟着状态刷新，所以外壳样式上移到全局、各按钮自己出结构。
+ */
+.icon-button {
+    border-radius: 8px;
+    width: 8vh;
+    height: 8vh;
+    position: relative;
+}
+
+.icon-button.wide {
+    width: auto;
+    padding-left: 1em;
+    padding-right: 1em;
+    height: 4.5vh;
+    border-radius: var(--border-radius);
+}
+
+.icon-button.disabled {
+    background-color: gray !important;
+}
+
+.icon-button:hover {
+    background-color: #2222;
+}
+
+.icon-button.primary {
+    background-color: white;
+    color: black;
+}
+
+.icon-button.primary:hover {
+    background-color: #eee;
+}
+
+/*
+ * 普通按钮。
+ *
+ * 原先它是 Button 的 scoped 样式。grain 里传给子组件的 children 只在建树时求值一次，
+ * 所以"内容会变"的按钮（比如 UploadButton 显示选中的文件名）没法再套一层 Button，
+ * 外壳样式因此上移成全局类。
+ */
+.kpa-button {
+    background-color: #f9f9f9;
+    color: black;
+    font-size: 2.5vh;
+    font-family: 'phigros', Consolas;
+    appearance: none;
+    border: none;
+    width: auto;
+    padding-left: 1em;
+    padding-right: 1em;
+    height: 4.5vh;
+    border-radius: var(--border-radius);
+}
+
+.kpa-button:hover {
+    background-color: #eee;
+}
+
+.kpa-button.progressive {
+    background-color: #007bff;
+    color: white;
+}
+
+.kpa-button.progressive:hover {
+    background-color: #0069d9;
+}
+
+.kpa-button.destructive {
+    background-color: #dc3545;
+    color: white;
+}
+
+.kpa-button.destructive:hover {
+    background-color: #c82333;
+}
+
+.kpa-button.disabled {
+    pointer-events: none;
+    filter: grayscale(0.9);
+}
+
+/* 撤销 / 重做（原先用 @lucide/svelte 的图标组件） */
+.history-button {
+    font-size: 4vh;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--color-foreground);
+    user-select: none;
+    padding-inline: 0.2em;
+}

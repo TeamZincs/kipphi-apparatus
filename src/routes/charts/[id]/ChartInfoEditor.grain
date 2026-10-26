@@ -1,0 +1,159 @@
+<script>
+
+    import Label from "#/components/Label.grain";
+    import { _ } from "#/i18n";
+    import { Chart, Op } from "kipphi";
+    import { chartId, operationList } from "./store";
+    import UnitInput from "#/components/Inputs/UnitInput.grain";
+    import ProgressiveButton from "#/components/buttons/ProgressiveButton.grain";
+    import { onSave, saveChart } from "./save";
+    import { notify } from "#/notify";
+    import Button from "#/components/buttons/Button.grain";
+    import { getPathOfChart, openPath } from "#/background";
+    import DestructiveButton from "#/components/buttons/DestructiveButton.grain";
+    import { navigate } from "@graints/runtime";
+    import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
+    import Tooltip from "#/components/Tooltip.grain";
+
+    const target = operationList.chart;
+    let values = $state({
+        title: target.name,
+        charter: target.charter,
+        composer: target.composer,
+        illustrator: target.illustrator,
+        offset: target.offset,
+        level: target.level,
+        modified: target.modified
+    });
+
+    let message = $state("");
+    let beautify = $state(false);
+
+    operationList.addEventListener("do", (op) => {
+        if (op.operation.constructor.name.startsWith("Chart")) {
+            values = {
+                title: target.name,
+                charter: target.charter,
+                composer: target.composer,
+                illustrator: target.illustrator,
+                offset: target.offset,
+                level: target.level,
+                modified: target.modified
+            }
+        }
+    });
+    onSave(() => {
+        values.modified = target.modified;
+    })
+    function handleChange<K extends Op.ChartPropName>(key: K) {
+        return (value: Chart[K]) => {
+            operationList.do(new Op.ChartPropChangeOperation(target, key, value));
+        }
+    }
+    function save() {
+        
+        if (!message) {
+            notify(_("main.chart.noMessage"), 'error');
+            return;
+        }
+        try {
+            saveChart(target, message, beautify);
+            message = ""
+            notify(_("main.chart.saveSuccess"), 'info');
+        } catch (e) {
+            notify(e instanceof Error ? e.message : String(e), 'error');
+        }
+    }
+</script>
+
+<Label>{_("main.chart.info")}</Label>
+<div class="grid">
+    <Label small>{_("main.chart.id")}</Label>
+    <input type="text" readonly disabled value={chartId}>
+    <Label small>{_("main.chart.title")}</Label>
+    <input type="text" bind:value={ get: () => values.title, set: handleChange("name") }>
+    <Label small>{_("main.chart.charter")}</Label>
+    <input type="text" bind:value={ get: () => values.charter, set: handleChange("charter") }>
+    <Label small>{_("main.chart.composer")}</Label>
+    <input type="text" bind:value={ get: () => values.composer, set: handleChange("composer") }>
+    <Label small>{_("main.chart.illustrator")}</Label>
+    <input type="text" bind:value={ get: () => values.illustrator, set: handleChange("illustrator") }>
+    <Label small>{_("main.chart.level")}</Label>
+    <input type="text" bind:value={ get: () => values.level, set: handleChange("level") }>
+    <Label small>{_("main.chart.offset")}</Label>
+    <UnitInput step={1} unit="ms" bind:value={ get: () => values.offset, set: handleChange("offset") }/>
+</div>
+
+<Button onclick={
+    async () => {
+        openPath(await getPathOfChart(chartId));
+    }
+}>{_("main.chart.openInExplorer")}</Button>
+
+<textarea placeholder={_("main.chart.summary")} spellcheck="false" bind:value={message}></textarea>
+<ProgressiveButton disabled={!values.modified} onclick={
+    save
+}>{_("main.chart.save")}</ProgressiveButton>
+
+<div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;">
+<span></span>
+<TextSwitchButton wide
+    onText="Y"
+    offText="N"
+    bind:checked={beautify}
+    bgText={_("main.chart.beautify")}
+>
+</TextSwitchButton>
+<Tooltip>{_("main.chart.beautifyTooltip")}</Tooltip>
+</div>
+<ProgressiveButton onclick={
+    save
+}>{_("main.chart.forcesave")}</ProgressiveButton>
+
+<DestructiveButton onclick={
+    () => {
+        if (target.modified) {
+            if (confirm(_("main.chart.confirm"))) {
+                goto("/");
+            }
+        } else {
+            goto("/");
+        }
+    }
+}>
+    {_("main.chart.exit")}
+</DestructiveButton>
+
+<style>
+.grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px;
+  align-items: center;
+}
+input {
+  border: var(--input-border-width) solid var(--input-border-color);
+  border-radius: var(--border-radius);
+  font-family: 'phigros';
+  padding-inline: 0.25em;
+  min-width: 0;
+  box-sizing: border-box;
+  font-size: var(--font-size-medium);
+}
+input:focus {
+  font-family: 'Consolas', monospace;
+}
+textarea {
+  font-size: var(--font-size-small);
+  width: 100%;
+  border: var(--input-border-width) solid var(--input-border-color);
+  border-radius: var(--border-radius);
+  font-family: 'phigros';
+  padding-inline: 0.25em;
+  min-width: 0;
+  box-sizing: border-box;
+}
+textarea:focus {
+  font-family: 'Consolas', monospace;
+}
+</style>

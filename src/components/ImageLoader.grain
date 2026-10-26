@@ -1,0 +1,37 @@
+<script>
+    import { loadChartImage } from '#/background';
+
+    let { blob, chartId, filename, alt, style } = $props<{
+        /** 直接传入 Blob（优先级高） */
+        blob?: Blob;
+        /** 谱面 ID（blob 为空时使用） */
+        chartId?: string;
+        /** 图片文件名（blob 为空时使用） */
+        filename?: string;
+        alt: string;
+        style?: string;
+    }>();
+
+    let generatedSrc = $state('');
+</script>
+
+<img src={generatedSrc} alt={alt} style={style}>
+
+<script onmount>
+    void (async () => {
+        let imageBlob: Blob | null = null;
+
+        if (blob) {
+            imageBlob = blob;
+        } else if (chartId && filename) {
+            const u8 = await loadChartImage(chartId, filename);
+            const ext = filename.split('.').pop()!.toLowerCase();
+            const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
+            imageBlob = new Blob([u8 as BlobPart], { type: mimeType });
+        }
+
+        if (imageBlob) {
+            generatedSrc = URL.createObjectURL(imageBlob);
+        }
+    })();
+</script>

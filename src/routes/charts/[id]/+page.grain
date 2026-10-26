@@ -1,0 +1,895 @@
+<script>
+import { Player, AudioProcessor, Images, VideoFrameSource, setWasmPath } from "kipphi-player";
+import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
+import { route } from "@graints/runtime";
+import { getChartProject } from "#/background";
+import { setID, registerPageCleanup } from "./store";
+import { Chart, EventEndNode, EventStartNode, EventType, KPAError, Op as O, TC, type ExtendedEventTypeName } from "kipphi";
+
+import { _ } from "#/i18n";
+
+import AutoSaveRunner from "./autosaveRunner";
+
+import PlayButton from "#/components/IconButtons/PlayButton.grain";
+import GridSwitch from "#/components/IconButtons/GridSwitch.grain";
+import PopupOption from "#/components/PopupOption/PopupOption.grain";
+import TimeDivisorPicker from "#/components/IconButtons/TimeDivisorPicker.grain";
+import SwitchButton from "#/components/IconButtons/SwitchButton.grain";
+import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
+    import ArrowedInput from "#/components/Inputs/ArrowedInput.grain";
+    import Label from "#/components/Label.grain";
+    import UnitInput from "#/components/Inputs/UnitInput.grain";
+    import JudgeLines from "./JudgeLinesManager.grain";
+
+import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
+    operationList,
+    eventsType, eventsLayer,
+    playerShowsUI, playerShowsLineID, playerHitEffectNoFollows, playerShowsCurve, playerCameraZoom,
+    selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
+    timeDivisor, chartId, reflowAll } from "./store";
+    import NoteEditor from "./NoteEditor.grain";
+    import Constants from "./constants";
+    import NotesSidebar from "./NotesSidebar.grain";
+    import Tooltip from "#/components/Tooltip.grain";
+    import JudgeLineEditor from "./JudgeLineEditor.grain";
+    import EventsSidebar from "./EventsSidebar.grain";
+    import EventEditor from "./EventEditor.grain";
+    import ChartInfoEditor from "./ChartInfoEditor.grain";
+    import MacroEditor from "./MacroEditor.grain";
+    import MultiNodeEditor from "./MultiNodeEditor.grain";
+    import MultiNoteEditor from "./MultiNoteEditor.grain";
+    import { KPASettings } from "#/settings";
+    import { notify } from "#/notify";
+    import { respack, waitRespack } from "#/respack";
+    import { fetchShader, fetchTexture, fetchVideo } from "#/background";
+    import Errors from "./Errors.grain";
+    import MonacoEdtior from "./MonacoEdtior.grain";
+    import { _ReturnType } from "#/background-tauri";
+
+
+/**
+ * 谱面 ID 来自当前路由（原来是 SvelteKit 的 `+page.ts` 里读 `event.params.id`）。
+ */
+const chartIdParam = route.get().params.id;
+setID(chartIdParam);
+
+/** 编辑器内置音效 / 图片（原先由 `+page.ts` 的 load 一并返回） */
+const ASSETS = {
+    tap: '/Tap.wav',
+    drag: '/Drag.wav',
+    flick: '/Flick.wav',
+    anchorImg: '/Anchor.png',
+    belowImg: '/Below.png',
+    selectNoteImg: '/selectNote.png',
+    startNodeImg: '/South.png',
+    endNodeImg: '/North.png'
+};
+
+let chart: Chart = null;
+let illustration: ImageBitmap = null;
+let audio: HTMLAudioElement;
+let audioProcessor: AudioProcessor;
+
+/**
+ * 把原来 `+page.ts` 的 load 搬进来：grain 没有 load，页面自己取数。
+ */
+async function loadProject() {
+    setWasmPath(new URL('/web-demuxer.wasm', window.location.origin).href);
+
+    // 这里启用了实验性功能，随时都有可能出现破坏性更改，如果出现，需要修改此处
+    await waitRespack();
+
+    const project = await getChartProject(chartIdParam);
+
+    chart = project.chart;
+    illustration = await createImageBitmap(project.illustration);
+
+    audio = new Audio(URL.createObjectURL(project.music));
+    audio.addEventListener('timeupdate', () => {
+        if (!player?.playing) return;
+
+        pre0 = 0;
+        progressBar.value = audio.currentTime + '';
+    });
+    audio.addEventListener('ended', () => {
+        player.pause();
+        isPlaying = false;
+    });
+
+    if (respack.TAP_SE && respack.DRAG_SE && respack.FLICK_SE) {
+        audioProcessor = AudioProcessor.fromRespack(respack);
+    } else {
+        audioProcessor = new AudioProcessor();
+        await audioProcessor.init({
+            tap: ASSETS.tap,
+            drag: ASSETS.drag,
+            flick: ASSETS.flick
+        });
+    }
+
+    await Images.loadAndOptimize({
+        anchor: ASSETS.anchorImg,
+        below: ASSETS.belowImg
+    });
+    await Images.initImagesForEditor({
+        selectNote: ASSETS.selectNoteImg,
+        startNode: ASSETS.startNodeImg,
+        endNode: ASSETS.endNodeImg
+    });
+}
+
+
+// @ts-expect-error 仅供调试
+window.Images = Images;
+// @ts-expect-error 仅供调试
+window.audioProcessor = audioProcessor;
+
+let playerCanvas: HTMLCanvasElement;
+let notesEditorCanvas: HTMLCanvasElement;
+let eventSequenceEditorCanvas: HTMLCanvasElement;
+let player: Player = null;
+let notesEditor: NotesEditor;
+let eventSequenceEditors: EventSequenceEditors;
+
+let aspect = $state(3 / 2);
+
+const playerWidth = $node(aspect * KPASettings.playerHeight);
+// svelte-ignore non_reactive_update
+
+let progressBar: HTMLInputElement;
+// let playButton: PlayButton;
+let isPlaying = $state(false);
+let showingGrid = $state(true);
+let speed = $state("1.0x");
+let preservesPitch = $state(true);
+
+let undoAvailable = $state(false);
+let redoAvailable = $state(false);
+
+let volume = $state(3.5);
+
+// let selectedLineNumber = $state(0);
+
+/** 音量 / 倍速 / 保持音调的写入口：写完顺手推给音频（原来是三段 $effect） */
+function applyVolume(next: number) {
+    volume = next;
+    if (audioProcessor) audioProcessor.volume = next;
+}
+
+function applySpeed(next: string) {
+    speed = next;
+    // 反正末尾有东西不影响解析
+    if (audio) audio.playbackRate = parseFloat(next);
+}
+
+function applyPreservesPitch(next: boolean) {
+    preservesPitch = next;
+    if (audio) audio.preservesPitch = next;
+}
+
+const selectedLineName = $node({
+    get: () => {
+        const lineNumber = selectedLineNumber.get();
+        const line = chart?.judgeLines[lineNumber];
+
+        return line?.name ?? '?';
+    },
+    listen: (update) => selectedLineNumber.subscribe(update)
+});
+
+let pre0 = 0;
+
+const renderingTimeCalculator = Object.getOwnPropertyDescriptor(Player.prototype, "renderingTime").get;
+
+const computeTimeWithPre0 = () => {
+    return renderingTimeCalculator.call({
+        time: player.time - pre0,
+        audio: audio,
+        renderingOffset: player.renderingOffset
+    })
+}
+
+const forward = (delta: number) => {
+    const easingECE = eventSequenceEditors.easing;
+    if (easingECE.active) {
+        easingECE.draw((easingECE.lastBeats || 0) + delta)
+        return;
+    }
+    const tc = operationList.chart.timeCalculator;
+    if (pre0 > 0) {
+        pre0 -= delta;
+        if (pre0 <=0) {
+            pre0 = 0;
+        }
+        // HACK: 使得能够显示0之前的部分。
+        const renderingBeats = tc.secondsToBeats(computeTimeWithPre0());
+        eventSequenceEditors.draw(renderingBeats);
+        notesEditor.draw(renderingBeats)
+        return;
+    }
+    audio.currentTime += delta;
+    player.render();
+}
+
+const backward = (delta: number) => {
+    const easingECE = eventSequenceEditors.easing;
+    if (easingECE.active) {
+        easingECE.draw((easingECE.lastBeats || 0) - delta)
+        return;
+    }
+    const tc = operationList.chart.timeCalculator;
+    const audioCurTime = audio.currentTime;
+    if (audioCurTime <= 0) {
+        pre0 += delta;
+        const renderingBeats = tc.secondsToBeats(computeTimeWithPre0());
+        eventSequenceEditors.draw(renderingBeats);
+        notesEditor.draw(renderingBeats)
+    } else {
+        pre0 = 0;
+        audio.currentTime = audioCurTime - delta;
+        player.render();
+    }
+}
+
+
+
+/**
+ * 处理滚轮事件。
+ * @param event
+ */
+function handleWheel(event: WheelEvent) {
+    if (event.ctrlKey) { // 不处理Ctrl
+        return;
+    }
+    if (audio) {
+        const isForward = event.deltaY > 0 !== KPASettings.useRpeWheel;
+        const absDelta = Math.abs(event.deltaY);
+        if (isForward) {
+            forward(absDelta / 1000);
+        } else {
+            backward(absDelta / 1000);
+        }
+        progressBar.value = audio.currentTime + '';
+    }
+}
+
+function globalHandleWheel(event: WheelEvent) {
+    if (event.ctrlKey) { // 按下CTRL则认为在切换判定线
+        const total = chart.judgeLines.length;
+
+        selectedLineNumber.set(
+            (selectedLineNumber.get() + (event.deltaY > 0 !== KPASettings.useRpeWheel ? 1 : -1) + total) % total
+        );
+        return;
+    }
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+    switch (event.key) {
+    case "Control":
+        if (document.activeElement !== document.body) {
+            return;
+        }
+        if (activeSecondarySidebar.get() === SecondarySidebar.LINES) {
+            return;
+        }
+        previousActiveSecondarySidebar.set(activeSecondarySidebar.get());
+        activeSecondarySidebar.set(SecondarySidebar.LINES);
+        break;
+    case " ":
+        if (document.hasFocus() && document.activeElement !== document.body) {
+            return;
+        }
+        if (isPlaying) {
+            player.pause();
+        } else {
+            play();
+        }
+        event.preventDefault();
+        break;
+    case "Tab":
+        if (activeSidebar.get() === Sidebar.EVENTS) {
+            const offset = event.shiftKey ? -1 : 1;
+            const currentType = eventsType.get();
+            const currentLayer = eventsLayer.get();
+            const NORMALS = ["moveX", "moveY", "rotate", "alpha", "speed", "easing"] as Exclude<keyof typeof EventType, ExtendedEventTypeName>[]
+            const EXTENDED = ["scaleX", "scaleY", "text", "color", "bpm"] as ExtendedEventTypeName[]
+            eventsType.set(
+                currentLayer === "ex"
+                    ? EXTENDED[(EXTENDED.indexOf(currentType as ExtendedEventTypeName) + offset + EXTENDED.length) % EXTENDED.length] ?? EXTENDED[0]
+                    : NORMALS[(NORMALS.indexOf(currentType) + offset + NORMALS.length) % NORMALS.length] ?? NORMALS[0]
+            );
+        }
+        break;
+    case "Escape":
+        activeSecondarySidebar.set(SecondarySidebar.CHART);
+        break;
+    case "z":
+        operationList.undo();
+        break;
+    case "y":
+        operationList.redo();
+        break;
+    case "Delete":
+        handleDelete();
+    }
+}
+
+const handleKeyup = (event: KeyboardEvent) => {
+    if (document.activeElement !== document.body) {
+        return;
+    }
+    switch (event.key) {
+    case "Control":
+        activeSecondarySidebar.set(previousActiveSecondarySidebar.get());
+        break;
+    }
+}
+const handleExit = (e: BeforeUnloadEvent) => {
+    if (operationList.chart?.modified) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+    }
+}
+const handleDelete = () => {
+    if (activeSecondarySidebar.get() === SecondarySidebar.NOTE) {
+        const note = selectedNote.get();
+        if (!note) { return }
+        operationList.do(new O.NoteDeleteOperation(note));
+    } else if (activeSecondarySidebar.get() === SecondarySidebar.EVENT) {
+        const node = selectedNode.get();
+        if (!node || (node instanceof EventStartNode && node.isFirstStart())) { return }
+        operationList.do(new O.EventNodePairRemoveOperation(
+            node instanceof EventEndNode ? node.previous : node,
+            true
+        ));
+    } else if (activeSecondarySidebar.get() === SecondarySidebar.MULTI_NOTE) {
+        const notes = selectedNotes.get();
+        if (!notes || notes.size === 0) { return; }
+        operationList.do(new O.MultiNoteDeleteOperation(
+            notes
+        ));
+    } else if (activeSecondarySidebar.get() === SecondarySidebar.MULTI_NODE) {
+        const nodes = selectedNodes.get();
+        if (!nodes || nodes.size === 0) { return; }
+        operationList.do(new O.MultiNodeDeleteOperation(
+            [...nodes].sort((a, b) => TC.lt(a.time, b.time) ? -1 : 1)
+        ));
+    }
+
+}
+
+const play = async () => {
+    audio.currentTime -= KPASettings.replayCompensation;
+    player.play();
+}
+
+document.addEventListener("wheel", globalHandleWheel);
+document.addEventListener("keydown", handleKeydown);
+document.addEventListener("keyup", handleKeyup);
+
+window.addEventListener("beforeunload", handleExit);
+
+let initialized = $state(false);
+
+async function boot() {
+    await loadProject();
+
+    player = await Player.create(
+        playerCanvas,
+        audioProcessor,
+        audio,
+        illustration,
+        respack,
+        {
+            renderer: "webgl1",
+            showStats: true
+        }
+    );
+    player.hitEffectNoFollows = playerHitEffectNoFollows.get();
+    player.baseOffset = KPASettings.baseOffset
+    //player.cameraRatio = 0.8;
+    player.addEventListener("play", () => {
+        isPlaying = true;
+    });
+    player.addEventListener("pause", () => {
+        isPlaying = false;
+    });
+    const operationList = new O.OperationList(chart);
+
+    notesEditor = new NotesEditor(
+        notesEditorCanvas,
+        [0, 0, 600, 900],
+        operationList,
+        respack
+    );
+    notesEditor.target = chart.judgeLines[0];
+    notesEditor.showsNNNListAttachable = false;
+    notesEditorCanvas.addEventListener("click", () => {
+        activeSidebar.set(Sidebar.NOTES);
+    });
+    eventSequenceEditorCanvas.addEventListener("click", () => {
+        activeSidebar.set(Sidebar.EVENTS);
+    })
+    playerCanvas.addEventListener("click", () => {
+        activeSidebar.set(Sidebar.DEFAULT);
+    })
+    eventSequenceEditors = new EventSequenceEditors(
+        eventSequenceEditorCanvas,
+        [0, 0, 600, 900],
+        operationList,
+        0.5
+    );
+    eventSequenceEditors.changeTarget({ judgeLine: chart.judgeLines[0] });
+    player.addEventListener("drawn", () => {
+        if (showingGrid && pre0 === 0) {
+            notesEditor.draw(player.renderingBeats);
+            eventSequenceEditors.draw(player.renderingBeats);
+        }
+        reflowAll();
+    });
+    const updateUndoRedoAvailability = () => {
+        undoAvailable = operationList.operations.length > 0;
+        redoAvailable = operationList.undoneOperations.length > 0;
+    }
+    operationList.addEventListener("do", updateUndoRedoAvailability);
+    operationList.addEventListener("undo", updateUndoRedoAvailability);
+    operationList.addEventListener("redo", updateUndoRedoAvailability);
+
+    operationList.addEventListener("needsupdate", () => {
+        player.render();
+    });
+    // maxCombo 由 kipphi 的 OperationList 自己维护，这里不需要再算
+    operationList.addEventListener("firstmodified", (ev) => {
+        chart.modified = true;
+    });
+    operationList.addEventListener("undo", (e) => {
+        notify("Undo: " + e.operation.constructor.name, "info");
+    })
+    operationList.addEventListener("redo", (e) => {
+        notify("Redo: " + e.operation.constructor.name, "info");
+    });
+    operationList.addEventListener("error", (e) => {
+        notify("Error: " + e.error.message, "error")
+    })
+    notesEditor.addEventListener("noteselected", (ev) => {
+        selectedNote.set(ev.note);
+        activeSecondarySidebar.set(SecondarySidebar.NOTE);
+    });
+    notesEditor.addEventListener("notescopeselected", (ev) => {
+        selectedNotes.set(ev.notes);
+        activeSecondarySidebar.set(SecondarySidebar.MULTI_NOTE);
+    });
+    eventSequenceEditors.addEventListenerForAll("nodeselected", (ev) => {
+        selectedNode.set(ev.node);
+        activeSecondarySidebar.set(SecondarySidebar.EVENT);
+    });
+    eventSequenceEditors.addEventListenerForAll("nodescopeselected", (ev) => {
+        selectedNodes.set(ev.nodes);
+        activeSecondarySidebar.set(SecondarySidebar.MULTI_NODE);
+    });
+    eventSequenceEditors.addEventListener("eventtypechange", (e) => {
+        eventsType.set(e.eventType);
+    });
+    eventSequenceEditors.addEventListener("layerchange", (e) => {
+        eventsLayer.set(e.layer);
+    })
+    player.renderingOffset = KPASettings.renderingOffset;
+    // @ts-expect-error 仅供调试
+    window.player = player;
+    // @ts-expect-error 仅供调试
+    window.operationList = operationList;
+    // 贴图 / 视频 / 着色器都由适配器提供，播放器自己决定什么时候要
+    player.use({
+        texture: (name) => fetchTexture(chartId, name),
+        video: (name) => fetchVideo(chartId, name),
+        shader: (path) => fetchShader(chartId, path),
+    });
+    await player.receive(chart);
+    // 编辑过程中新加的贴图 / 视频 / 着色器会自动补上，不用手动重扫
+    player.watch(operationList);
+
+    if (KPAError.buffer.length > 0) {
+        setTimeout(() => {
+            notify(_("main.errors.notify"), "error")
+        }, 3000)
+    }
+
+    if (KPASettings.autosaveEnabled) {
+        AutoSaveRunner.init(chart);
+        AutoSaveRunner.run();
+    }
+
+
+    EditorGlobalInit(notesEditor, eventSequenceEditors, operationList, player);
+    restoreStates();
+
+    initialized = true;
+}
+
+function teardown() {
+    // 停止音频播放
+    if (audio) {
+        audio.pause();
+        audio.src = "";
+        audio.load();
+    }
+    // 停止播放器
+    if (player) {
+        player.pause();
+        player.destroy();
+    }
+
+    
+    document.removeEventListener("wheel", globalHandleWheel);
+    document.removeEventListener("keydown", handleKeydown);
+    document.removeEventListener("keyup", handleKeyup);
+
+    window.removeEventListener("beforeunload", handleExit);
+
+    if (KPASettings.autosaveEnabled) {
+        AutoSaveRunner.stop();
+    }
+    // 清理编辑器
+    if (notesEditor) {
+        // 如果有清理方法，调用它
+    }
+    if (eventSequenceEditors) {
+        // 如果有清理方法，调用它
+    }
+    // 移除全局引用
+    // @ts-expect-error 仅供调试
+    if (window.player === player) window.player = null;
+    // @ts-expect-error 仅供调试
+    if (window.Images === Images) delete window.Images;
+    // @ts-expect-error 仅供调试
+    if (window.audioProcessor === audioProcessor) delete window.audioProcessor;
+}
+
+
+
+let tipIndex: number = $state(0);
+let timeout: number;
+function updateTip() {
+    tipIndex = Math.floor(Constants.tips.length * Math.random());
+    timeout = window.setTimeout(() => {
+        updateTip();
+    }, Constants.TIP_INTERVAL);
+}
+updateTip();
+
+
+
+    // 模板里用到的 store：各开一个本地别名
+    const activeSecondarySidebarValue = $node({ get: () => activeSecondarySidebar.get(), listen: (update) => activeSecondarySidebar.subscribe(update) });
+    const selectedNoteValue = $node({ get: () => selectedNote.get(), listen: (update) => selectedNote.subscribe(update) });
+    const selectedNodeValue = $node({ get: () => selectedNode.get(), listen: (update) => selectedNode.subscribe(update) });
+    const selectedNodesValue = $node({ get: () => selectedNodes.get(), listen: (update) => selectedNodes.subscribe(update) });
+    const selectedNotesValue = $node({ get: () => selectedNotes.get(), listen: (update) => selectedNotes.subscribe(update) });
+    const activeSidebarValue = $node({ get: () => activeSidebar.get(), listen: (update) => activeSidebar.subscribe(update) });
+</script>
+
+<script onmount>
+    // grain 没有卸载钩子：下一个谱面页建起来时先把上一个收拾掉
+    registerPageCleanup(teardown);
+    boot();
+</script>
+
+<main class="container">
+    <div id="inner" onwheel={handleWheel} style="--aspect-ratio: {aspect}">
+        <canvas bind:this={playerCanvas} id="player" width={playerWidth} height={KPASettings.playerHeight}>Your device does not support the HTML5 canvas element.</canvas>
+        <canvas bind:this={notesEditorCanvas} id="ne" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
+        <canvas bind:this={eventSequenceEditorCanvas} id="ece" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
+    </div>
+    <div id="secondary-sidebar">
+        <div class="sidebar-shadow"></div>
+        <div class="sidebar-content">
+            <PopupOption wide
+                options={
+                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE,
+                    SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE,
+                    SecondarySidebar.ERRORS, SecondarySidebar.GENERAL, SecondarySidebar.SCRIPT,
+                    SecondarySidebar.MACRO
+                ]
+                }
+                displayTexts={[
+                    _("main.secondary.lines"),
+                    _("main.secondary.note"),
+                    _("main.secondary.event"),
+                    _("main.secondary.line"),
+                    _("main.secondary.chart"),
+                    _("main.secondary.multiNode"),
+                    _("main.secondary.multiNote"),
+                    _("main.secondary.errors"),
+                    _("main.secondary.general"),
+                    _("main.secondary.script"),
+                    _("main.secondary.macro")
+                ]}
+                bind:currentOption={$store(activeSecondarySidebar)}
+            ></PopupOption>
+            {#if activeSecondarySidebarValue === SecondarySidebar.LINES}
+                <JudgeLines chart={chart}></JudgeLines>
+            {:else if activeSecondarySidebarValue === SecondarySidebar.NOTE}
+                {#if selectedNoteValue && selectedNoteValue.parentNode}
+                <NoteEditor target={selectedNoteValue}></NoteEditor>
+                {:else}
+                <div style="color: var(--color-foreground)">{_("main.note.noNote")}</div>
+                {/if}
+            {:else if activeSecondarySidebarValue === SecondarySidebar.EVENT}
+                {#if selectedNodeValue && selectedNodeValue.parentSeq}
+                <EventEditor></EventEditor>
+                {:else}
+                <div style="color: var(--color-foreground)">{_("main.event.noEvent")}</div>
+                {/if}
+            {:else if activeSecondarySidebarValue === SecondarySidebar.LINE}
+                <JudgeLineEditor></JudgeLineEditor>
+            {:else if activeSecondarySidebarValue === SecondarySidebar.CHART}
+                <ChartInfoEditor></ChartInfoEditor>
+            {:else if activeSecondarySidebarValue === SecondarySidebar.MULTI_NODE}
+                {#if selectedNodesValue && selectedNodesValue.size > 0}
+                    <MultiNodeEditor target={selectedNodesValue}></MultiNodeEditor>
+                {/if}
+            {:else if activeSecondarySidebarValue === SecondarySidebar.MULTI_NOTE}
+                {#if selectedNotesValue && selectedNotesValue.size > 0}
+                    <MultiNoteEditor target={selectedNotesValue}></MultiNoteEditor>
+                {/if}
+            {:else if activeSecondarySidebarValue === SecondarySidebar.ERRORS}
+                <Errors/>
+            {:else if activeSecondarySidebarValue === SecondarySidebar.MACRO}
+                <MacroEditor/>
+            {:else if activeSecondarySidebarValue === SecondarySidebar.GENERAL}
+                <Label small>
+                    {_("main.sidebar.timeDivisor.term")}
+                    <Tooltip>{_("main.sidebar.timeDivisor.desc")}</Tooltip>
+                </Label>
+                <ArrowedInput
+                    bind:value={$store(timeDivisor)}
+                    />
+                <Label small>
+                    {_("main.sidebar.renderingOffset.term")}
+                    <Tooltip>{_("main.sidebar.renderingOffset.desc")}</Tooltip>
+                </Label>
+                <UnitInput
+                    unit="s"
+                    bind:value={ get: () => KPASettings.renderingOffset, set: (v) => {
+                            player.renderingOffset = v;
+                            KPASettings.renderingOffset = v;
+                        }
+                    }/>
+                <Label small>
+                    {_("main.general.baseOffset")}
+                    <Tooltip>{_("main.general.baseOffsetDesc")}</Tooltip>
+                </Label>
+                <UnitInput
+                    unit="s"
+                    bind:value={ get: () => KPASettings.baseOffset, set: (v) => {
+                            player.baseOffset = v;
+                            KPASettings.baseOffset = v;
+                        }
+                    }
+                />
+                <Label small>
+                    {_("main.general.replayCompensation")}
+                    <Tooltip>{_("main.general.replayCompensationDesc")}</Tooltip>
+                </Label>
+                <UnitInput
+                    unit="s"
+                    bind:value={KPASettings.replayCompensation}
+                />
+            {/if}
+            <div class="monaco-sidebar" style="display: {activeSecondarySidebarValue === SecondarySidebar.SCRIPT ? '' : 'none'}">
+                <MonacoEdtior></MonacoEdtior>
+            </div>
+        </div>
+    </div>
+    <div id="sidebar">
+        <div class="sidebar-shadow"></div>
+        <div class="sidebar-content">
+            <!--TimeDivisorPicker /-->
+            <Label small>{_("main.sidebar.linenumber") + ` (${chart?.judgeLines.length ?? 0})`}</Label>
+            <ArrowedInput
+                max={(chart?.judgeLines.length ?? 1) - 1} min={0}
+                bind:value={$store(selectedLineNumber)}
+                suffix={`(${selectedLineName})`}
+                loops
+            />
+            {#if activeSidebarValue === Sidebar.DEFAULT}
+                <Label>{_("main.sidebar.player")}</Label>
+                <TextSwitchButton wide bgText={_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$store(playerShowsUI)}/>
+                <TextSwitchButton wide bgText={_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$store(playerShowsLineID)}/>
+                <TextSwitchButton wide bgText={_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$store(playerHitEffectNoFollows)}/>
+                <TextSwitchButton wide bgText={_("main.player.showsCurve")} onText="Y" offText="N" bind:checked={$store(playerShowsCurve)}/>
+                <Label small>{_("main.player.volume")}</Label>
+                <ArrowedInput bind:value={volume} step={0.5}></ArrowedInput>
+                <PopupOption wide
+                    bind:currentOption={aspect}
+                    options={
+                        [3 / 2, 16 / 9, 4 / 3]
+                    }
+                    displayTexts={
+                        ["3:2", "16:9", "4:3"]
+                    }
+                    onchange={() => player.useNewAspect()}
+                ></PopupOption>
+                <Label small>{_("main.player.cameraZoom")}</Label>
+                <ArrowedInput bind:value={$store(playerCameraZoom)}></ArrowedInput>
+            {:else if activeSidebarValue === Sidebar.NOTES}
+                <NotesSidebar/>
+            {:else if activeSidebarValue === Sidebar.EVENTS}
+                <EventsSidebar/>
+            {/if}
+        </div>
+    </div>
+    <div id="footer">
+        <PlayButton checked={isPlaying} onchange={(playing) => playing ? play() : player.pause()}/>
+        <GridSwitch bind:checked={showingGrid} onchange={(checked) => {
+            if (checked) {
+                notesEditorCanvas.style.display = "";
+                eventSequenceEditorCanvas.style.display = "";
+                // 如果没有在播放，手动渲染一次
+                if (!player.playing) {
+                    notesEditor.draw(player.renderingBeats);
+                    eventSequenceEditors.draw(player.renderingBeats);
+                }
+            } else {
+                notesEditorCanvas.style.display = "none";
+                eventSequenceEditorCanvas.style.display = "none";
+            }
+        }} />
+            <input type="range" bind:this={progressBar} value={audio.currentTime} step="0.01" max={chart?.duration ?? 0}
+                oninput={
+                    (event) => {
+                        audio.currentTime = progressBar.valueAsNumber;
+                        player.pause();
+                        requestAnimationFrame(() => player.render())
+                    }
+                }
+                onmousedown={() => player.pause()}>
+        <!-- !表示preservesPitch=false -->
+        <PopupOption options={[
+            "1.0x", "0.5x",  "0.25x",  "0.75x",  "1.5x",  "2.0x"
+        ]} bind:currentOption={ get: () => speed, set: applySpeed } />
+        <TextSwitchButton onText="Y" offText="N" bgText={_("general.preservesPitch")} bind:checked={ get: () => preservesPitch, set: applyPreservesPitch } />
+    </div>
+    <div id="secondary-footer">
+        <span id="tips" onclick={() => {clearTimeout(timeout);updateTip()}}>Tips: {
+            "怎么突然Phigros自制谱界都在vibe coding了，那我也不忍了。我将证明，我，奇谱发生器开发者，也是高效的LLM掌舵人！"
+            }</span>
+        <span class="history-button" style="opacity: {undoAvailable ? 1 : 0.2}" role="button" onclick={() => operationList.undo()}>↶</span>
+        <span class="history-button" style="opacity: {redoAvailable ? 1 : 0.2}" role="button" onclick={() => operationList.redo()}>↷</span>
+    </div>
+</main>
+
+<div id="cover" style="display: {initialized ? 'none' : ''}">LOADING</div>
+
+<style>
+:root {
+  --player-height: 85vh;
+  --bottom-bar-height: 11vh;
+  --bottom-tips-height: 4vh;
+  --player-width: calc(100vw - 50vh);
+  --color-foreground: white;
+}
+.container {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  grid-template-rows: var(--player-height) var(--bottom-bar-height) var(--bottom-tips-height);
+  width: 100%;
+  background-color: #444;
+}
+#inner {
+  --aspect-ratio: calc(3 / 2);
+  --actual-player-height: min(var(--player-height), calc(var(--player-width) / var(--aspect-ratio)));
+  height: var(--actual-player-height);
+  grid-column: 1 / 2;
+  position: relative;
+}
+#footer {
+  grid-row: 2 / 3;
+  grid-column: 1 / 4;
+  display: flex;
+  align-items: center;
+  padding: 0 2vh;
+  gap: 1vh;
+  background-color: #333;
+}
+#secondary-footer {
+  grid-row: 3 / 4;
+  grid-column: 1 / 4;
+  background-color: #333;
+  color: white;
+  display: flex;
+}
+#secondary-footer #tips {
+  flex: 1;
+}
+input[type="range"] {
+  flex: 1;
+}
+#player {
+  height: var(--actual-player-height);
+}
+#ne {
+  position: absolute;
+  top: 0;
+  height: var(--actual-player-height);
+  left: 0;
+  transition: 0.3s opacity ease;
+}
+#ece {
+  position: absolute;
+  top: 0;
+  height: var(--actual-player-height);
+  right: 0;
+  transition: 0.3s opacity ease;
+}
+#ne:hover,
+#ece:hover {
+  opacity: 1;
+}
+#ne:active,
+#ece:active {
+  cursor: grabbing;
+}
+#sidebar,
+#secondary-sidebar {
+  position: fixed;
+  height: var(--player-height);
+  width: 20vh;
+  right: 0;
+  top: 0;
+  background-color: #555;
+  z-index: 1;
+  padding: 1vh;
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+#secondary-sidebar {
+  right: 20vh;
+  width: 30vh;
+}
+.sidebar-shadow {
+  position: absolute;
+  height: var(--player-height);
+  width: 6px;
+  left: -6px;
+  top: 0;
+  box-shadow: -6px 0 6px -6px #000 inset;
+}
+.sidebar-content {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: none;
+}
+.sidebar-content:focus {
+  scroll-behavior: auto;
+}
+.monaco-sidebar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#cover {
+  position: fixed;
+  background-color: #0007;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1145141919;
+  top: 0;
+  left: 0;
+  font-size: large;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10vh;
+}
+</style>

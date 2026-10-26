@@ -1,0 +1,81 @@
+<script>
+    import { easingArray, easingMap, rpeEasingArray } from "kipphi";
+    import { KPASettings } from "#/settings";
+
+    let { value = $bindable(1) } = $props<{
+        /** 非RPE ID */
+        value?: number;
+    }>();
+
+    // 三处显示值都是从 `value` 算出来的 —— 直接派生，不再往 $state 里同步
+    const easingId = $node({
+        get: () => (KPASettings.useRpeEasingId ? (easingArray[value]?.rpeId ?? value) : value)
+    });
+    const easeType = $node({ get: () => easingArray[value]?.easeType ?? 'in' });
+    const funcType = $node({ get: () => easingArray[value]?.funcType ?? 'linear' });
+
+    function setEasingId(next: number) {
+        value = KPASettings.useRpeEasingId ? rpeEasingArray[next].id : next;
+    }
+
+    function setEaseType(next: 'in' | 'out' | 'inout') {
+        value = easingMap[funcType][next].id;
+    }
+
+    function setFuncType(next: keyof typeof easingMap) {
+        value = easingMap[next][easeType].id;
+    }
+</script>
+
+<div class="easing-box">
+    <input type="number" min="0" max={KPASettings.useRpeEasingId ? 29 : 31} step="1" bind:value={ get: () => easingId, set: setEasingId }>
+    <span>Ease</span>
+    <select bind:value={ get: () => easeType, set: setEaseType }>
+        <option value="in">in</option>
+        <option value="out">out</option>
+        <option value="inout">IO</option>
+    </select>
+    <select bind:value={ get: () => funcType, set: setFuncType }>
+        {#for funType of Object.keys(easingMap)}
+            <option value={funType}>{funType}</option>
+        {/for}
+    </select>
+</div>
+
+<style>
+input {
+  border: var(--input-border-width) solid var(--input-border-color);
+  border-radius: var(--border-radius);
+  font-family: 'phigros';
+  padding-inline: 0.25em;
+  box-sizing: border-box;
+  min-width: 0;
+  font-size: var(--font-size-small);
+}
+input:focus {
+  font-family: 'Consolas', monospace;
+}
+select {
+  border: var(--input-border-width) solid var(--input-border-color);
+  border-radius: var(--border-radius);
+  font-family: 'phigros';
+  padding-inline: 0.25em;
+  min-width: 0;
+  box-sizing: border-box;
+  font-size: var(--font-size-small);
+}
+select:focus {
+  font-family: 'Consolas', monospace;
+}
+.easing-box {
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  grid-template-rows: 3vh 3vh;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5vh;
+}
+.easing-box span {
+  color: white;
+}
+</style>

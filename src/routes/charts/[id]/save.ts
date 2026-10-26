@@ -1,6 +1,6 @@
 import { saveChart as _saveChart } from "#/background";
 import type { Chart } from "kipphi";
-import { chartId } from "./store.svelte";
+import { chartId } from "./store";
 
 export async function saveChart(chart: Chart, message: string, beutify = false) {
     const id = chartId;

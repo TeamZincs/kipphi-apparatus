@@ -1,0 +1,29 @@
+<script>
+    import { canvasEditor } from './bezier';
+
+    let container: HTMLDivElement;
+    let { value = $bindable([0, 0, 1, 1] as [number, number, number, number]) } = $props<{
+        value?: [number, number, number, number];
+    }>();
+
+    function onCanvasChange() {
+        value = canvasEditor.getValue() as [number, number, number, number];
+    }
+</script>
+
+<div class="bezier-editor" bind:this={container}></div>
+
+<script onmount>
+    canvasEditor.setValue(...value);
+    canvasEditor.addTo(container);
+    canvasEditor.addEventListener('change', onCanvasChange);
+</script>
+
+<style global>
+.bezier-editor {
+  min-width: 100%;
+}
+.bezier-editor canvas {
+  width: 100%;
+}
+</style>

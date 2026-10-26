@@ -1,33 +1,26 @@
 {
-  "extends": "./.svelte-kit/tsconfig.json",
-  "compilerOptions": {
-    "allowJs": true,
-    "checkJs": true,
-    "strictNullChecks": false,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "sourceMap": true,
-    "strict": true,
-    "moduleResolution": "bundler",
-    "paths": {
-      "#/*": ["./src/*"], // 自己加的路径
-      //"$lib": ["./src/lib"],
-      //"$lib/components": ["./src/lib/components"],
-      //"$lib/components/ui": ["./src/lib/components/ui"],
-      //"$lib/utils": ["./src/lib/utils"],
-      //"$lib/hooks": ["./src/lib/hooks"]
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+        "strict": true,
+        "strictNullChecks": false,
+        "noUnusedLocals": false,
+        "skipLibCheck": true,
+        "isolatedModules": true,
+        "verbatimModuleSyntax": true,
+        "resolveJsonModule": true,
+        "allowJs": true,
+        "checkJs": false,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "noEmit": true,
+        // `$state` / `$props` / `$bindable` / `$node` / `*.grain` 来自这里（runtime 自带的全局声明）
+        "types": ["@graints/runtime"],
+        "paths": {
+            "#/*": ["./src/*"]
+        }
     },
-    "lib": ["WebWorker",
-			"esnext",
-			"DOM",
-			"DOM.Iterable"]
-  },
-  "exclude": ["node_modules"]
-  // Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
-  // except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
-  //
-  // If you want to overwrite includes/excludes, make sure to copy over the relevant includes/excludes
-  // from the referenced tsconfig.json - TypeScript does not merge them in
+    "include": ["src", "electron", "vite.config.mts", "dependency.ts"]
 }

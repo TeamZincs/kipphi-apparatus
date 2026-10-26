@@ -1,0 +1,74 @@
+<script>
+    let { message = '', type = 'info', unmount } = $props<{
+        message: string;
+        type: 'info' | 'error' | 'warning';
+        unmount: () => void;
+    }>();
+
+    let fadeIn = $state(false);
+</script>
+
+<div class="notification {type} {fadeIn ? 'fade-in' : ''}">
+    {message}
+</div>
+
+<script onmount>
+    // 等首帧渲染完再上过渡，否则动画会从"已经在终点"开始
+    requestAnimationFrame(() => {
+        setTimeout(() => (fadeIn = true), 100);
+        setTimeout(() => {
+            fadeIn = false;
+            setTimeout(() => unmount(), 1000);
+        }, 5000);
+    });
+</script>
+
+<style>
+    .notification {
+        position: fixed;
+        z-index: 114514;
+        height: 8vh;
+        width: 30vw;
+        left: -35vw;
+        top: 101vh;
+        transition: 0.7s ease-out transform;
+        transform: translate(0, 0);
+        background-color: white;
+        color: black;
+        border-left: var(--border-radius) solid;
+        border-radius: var(--border-radius);
+        padding: var(--border-radius);
+        font-size: var(--font-size-medium);
+        box-shadow: var(--box-shadow);
+    }
+    .notification:first-child {
+        transform: translateY(-96vh);
+    }
+    .notification:nth-child(2) {
+        transform: translateY(-86vh);
+    }
+    .notification:nth-child(3) {
+        transform: translateY(-76vh);
+    }
+    .notification.fade-in:first-child {
+        transform: translate(40vw, -96vh);
+    }
+    .notification.fade-in:nth-child(2) {
+        transform: translate(40vw, -86vh);
+    }
+    .notification.fade-in:nth-child(3) {
+        transform: translate(40vw, -76vh);
+    }
+    .notification.fade-in {
+        transform: translateX(40vw);
+    }
+    .notification.info {
+        border-left-color: blue;
+    }
+    .notification.error {
+        border-left-color: red;
+    }
+    .notification.warning {
+        border-left-color: orange;
+    }
+</style>

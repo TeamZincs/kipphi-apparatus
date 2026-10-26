@@ -1,0 +1,10 @@
+<script>
+    import IconSwitchButton from './IconSwitchButton.grain';
+
+    let { onchange, checked = $bindable(false) } = $props<{
+        onchange?: (checked: boolean) => void;
+        checked?: boolean;
+    }>();
+</script>
+
+<IconSwitchButton onImgSrc="/icons/pause.svg" offImgSrc="/icons/play.svg" onchange={onchange} bind:checked />

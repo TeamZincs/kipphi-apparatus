@@ -1,0 +1,104 @@
+<script>
+    let {
+        getSuggestions,
+        value = $bindable(''),
+        onchange,
+        placeholder = ""
+    } = $props<{
+        getSuggestions: (input: string) => Promise<string[]>;
+        value?: string;
+        onchange?: (value: string) => void;
+        placeholder?: string;
+    }>();
+
+    let displaysSuggestions = $state(false);
+
+    let suggestions = $state<string[]>([]);
+
+    async function deliverSuggestions(e: Event) {
+        suggestions = await getSuggestions((e.target as HTMLInputElement).value);
+        displaysSuggestions = true;
+    }
+
+    let timer: number = null;
+</script>
+
+<div class="sugggestion-input-container">
+<input class="suggestion-input" type="text"
+placeholder={placeholder}
+bind:value={value}
+onchange={() => {
+    // 设置一个防抖，因为后面点击了一下li之前已经触发了一次input的onchange，那个时候的文本内容可能是不准确的
+    timer = setTimeout(() => {
+        onchange?.(value)
+    }, 150)
+}}
+oninput={deliverSuggestions}
+onfocusout={() => setTimeout(() => {
+    displaysSuggestions = false;
+}, 100)}>
+{#if displaysSuggestions}
+<span class="suggestions-outer">
+    <ul class="suggestions">
+        {#for suggestion of suggestions}
+        <li class="suggestion" role="button" onmousedown={() => {
+            value = suggestion;
+            onchange?.(suggestion);
+            if (timer) clearTimeout(timer);
+            timer = null;
+        }}>
+            {suggestion}
+        </li>
+        {/for}
+    </ul>
+</span>
+{/if}
+</div>
+
+<style>
+.sugggestion-input-container {
+  min-width: 0;
+}
+.suggestion-input {
+  border: var(--input-border-width) solid var(--input-border-color);
+  border-radius: var(--border-radius);
+  font-family: 'phigros';
+  padding-inline: 0.25em;
+  min-width: 0;
+  font-size: var(--font-size-medium);
+  min-width: 3em;
+  width: 100%;
+  box-sizing: border-box;
+}
+.suggestion-input:focus {
+  font-family: 'Consolas', monospace;
+}
+.suggestions-outer {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.suggestions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  box-shadow: var(--box-shadow);
+  padding-block: var(--border-radius);
+  padding-inline: 0;
+  border-radius: var(--border-radius);
+  box-sizing: border-box;
+  width: 100%;
+  z-index: 1;
+}
+.suggestion {
+  display: block;
+  padding: 0.25em;
+}
+.suggestion:hover {
+  background-color: var(--color-selected-li);
+}
+</style>

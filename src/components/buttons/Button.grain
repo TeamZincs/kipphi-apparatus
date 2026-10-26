@@ -1,0 +1,20 @@
+<script>
+    let { onclick, text, children, variant = 'default', disabled = false } = $props<{
+        onclick: (event: MouseEvent) => void;
+        text?: string;
+        children?: () => unknown;
+        variant?: 'default' | 'progressive' | 'destructive';
+        disabled?: boolean;
+    }>();
+</script>
+
+<button
+    onclick={(e) => !disabled && onclick(e)}
+    class="kpa-button {variant === 'progressive' ? 'progressive' : ''} {variant === 'destructive' ? 'destructive' : ''} {disabled ? 'disabled' : ''}"
+>
+    {#if children}
+        {children}
+    {:else}
+        {text}
+    {/if}
+</button>

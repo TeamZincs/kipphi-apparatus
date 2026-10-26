@@ -1,0 +1,78 @@
+<script>
+    let { children } = $props<{ children?: () => unknown }>();
+
+    let hovering = $state(false);
+    let top = $state(0);
+    let left = $state(0);
+
+    let tooltipEl: HTMLElement;
+    let contentEl: HTMLElement;
+
+    /**
+     * 原先是 `$effect`：hovering 一变就量一次尺寸。
+     * grain 没有这种东西，所以把测量挪到"触发它的那次写入"旁边。
+     */
+    function layout() {
+        if (!hovering || !tooltipEl || !contentEl) return;
+
+        const rect = tooltipEl.getBoundingClientRect();
+        const contentRect = contentEl.getBoundingClientRect();
+
+        // 显示在 tooltip 元素下方，子元素右侧对齐父元素右侧
+        top = rect.bottom + 8;
+
+        const candidate = rect.right - contentRect.width;
+
+        left = candidate < 0 ? rect.right : candidate;
+    }
+
+    function show() {
+        hovering = true;
+        layout();
+        // `{#if}` 里的元素刚建好时量不到尺寸的话，再等一帧
+        requestAnimationFrame(layout);
+    }
+
+    function hide() {
+        hovering = false;
+    }
+</script>
+
+<span class="tooltip" bind:this={tooltipEl} onmouseenter={show} onmouseleave={hide} role="button" tabindex="0">
+    ?
+    {#if hovering}
+        <div class="tooltip-content" bind:this={contentEl} style="top: {top}px; left: {left}px;">
+            {children}
+        </div>
+    {/if}
+</span>
+<style>
+.tooltip {
+  font-size: 80%;
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid var(--color-foreground);
+  width: 1.5em;
+  color: var(--color-foreground);
+  text-align: center;
+  font-weight: bold;
+  cursor: pointer;
+  opacity: 60%;
+}
+.tooltip:hover {
+  background-color: var(--color-foreground);
+  color: black;
+  border-color: black;
+  opacity: 100%;
+}
+.tooltip-content {
+  position: fixed;
+  width: max-content;
+  z-index: 1;
+  background-color: var(--color-foreground);
+  border-radius: var(--border-radius);
+  color: black;
+  padding: var(--border-radius);
+  white-space: pre-wrap;
+}
+</style>

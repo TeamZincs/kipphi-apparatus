@@ -2,7 +2,7 @@
 
 import * as KP from "kipphi";
 import { TC, type Note, type EventNode } from "kipphi";
-import { operationList } from "./store.svelte";
+import { operationList } from "./store";
 
 
 // Helper function for fillCurve

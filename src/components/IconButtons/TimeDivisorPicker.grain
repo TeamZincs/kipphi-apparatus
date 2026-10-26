@@ -1,0 +1,10 @@
+<script>
+    import NumberSelect from '../NumberSelect.grain';
+
+    let value = $state(4);
+</script>
+
+<div class="time-divisor-picker">
+    <NumberSelect min={1} max={64} step={1} bind:value onchange={() => {}} />
+    <span>{value}</span>
+</div>

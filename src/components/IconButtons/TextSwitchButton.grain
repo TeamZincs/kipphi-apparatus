@@ -1,0 +1,69 @@
+<script>
+    let {
+        bgText,
+        onText,
+        offText,
+        wide,
+        class: className = '',
+        checked = $bindable(false),
+        disabled = false,
+        onchange: onChange
+    } = $props<{
+        bgText?: string;
+        onText: string;
+        offText: string;
+        wide?: boolean;
+        class?: string;
+        checked?: boolean;
+        disabled?: boolean;
+        onchange?: (checked: boolean) => void;
+    }>();
+
+    function getFontSize(str: string) {
+        return !wide ? `calc(var(--font-size-medium) * 2 / ${str.length})` : 'var(--font-size-medium)';
+    }
+
+    function toggle() {
+        if (disabled) return;
+
+        checked = !checked;
+        onChange?.(checked);
+    }
+</script>
+
+<div
+    class="icon-button primary {className} {wide ? 'wide' : ''} {disabled ? 'disabled' : ''}"
+    role="button"
+    onclick={toggle}
+>
+    {#if bgText}
+        <div class="bg" style="font-size: {getFontSize(bgText)}">{bgText}</div>
+    {/if}
+    <div
+        class="bigText"
+        style="color: {disabled ? 'black' : (checked ? '#4c8' : '#f32')}; font-size: {getFontSize(checked ? onText : offText)}"
+    >{checked ? onText : offText}</div>
+</div>
+
+<style>
+    .bg {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        color: #888;
+        align-content: center;
+        text-align: center;
+        font-size: 5vh;
+    }
+    .bigText {
+        position: absolute;
+        font-size: 5vh;
+        font-weight: bold;
+        top: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        align-content: center;
+        text-align: center;
+    }
+</style>

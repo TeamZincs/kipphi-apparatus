@@ -1,0 +1,21 @@
+<script>
+    let { small, title, children } = $props<{
+        small?: boolean;
+        title?: string;
+        children?: () => unknown;
+    }>();
+</script>
+
+<span class="label {small ? 'small' : ''}" title={title}>{children}</span>
+
+<style>
+span {
+  color: var(--color-foreground);
+  font-size: var(--font-size-medium);
+  font-weight: bold;
+}
+span.small {
+  font-weight: normal;
+  font-size: var(--font-size-small);
+}
+</style>

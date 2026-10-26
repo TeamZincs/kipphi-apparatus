@@ -1,0 +1,12 @@
+<script>
+    let { onclick, children, disabled = false } = $props<{
+        onclick: (event: MouseEvent) => void;
+        children?: () => unknown;
+        disabled?: boolean;
+    }>();
+</script>
+
+<button
+    onclick={(e) => !disabled && onclick(e)}
+    class="kpa-button destructive {disabled ? 'disabled' : ''}"
+>{children}</button>

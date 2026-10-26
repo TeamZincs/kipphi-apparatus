@@ -1,0 +1,54 @@
+<script>
+    let { value = $bindable(0), unit, label, title, step = 0.001, disabled = false } = $props<{
+        value?: number;
+        unit?: string;
+        label?: string;
+        title?: string;
+        step?: number;
+        disabled?: boolean;
+    }>();
+</script>
+
+<div class="unit-input {label ? 'labeled' : ''} {unit ? 'united' : ''}">
+    {#if label}
+        <span class="label" title={title}>{label}</span>
+    {/if}
+    <input type="number" step={step} bind:value={value} disabled={disabled} />
+    {#if unit}
+        <span class="unit">{unit}</span>
+    {/if}
+</div>
+
+<style>
+.unit-input {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  margin-inline: auto;
+}
+.unit-input input {
+  border: var(--input-border-width) solid var(--input-border-color);
+  border-radius: var(--border-radius);
+  font-family: 'phigros';
+  padding-inline: 0.25em;
+  min-width: 0;
+  box-sizing: border-box;
+  font-size: var(--font-size-medium);
+  min-width: 3em;
+}
+.unit-input input:focus {
+  font-family: 'Consolas', monospace;
+}
+.unit-input.united {
+  grid-template-columns: 1fr auto;
+}
+.unit-input.united .label {
+  grid-column: 1 / 3;
+}
+.unit {
+  color: white;
+}
+.unit {
+  font-size: var(--font-size-medium);
+}
+</style>

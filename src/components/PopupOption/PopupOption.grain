@@ -1,0 +1,217 @@
+<script>
+  let {
+    options = [],
+    wide = false,
+    displayTexts = null,
+    currentOption = $bindable(''),
+    onchange,
+    equals,
+  } = $props<{
+    options: any[];
+    wide?: boolean;
+    displayTexts?: string[];
+    currentOption?: any;
+    onchange?: (option: any) => void;
+    /** 选项不是基本类型时（比如 `[名字, 列表]` 这种元组）用它判断相等 */
+    equals?: (a: any, b: any) => boolean;
+  }>();
+
+  let isPopupVisible = $state(false);
+  let isFading = $state(false);
+  let isSliding = $state(false);
+  let isLeft = $state(false);
+
+  let popupTop = $state(-1);
+  let popupBottom = $state(-1);
+
+  let popupRef: HTMLElement;
+  let buttonRef: HTMLElement;
+
+  const same = (a: any, b: any) => (equals ? equals(a, b) : a === b);
+
+  // 选中项全部由 currentOption 推出来：父组件改它、这里选它，都是同一条路径
+  const currentIndex = $node({ get: () => options.findIndex((option) => same(option, currentOption)) });
+
+  function textOf(option: any, index: number) {
+    return displayTexts?.[index] || String(option ?? '');
+  }
+
+  // 建树时校准一次：传进来的值可能不在选项里
+  if (!options.some((option) => same(option, currentOption))) currentOption = options[0];
+
+  function openPopup() {
+    const rect = buttonRef.getBoundingClientRect();
+
+    isLeft = rect.left < window.innerWidth / 2;
+
+    if (rect.top < window.innerHeight / 2) {
+      popupTop = rect.bottom;
+      popupBottom = -1;
+    } else {
+      popupTop = -1;
+      popupBottom = window.innerHeight - rect.top;
+    }
+
+    isPopupVisible = true;
+    // 等一帧再上过渡，否则弹窗会从"已经到位"开始，看不到滑入
+    requestAnimationFrame(() => (isSliding = true));
+
+    document.addEventListener('click', handleClickOutside);
+  }
+
+  function togglePopup() {
+    if (isPopupVisible) closePopup();
+    else openPopup();
+  }
+
+  function closePopup() {
+    document.removeEventListener('click', handleClickOutside);
+
+    isFading = true;
+    setTimeout(() => {
+      isFading = false;
+      isSliding = false;
+      isPopupVisible = false;
+    }, 500);
+  }
+
+  function selectOption(index: number) {
+    const option = options[index];
+
+    currentOption = option;
+    onchange?.(option);
+    closePopup();
+  }
+
+  function handleClickOutside(e: Event) {
+    if (
+      isPopupVisible &&
+      popupRef &&
+      !popupRef.contains(e.target as Node) &&
+      buttonRef &&
+      !buttonRef.contains(e.target as Node)
+    ) {
+      closePopup();
+    }
+  }
+</script>
+
+<!-- 触发按钮 -->
+<div
+  class="trigger-button {wide ? 'wide' : ''}"
+  role="button"
+  tabindex="0"
+  bind:this={buttonRef}
+  onclick={togglePopup}
+  onkeydown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') togglePopup();
+  }}
+>
+  <div class="default-button-content">
+    {currentIndex >= 0 ? textOf(options[currentIndex], currentIndex) : 'Select Option'}
+  </div>
+
+  <!-- 弹窗内容 -->
+  {#if isPopupVisible}
+    <div
+      class="popup-window {isFading ? 'closed' : ''} {isSliding ? 'sliding' : ''} {isLeft ? 'left' : ''}"
+      style="top: {popupTop < 0 ? 'unset' : popupTop + 'px'}; bottom: {popupBottom < 0 ? 'unset' : popupBottom + 'px'}"
+      role="dialog"
+      tabindex="0"
+      bind:this={popupRef}
+      onclick={(e) => e.stopPropagation()}
+    >
+      <div class="options-list">
+        {#for [i, option] of options.entries()}
+          <div
+            class="option-item {i === currentIndex ? 'selected' : ''}"
+            role="option"
+            tabindex="0"
+            aria-selected={i === currentIndex}
+            onclick={() => selectOption(i)}
+            onkeydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') selectOption(i);
+            }}
+          >
+            {textOf(option, i)}
+          </div>
+        {/for}
+      </div>
+    </div>
+  {/if}
+</div>
+
+<style>
+.trigger-button {
+  width: 8vh;
+  height: 8vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  position: relative;
+  font-size: var(--font-size-medium);
+  padding-inline: 0.25em;
+}
+.trigger-button.wide {
+  width: unset;
+  min-width: 15vh;
+  height: 5vh;
+}
+.trigger-button:hover {
+  background-color: #e0e0e0;
+}
+.default-button-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.popup-window {
+  position: fixed;
+  right: -20vh;
+  width: 12vw;
+  font-size: 1.5vw;
+  max-height: 60vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  background-color: white;
+  box-shadow: var(--box-shadow);
+  border-radius: 8px;
+  z-index: 1000;
+  transition-property: opacity, transform;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+.popup-window.left {
+  right: unset;
+  left: -20vh;
+}
+.popup-window.left.sliding {
+  transform: translateX(40vh);
+}
+.popup-window.closed {
+  opacity: 0;
+}
+.popup-window.sliding {
+  transform: translateX(-40vh);
+}
+.options-list {
+  padding: 8px 0;
+}
+.option-item {
+  padding: 0.8vh 0.4vw;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.option-item:hover {
+  background-color: var(--color-selected-li);
+}
+.option-item.selected {
+  background-color: #e3f2fd;
+  font-weight: bold;
+}
+</style>

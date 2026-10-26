@@ -1,0 +1,344 @@
+<script>
+    import Label from '#/components/Label.grain';
+    import PopupOption from '#/components/PopupOption/PopupOption.grain';
+    import { NoteNode, NoteType, Op, type Note, type NoteMacro } from 'kipphi';
+    import { gotoMacro, selectedLineNumber, operationList, timeDivisor, notesEditor } from './store';
+    import { t as _ } from '#/i18n';
+    import UnitInput from '#/components/Inputs/UnitInput.grain';
+    import ArrowedInput from '#/components/Inputs/ArrowedInput.grain';
+    import TextSwitchButton from '#/components/IconButtons/TextSwitchButton.grain';
+    import FractionInput from '#/components/Inputs/FractionInput.grain';
+    import ColorInput from '#/components/Inputs/ColorInput.grain';
+    import DestructiveButton from '#/components/buttons/DestructiveButton.grain';
+    import Button from '#/components/buttons/Button.grain';
+
+    let { target } = $props<{ target: Note }>();
+
+    let values = $state({
+        parentNode: target.parentNode,
+        type: target.type,
+        startTime: target.startTime,
+        endTime: target.endTime,
+        positionX: target.positionX,
+        speed: target.speed,
+        above: target.above,
+        isFake: target.isFake,
+        alpha: target.alpha,
+        yOffset: target.yOffset,
+        size: target.size,
+        visibleBeats: target.visibleBeats,
+        judgeSize: target.judgeSize,
+        tint: target.tint,
+        tintHitEffects: target.tintHitEffects,
+        macro: target.macro as NoteMacro | undefined,
+        linkedMacros: [...(target.linkedMacros ?? [])] as NoteMacro[]
+    }, 1);
+
+    function refresh() {
+        values = {
+            parentNode: target.parentNode,
+            type: target.type,
+            startTime: target.startTime,
+            endTime: target.endTime,
+            positionX: target.positionX,
+            speed: target.speed,
+            above: target.above,
+            isFake: target.isFake,
+            alpha: target.alpha,
+            yOffset: target.yOffset,
+            size: target.size,
+            visibleBeats: target.visibleBeats,
+            judgeSize: target.judgeSize,
+            tint: target.tint,
+            tintHitEffects: target.tintHitEffects,
+            macro: target.macro as NoteMacro | undefined,
+            linkedMacros: [...(target.linkedMacros ?? [])] as NoteMacro[]
+        };
+    }
+
+    const parentSeq = $node({ get: () => values.parentNode?.parentSeq });
+    const parentLine = $node({ get: () => parentSeq?.parentLine });
+
+    const lineNumber = $node({
+        get: () => selectedLineNumber.get(),
+        listen: (update) => selectedLineNumber.subscribe(update)
+    });
+    const divisor = $node({ get: () => timeDivisor.get(), listen: (update) => timeDivisor.subscribe(update) });
+
+    // 谱面的宏库统一管理所有音符宏，直接从其中取用
+    const noteMacros = $node({
+        get: () => [...(operationList?.chart?.macroLib?.noteMacros.values() ?? [])] as NoteMacro[]
+    });
+
+    /** 绑定、切换（传入另一个宏）或解绑（传入null）音符的宏 */
+    function setMacro(macro: NoteMacro | null) {
+        if (macro) {
+            if (macro === target.macro) return;
+
+            operationList.do(new Op.NoteMacroAssignOperation(macro, target));
+        } else {
+            if (!target.macro) return;
+
+            operationList.do(new Op.NoteMacroDeassginOperation(target));
+        }
+
+        values.macro = target.macro as NoteMacro | undefined;
+    }
+
+    operationList.addEventListener('needsupdate', (opev) => {
+        const operation = opev.operation;
+        const clazz = operation.constructor;
+
+        let op;
+
+        switch (clazz) {
+            case Op.NoteTypeChangeOperation:
+            case Op.NotePropChangeOperation:
+            case Op.HoldEndTimeChangeOperation:
+            case Op.NoteTimeChangeOperation:
+            case Op.NoteYOffsetChangeOperation:
+            case Op.NoteSpeedChangeOperation:
+                op = operation as any;
+                if (op.note !== target) return;
+                break;
+            default:
+                values.parentNode = target.parentNode;
+                return;
+        }
+
+        switch (clazz) {
+            case Op.NoteTypeChangeOperation:
+                values.type = target.type;
+                break;
+            case Op.NotePropChangeOperation:
+                op = op as Op.NotePropChangeOperation<Op.NotePropName>;
+                // @ts-expect-error 动态键
+                values[op.field] = target[op.field];
+                break;
+            case Op.NoteTimeChangeOperation:
+                values.startTime = target.startTime;
+                values.endTime = target.endTime;
+                break;
+            case Op.HoldEndTimeChangeOperation:
+                values.endTime = target.endTime;
+                break;
+            case Op.NoteYOffsetChangeOperation:
+                values.yOffset = target.yOffset;
+                break;
+            case Op.NoteSpeedChangeOperation:
+                values.speed = target.speed;
+                break;
+        }
+    });
+</script>
+
+<Label>Note (from #{values.parentNode?.parentSeq.parentLine.id}.{values.parentNode?.parentSeq.id})</Label>
+{#if !values.parentNode}
+<span style="color: red">{
+    _('main.note.warning-lone-note')
+}</span>
+{:else if parentLine && parentLine.id !== lineNumber}
+<span style="color: yellow">{
+    _('main.note.warning-not-from-selected-line', { values: { line: lineNumber }})
+}</span>
+{/if}
+<Label small>{_('main.note.type')}</Label>
+<PopupOption wide
+    options={[NoteType.tap, NoteType.drag, NoteType.flick, NoteType.hold]}
+    displayTexts={['tap', 'drag', 'flick', 'hold']}
+    bind:currentOption={
+        get: () => values.type,
+        set: (v) => operationList.do(new Op.NoteTypeChangeOperation(target, v))
+    }
+/>
+<Label small>{_('main.note.time')}</Label>
+<div class="time-input">
+    <FractionInput
+        bind:value={
+            get: () => values.startTime,
+            set: (v) => {
+                const node = target.parentNode.parentSeq.getNodeOf(v);
+                operationList.do(new Op.NoteTimeChangeOperation(target, node));
+            }
+        }
+    ></FractionInput>
+    <span>~</span>
+    <FractionInput
+        disabled={values.type !== NoteType.hold}
+        bind:value={
+            get: () => values.endTime,
+            set: (v) => operationList.do(new Op.HoldEndTimeChangeOperation(target, v))
+        }
+    ></FractionInput>
+</div>
+<div class="grid">
+<Label small>{_('main.note.positionX')}</Label>
+<UnitInput
+    bind:value={
+        get: () => values.positionX,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'positionX', v))
+    }
+    unit="px"
+></UnitInput>
+<Label small>{_('main.note.direction')}</Label>
+<TextSwitchButton wide
+    onText={_('main.note.above')}
+    offText={_('main.note.below')}
+    bind:checked={
+        get: () => values.above,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'above', v))
+    }
+></TextSwitchButton>
+<Label small>{_('main.note.speed')}</Label>
+<UnitInput
+    bind:value={
+        get: () => values.speed,
+        set: (v) => operationList.do(new Op.NoteSpeedChangeOperation(
+            target,
+            v,
+            target.parentNode.parentSeq.parentLine
+        ))
+    }
+    unit="x"
+></UnitInput>
+<Label small>{_('main.note.real')}</Label>
+<TextSwitchButton wide
+    onText="Y"
+    offText="N"
+    bind:checked={
+        get: () => !values.isFake,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'isFake', !v))
+    }
+></TextSwitchButton>
+<Label small>{_('main.note.alpha')}</Label>
+<ArrowedInput max={255} min={0}
+    bind:value={
+        get: () => values.alpha ?? 255,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'alpha', v))
+    }
+    suffix={values.alpha?.toString(16)}
+></ArrowedInput>
+<Label small>{_('main.note.absoluteYOffset')}</Label>
+<UnitInput
+    bind:value={
+        get: () => values.yOffset,
+        set: (v) => operationList.do(new Op.NoteYOffsetChangeOperation(target, v, target.parentNode.parentSeq.parentLine))
+    }
+    disabled={values.speed === 0}
+    unit="px"
+></UnitInput>
+<Label small>{_('main.note.visibleBeats')}</Label>
+<ArrowedInput step={1 / divisor}
+    bind:value={
+        get: () => values.visibleBeats,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'visibleBeats', v))
+    }
+></ArrowedInput>
+<Label small>{_('main.note.size')}</Label>
+<UnitInput
+    bind:value={
+        get: () => values.size,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'size', v))
+    }
+    unit="x"
+></UnitInput>
+<Label small>{_('main.note.judgeSize')}</Label>
+<UnitInput
+    bind:value={
+        get: () => values.judgeSize,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'judgeSize', v))
+    }
+    unit="x"
+></UnitInput>
+<Label small>{_('main.note.tint')}</Label>
+<ColorInput
+    bind:value={
+        get: () => values.tint ?? 0xffffff,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'tint', v))
+    }
+></ColorInput>
+<Label small>{_('main.note.tintHitEffect')}</Label>
+<ColorInput
+    bind:value={
+        get: () => values.tintHitEffects ?? 0xffffff,
+        set: (v) => operationList.do(new Op.NotePropChangeOperation(target, 'tintHitEffects', v))
+    }
+></ColorInput>
+</div>
+<Label small>{_('main.note.macro')}</Label>
+{#if values.macro}
+<Button onclick={() => gotoMacro(values.macro)}>
+    {_('main.note.macroBound', { values: { id: values.macro.id } })}
+</Button>
+{:else}
+<span class="no-macro">{_('main.note.noMacro')}</span>
+{/if}
+{#if noteMacros.length > 0}
+<Label small>{_('main.macro.switch')}</Label>
+<PopupOption wide
+    options={[null, ...noteMacros]}
+    displayTexts={[_('main.note.noMacro'), ...noteMacros.map(macro => macro.id)]}
+    bind:currentOption={
+        get: () => values.macro ?? null,
+        set: (value) => {}
+    }
+    onchange={(macro) => setMacro(macro)}
+></PopupOption>
+{/if}
+{#for linkedMacro of values.linkedMacros}
+<Button onclick={() => gotoMacro(linkedMacro)}>
+    {_('main.note.macroLinked', { values: { id: linkedMacro.id } })}
+</Button>
+{/for}
+<Button onclick={
+    () => {
+        notesEditor.defaultNoteConfig = {
+            'absoluteYOffset': target.yOffset,
+            'alpha': target.alpha,
+            'visibleBeats': target.visibleBeats,
+            'size': target.size,
+            'tint': target.tint && [(target.tint >> 16) & 0xff, (target.tint >> 8) & 0xff, target.tint & 0xff],
+            'tintHitEffects': target.tintHitEffects && [(target.tintHitEffects >> 16) & 0xff, (target.tintHitEffects >> 8) & 0xff, target.tintHitEffects & 0xff],
+            'judgeSize': target.judgeSize,
+            'isFake': Number(target.isFake),
+            'speed': target.speed,
+            'isAbove': Number(target.above)
+        }
+    }
+}>{_('main.note.setAsDefault')}</Button>
+<DestructiveButton
+    onclick={
+        () => operationList.do(new Op.NoteDeleteOperation(target))
+    }
+>{_('main.note.delete')}</DestructiveButton>
+
+<script onmount>
+    // 这个面板由外部按需重建，`refresh` 留在这儿方便以后接"同一目标被外部改动"的场景
+    void refresh;
+</script>
+
+<style>
+.time-input {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  align-content: center;
+  justify-content: center;
+}
+.time-input span {
+  margin: auto 0;
+  color: white;
+}
+.grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px;
+  align-items: center;
+  box-sizing: border-box;
+}
+.no-macro {
+  color: var(--color-foreground);
+  font-size: var(--font-size-small);
+  opacity: 0.75;
+}
+</style>

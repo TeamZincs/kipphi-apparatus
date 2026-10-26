@@ -1,0 +1,34 @@
+<script>
+    let {
+        primary = false,
+        wide = false,
+        disabled = false,
+        class: className = '',
+        checked = $bindable(false),
+        onchange: onChange,
+        children
+    } = $props<{
+        primary?: boolean;
+        wide?: boolean;
+        disabled?: boolean;
+        class?: string;
+        checked?: boolean;
+        onchange?: (checked: boolean) => void;
+        children?: () => unknown;
+    }>();
+
+    function toggle() {
+        if (disabled) return;
+
+        checked = !checked;
+        onChange?.(checked);
+    }
+</script>
+
+<div
+    class="icon-button {className} {wide ? 'wide' : ''} {primary ? 'primary' : ''} {checked ? 'checked' : ''} {disabled ? 'disabled' : ''}"
+    role="button"
+    onclick={toggle}
+>
+    {children}
+</div>

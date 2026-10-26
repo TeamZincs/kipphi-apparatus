@@ -1,0 +1,137 @@
+<script>
+    import Label from '#/components/Label.grain';
+    import TextSwitchButton from '#/components/IconButtons/TextSwitchButton.grain';
+    import {
+        selectedLineNumber,
+        notesEditChecked,
+        notesShowsNNN,
+        notesNoteType,
+        operationList,
+        notesScopeSelectMode,
+        notesTimeSpan,
+        notesPositionCenter,
+        notesPositionXInterval,
+        notesEditor,
+        notesAbove
+    } from './store';
+
+    import { t as _ } from '#/i18n';
+    import Tooltip from '#/components/Tooltip.grain';
+    import PopupOption from '#/components/PopupOption/PopupOption.grain';
+    import { NoteType, type NNList } from 'kipphi';
+    import { SelectState } from 'kipphi-canvas-editor';
+    import UnitInput from '#/components/Inputs/UnitInput.grain';
+
+    const lineNumber = $node({
+        get: () => selectedLineNumber.get(),
+        listen: (update) => selectedLineNumber.subscribe(update)
+    });
+    const above = $node({ get: () => notesAbove.get(), listen: (update) => notesAbove.subscribe(update) });
+    const showsNNN = $node({ get: () => notesShowsNNN.get(), listen: (update) => notesShowsNNN.subscribe(update) });
+    const editChecked = $node({
+        get: () => notesEditChecked.get(),
+        listen: (update) => notesEditChecked.subscribe(update)
+    });
+
+    const judgeLine = $node({
+        get: () => operationList.chart.judgeLines[lineNumber],
+        listen: (update) => selectedLineNumber.subscribe(update)
+    });
+
+    const ALL_OPTION: [string, NNList] = ['*', null];
+
+    let currentOption = $state<[string, NNList]>(ALL_OPTION);
+
+    function tupleEq(a: [string, NNList], b: [string, NNList]) {
+        return !!a && !!b && a[0] === b[0] && a[1] === b[1];
+    }
+
+    function buildOptions(): [string, NNList][] {
+        const newOptions: [string, NNList][] = [ALL_OPTION];
+        const line = operationList.chart.judgeLines[selectedLineNumber.get()];
+
+        if (!line) return newOptions;
+
+        line.nnLists.entries().toArray().sort().forEach((entry) => newOptions.push(entry));
+        line.hnLists.entries().toArray().sort().forEach((entry) => newOptions.push(entry));
+
+        return newOptions;
+    }
+
+    // 选项表在侧栏建好时算一次。grain 的子组件 prop 不会跟着父组件状态刷新，
+    // 所以这里不追求"列表变化立刻体现"——切换判线时会整体重建侧栏
+    const options = buildOptions();
+    const optionTexts = options.map((option) => option[0]);
+
+    const modes = [SelectState.none, SelectState.extend, SelectState.replace, SelectState.exclude];
+    const modeTexts = [
+        _('general.modes.none'),
+        _('general.modes.extend'),
+        _('general.modes.replace'),
+        _('general.modes.substract')
+    ];
+
+    operationList.addEventListener('needsupdate', () => {
+        // 仅仅是为了保持 `options` 语义上的"最新"；界面上的下拉不会因此重建
+        buildOptions();
+    });
+</script>
+
+<Label>{_('main.sidebar.notes')}</Label>
+<TextSwitchButton wide bgText={_('main.notes.addNote')}
+    onText="+" offText="-" bind:checked={$store(notesEditChecked)}/>
+<Label small>{_('main.notes.noteType')}</Label>
+<PopupOption wide options={
+    [NoteType.tap, NoteType.hold, NoteType.flick, NoteType.drag]
+} displayTexts={
+    ['Tap', 'Hold', 'Flick', 'Drag']
+} bind:currentOption={$store(notesNoteType)}
+></PopupOption>
+
+<TextSwitchButton wide
+    bind:checked={$store(notesAbove)}
+    onText={_('main.note.above')}
+    offText={_('main.note.below')}
+    bgText={_('main.note.direction')}
+></TextSwitchButton>
+
+<div class="flex">
+    <TextSwitchButton wide bgText={_('main.notes.showsNNN.term')}
+    onText="Y" offText="N" bind:checked={$store(notesShowsNNN)}/>
+    <Tooltip>{_('main.notes.showsNNN.desc')}</Tooltip>
+</div>
+
+<Label small>{_('main.notes.NNList.term')}
+    <Tooltip>{_('main.notes.NNList.desc')}</Tooltip>
+</Label>
+<PopupOption wide
+    options={options}
+    displayTexts={optionTexts}
+    equals={tupleEq}
+    bind:currentOption={
+        get: () => currentOption,
+        set: (v) => {
+            currentOption = v;
+            notesEditor.targetNNList = v[1];
+        }
+    }
+></PopupOption>
+
+<Label small>{_('main.events.timeSpan')}</Label>
+<UnitInput bind:value={$store(notesTimeSpan)} unit={_('general.beat')} step={1}></UnitInput>
+
+<Label small>{_('general.multiSelectMode')}</Label>
+<PopupOption wide options={modes} displayTexts={modeTexts}
+    bind:currentOption={$store(notesScopeSelectMode)}
+></PopupOption>
+
+<UnitInput bind:value={$store(notesPositionCenter)} step={$read(notesPositionXInterval)} unit="px"></UnitInput>
+<Label small>{_('main.notes.positionXInterval')}</Label>
+<UnitInput bind:value={$store(notesPositionXInterval)} step={1} unit="px"></UnitInput>
+
+<style>
+    .flex {
+        display: flex;
+        align-items: center;
+    }
+</style>

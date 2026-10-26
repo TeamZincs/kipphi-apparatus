@@ -1,0 +1,6 @@
+# pnpm does not run dependency build scripts by default; esbuild (used by vite) needs its
+onlyBuiltDependencies:
+  - esbuild
+overrides:
+  '@graints/runtime': link:../grain/packages/runtime
+  '@graints/vite-plugin': link:../grain/packages/vite-plugin

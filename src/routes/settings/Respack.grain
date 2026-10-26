@@ -1,0 +1,90 @@
+<script>
+    import Button from "#/components/buttons/Button.grain";
+    import { t as _ } from "#/i18n";
+    import { getFileInRespack, openPath } from "#/background";
+    import { respackId as currentRespackId, useRespack } from "#/respack";
+
+    let { name, pathname, shortPathname } = $props<{ name: string; pathname: string; shortPathname: string }>();
+
+    const selectedId = $node({
+        get: () => currentRespackId.get(),
+        listen: (update) => currentRespackId.subscribe(update)
+    });
+
+    let tap = $state('');
+    let flick = $state('');
+    let hold = $state('');
+    let drag = $state('');
+
+    async function loadImage(filename: string): Promise<string> {
+        const blob = await getFileInRespack(shortPathname, filename);
+
+        return blob && URL.createObjectURL(blob);
+    }
+</script>
+
+<div class="respack {shortPathname === selectedId ? 'selected' : ''}" role="button" onclick={() => {
+    useRespack(shortPathname);
+}}>
+    <span class="name">{name}</span>
+    <img src={tap} alt="tap"/>
+    <img src={hold} alt="hold" class="hold"/>
+    <img src={flick} alt="flick"/>
+    <img src={drag} alt="drag"/>
+    {#if pathname}
+    <span class="button-field">
+        <Button onclick={() => openPath(pathname)}
+            >{_("main.chart.openInExplorer")}</Button
+        >
+    </span>
+    {/if}
+</div>
+
+<script onmount>
+    void (async () => {
+        tap = await loadImage('click.png');
+        flick = await loadImage('flick.png');
+        hold = await loadImage('hold.png');
+        drag = await loadImage('drag.png');
+    })();
+</script>
+
+<style>
+.name {
+  font-size: var(--font-size-medium);
+  color: var(--color-foreground);
+}
+.respack {
+  box-sizing: border-box;
+  border-radius: var(--border-radius);
+  background-color: #eee3;
+  padding: 1vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 1vh;
+  width: 100%;
+  transition-property: box-shadow, transform;
+  transition-duration: 0.5s;
+  transition-timing-function: ease;
+  max-height: 70vh;
+  scrollbar-width: none;
+}
+.respack .name {
+  grid-column: 1 / 5;
+}
+.respack img {
+  width: 6vh;
+  margin: auto;
+}
+.respack img.hold {
+  max-height: 8vh;
+}
+.respack .button-field {
+  grid-column: 1 / 5;
+  text-align: center;
+}
+.respack.selected {
+  transform: translate(-0.5vh, -0.5vh);
+  box-shadow: 0.5vh 0.5vh 0.5vh #2229;
+}
+</style>

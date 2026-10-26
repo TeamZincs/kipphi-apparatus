@@ -1,0 +1,38 @@
+<script>
+    import { t as _ } from '#/i18n';
+
+    let { onchange, file = $bindable(null), accept = 'image/*' } = $props<{
+        onchange?: (file: File) => void;
+        file?: File;
+        accept?: string;
+    }>();
+
+    let fileName = $state(_('main.judgeline.select'));
+
+    // 用一个游离的 input 当文件选择器（不挂在界面上）
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = accept;
+
+    // 写成具名函数而不是内联箭头：编译器对内联回调里的 `$state` / `$bindable` 写入
+    // 处理有问题（产物会被切坏），具名函数走的是另一条更稳的路
+    function onFileChange() {
+        const picked = fileInput.files[0];
+
+        // 清掉原生值：否则再选同一个文件不会触发 change
+        fileInput.value = '';
+
+        file = picked;
+
+        if (picked) {
+            fileName = picked.name;
+            onchange?.(picked);
+        } else {
+            fileName = _('main.judgeline.select');
+        }
+    }
+
+    fileInput.addEventListener('change', onFileChange);
+</script>
+
+<button class="kpa-button" onclick={() => fileInput.click()}>{fileName}</button>
