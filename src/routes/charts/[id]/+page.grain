@@ -775,7 +775,7 @@ updateTip();
 <div id="cover" style="display: {initialized ? 'none' : ''}">LOADING</div>
 
 <style>
-:root {
+:global(:root) {
   --player-height: 85vh;
   --bottom-bar-height: 11vh;
   --bottom-tips-height: 4vh;

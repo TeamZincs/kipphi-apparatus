@@ -33,7 +33,7 @@
 </main>
 
 <style>
-:root {
+:global(:root) {
   --color-foreground: white;
 }
 .container {
