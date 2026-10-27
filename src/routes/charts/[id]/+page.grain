@@ -3,7 +3,7 @@ import { Player, AudioProcessor, Images, VideoFrameSource, setWasmPath } from "k
 import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
 import { route } from "@graints/runtime";
 import { getChartProject } from "#/background";
-import { setID, registerPageCleanup } from "./store";
+import { setID, setOperationList, registerPageCleanup } from "./store";
 import { Chart, EventEndNode, EventStartNode, EventType, KPAError, Op as O, TC, type ExtendedEventTypeName } from "kipphi";
 
 import { _ } from "#/i18n";
@@ -118,6 +118,18 @@ async function loadProject() {
     });
 }
 
+await loadProject();
+
+/**
+ * `operationList` 必须在模板建起来之前就有。
+ *
+ * grain 的 `{#if}` 只控制"插不插入 DOM"，分支里的内容照样在 create 时建好，
+ * 而侧栏里的 `JudgeLineGroup` / `EventEditor` / `ChartInfoEditor` 建树时就会
+ * `operationList.addEventListener(...)` / 读 `operationList.chart`。
+ * 所以不能等 `boot()` 里再 new（原来 `+page.ts` 的 load 跑完才建组件，没这问题）。
+ */
+const operationList = new O.OperationList(chart);
+setOperationList(operationList);
 
 // @ts-expect-error 仅供调试
 window.Images = Images;
@@ -374,7 +386,6 @@ window.addEventListener("beforeunload", handleExit);
 let initialized = $state(false);
 
 async function boot() {
-    await loadProject();
 
     player = await Player.create(
         playerCanvas,
@@ -396,7 +407,6 @@ async function boot() {
     player.addEventListener("pause", () => {
         isPlaying = false;
     });
-    const operationList = new O.OperationList(chart);
 
     notesEditor = new NotesEditor(
         notesEditorCanvas,
@@ -582,6 +592,7 @@ updateTip();
         <canvas bind:this={notesEditorCanvas} id="ne" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
         <canvas bind:this={eventSequenceEditorCanvas} id="ece" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
     </div>
+    <!-- 画布必须一开始就存在（`Player.create` 拿的就是它们）；侧栏里的面板靠 `{#if}` 惰性建 -->
     <div id="secondary-sidebar">
         <div class="sidebar-shadow"></div>
         <div class="sidebar-content">

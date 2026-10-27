@@ -41,18 +41,15 @@ export function update() {
     ></PopupOption>
 <div class="judgelines-manager" data-key={key}>
     {#if layout === ORDERED}
-        {#for judgeLine of chart.judgeLines}
+        {#for judgeLine of chart.judgeLines with key = judgeLine}
             <JudgeLinePalette target={judgeLine}/>
         {/for}
     {:else if layout === TREE}
-        {#for judgeLine of chart.orphanLines}
-            <JudgeLinePalette
-                level={0}
-                target={judgeLine}
-                children={[...judgeLine.children].sort((a, b) => a.id - b.id)}/>
+        {#for judgeLine of chart.orphanLines with key = judgeLine}
+            <JudgeLinePalette level={0} target={judgeLine}/>
         {/for}
     {:else if layout === GROUPED}
-        {#for group of judgeLineGroups}
+        {#for group of judgeLineGroups with key = group}
             <JudgeLineGroup target={group}/>
         {/for}
         <div class="flex-row">

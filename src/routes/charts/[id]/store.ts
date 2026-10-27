@@ -35,6 +35,13 @@ export let eventSequenceEditors: EventSequenceEditors;
 export let chartId: string;
 export function setID(id: string) { chartId = id; }
 export let operationList: OperationList;
+/**
+ * 先把 `operationList` 塞进 store。
+ *
+ * 侧栏里的组件在建树时就会用它（`addEventListener`、读 `.chart`），而 grain 的 `{#if}`
+ * 只控制插入、内容照样建 —— 所以它得在模板之前就位，不能等 `init()`。
+ */
+export function setOperationList(ol: OperationList) { operationList = ol; }
 export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationList, pl: Player) {
     notesEditor = ne;
     eventSequenceEditors = ece;
