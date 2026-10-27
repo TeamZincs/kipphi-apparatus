@@ -22,7 +22,7 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
     import JudgeLines from "./JudgeLinesManager.grain";
 
 import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
-    operationList,
+    // `operationList` 是本文件里自己 new 出来的（见下方 `setOperationList` 那段），不从 store 取
     eventsType, eventsLayer,
     playerShowsUI, playerShowsLineID, playerHitEffectNoFollows, playerShowsCurve, playerCameraZoom,
     selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
@@ -733,7 +733,8 @@ updateTip();
         </div>
     </div>
     <div id="footer">
-        <PlayButton checked={isPlaying} onchange={(playing) => playing ? play() : player.pause()}/>
+        <!-- `player` 是 onmount 里异步建的：建好之前点了先忽略，别让它冒泡成未捕获错误 -->
+        <PlayButton checked={isPlaying} onchange={(playing) => playing ? play() : player?.pause()}/>
         <GridSwitch bind:checked={showingGrid} onchange={(checked) => {
             if (checked) {
                 notesEditorCanvas.style.display = "";
