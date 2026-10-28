@@ -42,7 +42,8 @@ export function update() {
 <div class="judgelines-manager" data-key={key}>
     {#if layout === ORDERED}
         {#for judgeLine of chart.judgeLines with key = judgeLine}
-            <JudgeLinePalette target={judgeLine}/>
+            <!-- 按序布局是平的：不展开子判定线 -->
+            <JudgeLinePalette target={judgeLine} flat={true}/>
         {/for}
     {:else if layout === TREE}
         {#for judgeLine of chart.orphanLines with key = judgeLine}

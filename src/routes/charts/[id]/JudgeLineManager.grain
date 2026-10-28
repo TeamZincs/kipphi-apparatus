@@ -11,10 +11,18 @@
     } from './store';
     import { Op } from 'kipphi';
 
-    let { level = 0, target, show = true } = $props<{
+    let { level = 0, target, show = true, flat = false } = $props<{
         level?: number;
         target: JudgeLine;
         show?: boolean;
+        /**
+         * 平铺模式：不展开子判定线。
+         *
+         * 以前是父组件"只在树形布局里传 `children`"来区分的。改成组件自己算
+         * `sortedChildren` 之后这个语义丢了 —— 按序布局（ORDERED）也会一层层展开，
+         * 看着就是一棵树。
+         */
+        flat?: boolean;
     }>();
 
     /**
@@ -32,7 +40,9 @@
 
     const sortedChildren = $node({
         get: () => {
-            const source = target.children;
+            // `children` 是 `Set<JudgeLine>`（不是数组）：先展开成数组再逐项比
+            // —— 直接用 `Set.length` / `Set.every` 会恒为 undefined，缓存永远失效
+            const source = [...target.children];
 
             const unchanged =
                 source.length === lastSource.length &&
@@ -40,7 +50,7 @@
 
             if (unchanged) return lastSorted;
 
-            lastSource = [...source];
+            lastSource = source;
             lastSorted = [...source].sort((a, b) => a.id - b.id);
 
             return lastSorted;
@@ -101,7 +111,7 @@
 </script>
 
 <div class="judgeline-manager {displays ? 'selected' : ''}"
-    style="margin-left: {level}em; display: {show ? '' : 'none'}; position: {sortedChildren.length ? 'sticky' : ''}; z-index: {sortedChildren.length ? 1 : 0}; top: {level * 3}em"
+    style="margin-left: {level}em; display: {show ? '' : 'none'}; position: {!flat && sortedChildren.length ? 'sticky' : ''}; z-index: {!flat && sortedChildren.length ? 1 : 0}; top: {level * 3}em"
     onclick={handleClick}
     bind:this={root}
     >
@@ -111,13 +121,13 @@
     >
     <span>x</span><span>{values.moveX?.toFixed?.(2)}</span>
     <span>y</span><span>{values.moveY?.toFixed?.(2)}</span>
-    <span class="triangle {sortedChildren.length > 0 ? '' : 'hidden'} {folded ? 'folded' : ''}"
+    <span class="triangle {!flat && sortedChildren.length > 0 ? '' : 'hidden'} {folded ? 'folded' : ''}"
         onclick={(e) => {folded = !folded; e.stopPropagation()}}
         ></span>
     <span>θ</span><span>{values.rotate !== undefined ? (values.rotate * 180 / Math.PI).toFixed?.(2) : "N/A"}</span>
     <span>α</span><span>{values.alpha !== undefined ? Math.round(values.alpha).toString?.(16) + "/" + Math.round(values.alpha) : "N/A"}</span>
 </div>
-{#if sortedChildren.length > 0}
+{#if !flat && sortedChildren.length > 0}
     <!-- 用判定线对象本身当 key：行复用时不会因为数组重建而整片重刷 -->
     {#for child of sortedChildren with key = child}
         <Self
