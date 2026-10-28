@@ -21,11 +21,30 @@
      * 子判定线（按 id 排序）。
      *
      * 以前是父组件在模板里算 `[...child.children].sort()` 当 prop 传进来 ——
-     * 每次推 props 都是**新数组**，`!==` 恒成立，于是一路往下重刷，dev 的循环保护
-     * 都撑不住。现在在这里算一次：依赖只有 `target`，它不变就不会重算。
+     * 每次推 props 都是**新数组**，`!==` 恒成立，于是一路往下重刷。
+     *
+     * 现在连这里也不再"每次克隆"：数组内容没变就返回**同一份**，让下游的
+     * `{#for}` / props 比较能真的判成"没变"。克隆数组永远带全量刷新的语义 ——
+     * 一次排序就会把整棵子树重推一遍（Nap 那种行多的谱面直接把循环保护打满）。
      */
+    let lastSource: JudgeLine[] = [];
+    let lastSorted: JudgeLine[] = [];
+
     const sortedChildren = $node({
-        get: () => [...target.children].sort((a, b) => a.id - b.id)
+        get: () => {
+            const source = target.children;
+
+            const unchanged =
+                source.length === lastSource.length &&
+                source.every((child, index) => child === lastSource[index]);
+
+            if (unchanged) return lastSorted;
+
+            lastSource = [...source];
+            lastSorted = [...source].sort((a, b) => a.id - b.id);
+
+            return lastSorted;
+        }
     });
 
     let refreshKey = $state(0);
