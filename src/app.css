@@ -22,6 +22,16 @@ html {
     --color-foreground: black;
 }
 
+/*
+ * 挂载点必须撑满：SvelteKit 时代是直接挂到 body，页面的 `.container{height:100%}`
+ * 直接对着 100% 的 body 解析；迁到 grain 后多了一层 `<div id="app">`，它没高度，
+ * 百分比整条链就退化成 auto —— `#content` 被内容撑到几千像素，`#charts` 的
+ * `overflow-y:auto` 也就没有滚动范围，首页直接滚不动。
+ */
+#app {
+    height: 100%;
+}
+
 
 a {
     text-decoration: none;
