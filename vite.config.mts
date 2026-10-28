@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { defineConfig, type PluginOption } from 'vite';
 import electron from 'vite-plugin-electron';
@@ -9,6 +10,79 @@ import grain from '@graints/vite-plugin';
 import TAURI_CONF from './src-tauri/tauri.conf.json';
 
 const host = process.env.TAURI_DEV_HOST;
+
+/** 这几个包是本地 link 的项目仓库，各自的 `node_modules` 里可能还压着一份陈旧的 kipphi */
+const LOCAL_KIPPHI_USERS = ['kipphi-player', 'kipphi-canvas-editor'];
+
+/** 从 `from` 开始往上找 `node_modules/kipphi`，返回真实路径（找不到返回 null） */
+const findKipphi = (from: string): string | null => {
+    let dir = from;
+
+    for (;;) {
+        const candidate = join(dir, 'node_modules', 'kipphi');
+
+        if (existsSync(candidate)) return realpathSync(candidate);
+
+        const parent = dirname(dir);
+
+        if (parent === dir) return null;
+
+        dir = parent;
+    }
+};
+
+const kipphiVersion = (dir: string): string => {
+    try {
+        return JSON.parse(readFileSync(join(dir, 'package.json')).toString()).version ?? '?';
+    } catch {
+        return '?';
+    }
+};
+
+/**
+ * 全项目只能有一份 `kipphi`。
+ *
+ * 本地 link 的包（`kipphi-player` / `kipphi-canvas-editor`）自己 `node_modules` 里
+ * 如果压着一份旧版，打包器会拿到两份声明：rolldown 直接报
+ * `MISSING_EXPORT: "VideoScale" is not exported by ...`（rollup 时代只是被容忍）。
+ * 这种错误很难从报错信息看出是"链接不一致"，所以在 dev/build 开始前直接拦掉。
+ */
+const assertSingleKipphi = (root: string): void => {
+    const ownPath = findKipphi(root);
+
+    if (!ownPath) {
+        throw new Error('[kipphi] 本项目没装 kipphi —— 先 bun install，再 bun link kipphi');
+    }
+
+    const problems: string[] = [];
+
+    for (const name of LOCAL_KIPPHI_USERS) {
+        const packageDir = join(root, 'node_modules', name);
+
+        if (!existsSync(packageDir)) continue;
+
+        const realDir = realpathSync(packageDir);
+        const found = findKipphi(realDir);
+
+        // 自己也找不到时会往上用到本项目这份，不用管
+        if (!found || found === ownPath) continue;
+
+        problems.push(`  ${name}: ${found}  (${kipphiVersion(found)})`);
+    }
+
+    if (problems.length === 0) return;
+
+    throw new Error(
+        [
+            '[kipphi] 检测到多份 kipphi，拒绝启动：',
+            `  本项目: ${ownPath}  (${kipphiVersion(ownPath)})`,
+            ...problems,
+            '',
+            '打包器会因为"不是一个包"而报 MISSING_EXPORT（例如 VideoScale）。',
+            '修复：在右边那几个目录里各跑一次 `bun link kipphi`。'
+        ].join('\n')
+    );
+};
 
 const TAURI_CONF_VERSION = TAURI_CONF.version;
 
@@ -50,6 +124,9 @@ const __playerVersion = getNPMPackageVersion('kipphi-player');
 const __canvasEditorVersion = getNPMPackageVersion('kipphi-canvas-editor');
 const __kipphiVersion = getNPMPackageVersion('kipphi');
 const __dependencies = getDependencies();
+
+// 配置文件所在目录就是项目根（比 process.cwd() 稳：从别处带 --config 跑也不会错）
+assertSingleKipphi(dirname(fileURLToPath(import.meta.url)));
 
 // https://vite.dev/config/
 export default defineConfig(() => {
