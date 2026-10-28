@@ -110,7 +110,7 @@
         "less": "^4.5.1",
         "monaco-editor": "^0.55.1",
         "typescript": "~5.6.3",
-        "vite": "^6.4.1",
+        "vite": "8",
         "vite-plugin-electron": "^0.29.1"
     },
     "main": "dist-electron/main/main.js"
