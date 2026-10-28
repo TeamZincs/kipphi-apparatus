@@ -323,8 +323,27 @@ export function registerReflow(handler: () => void) {
     };
 }
 
+/** 正在广播中（下面的防重入闸） */
+let reflowing = false;
+
 export function reflowAll() {
-    for (const handler of reflowHandlers) handler();
+    /**
+     * 防重入。
+     *
+     * 每个判定线节点都登记了 `refreshKey += 1`，那会重算它自己的 `values` 并刷一片
+     * 槽位。行多的谱面（比如 Nap）里，只要有任何一个环节在这次刷新里又调回
+     * `reflowAll`，就会叠成"刷新 → 广播 → 刷新"的环，10ms 内直接把循环保护打满。
+     * 同一次 flush 里只跑一轮就够了。
+     */
+    if (reflowing) return;
+
+    reflowing = true;
+
+    try {
+        for (const handler of reflowHandlers) handler();
+    } finally {
+        reflowing = false;
+    }
 }
 
 /**
