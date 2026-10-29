@@ -43,8 +43,9 @@
     }>+</ProgressiveButton>
 </div>
 {#if !folded}
-    {#for line of judgeLines}
-    <JudgeLineManager target={line}></JudgeLineManager>
+    {#for line of judgeLines with key = line}
+    <!-- 分组里也是平铺：组已经表达了归属，不必再展开子判定线 -->
+    <JudgeLineManager target={line} flat={true}></JudgeLineManager>
     {/for}
 {/if}
 
