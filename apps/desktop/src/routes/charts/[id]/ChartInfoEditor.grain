@@ -114,10 +114,10 @@
     () => {
         if (target.modified) {
             if (confirm(_("main.chart.confirm"))) {
-                goto("/");
+                navigate("/");
             }
         } else {
-            goto("/");
+            navigate("/");
         }
     }
 }>

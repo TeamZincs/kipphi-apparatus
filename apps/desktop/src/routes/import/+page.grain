@@ -68,7 +68,7 @@
 
         success = true;
 
-        setTimeout(() => goto(`/charts/${idInput.value}`), 3000);
+        setTimeout(() => navigate(`/charts/${idInput.value}`), 3000);
     }
     async function createWithArchive() {
         if (!processing) {
@@ -155,7 +155,7 @@
         await createWithFiles(chart, music, illustration, extraFiles);
 
         success = true;
-        setTimeout(() => goto(`/charts/${idInput.value}`), 3000);
+        setTimeout(() => navigate(`/charts/${idInput.value}`), 3000);
     }
 
     function getTypeAndTitle(content: string): ["RPE" | "KPA1" | "KPA2", string] {

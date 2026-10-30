@@ -195,7 +195,7 @@
 
     success = true;
     setTimeout(() => {
-      goto(`/charts/${id}`);
+      navigate(`/charts/${id}`);
     }, 3000);
 
   }
