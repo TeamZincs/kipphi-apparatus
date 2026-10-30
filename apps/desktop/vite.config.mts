@@ -89,20 +89,29 @@ const TAURI_CONF_VERSION = TAURI_CONF.version;
 const noFrontend = process.argv.includes('--no-frontend');
 const isElectron = process.argv.includes('--electron');
 
+/** 这个配置所在的目录（=`apps/desktop`）；monorepo 下不能再用 cwd 相对路径 */
+const CONFIG_DIR = dirname(fileURLToPath(import.meta.url));
+/** 仓库根：node_modules / static 都在这一层（bun workspaces 会提升到根） */
+const REPO_ROOT = resolve(CONFIG_DIR, '../..');
+
 const getNPMPackageVersion = (packageName: string, stringified = true) => {
-    const jsonContent = readFileSync(`./node_modules/${packageName}/package.json`).toString();
+    const jsonContent = readFileSync(
+        resolve(REPO_ROOT, 'node_modules', packageName, 'package.json')
+    ).toString();
     const version = JSON.parse(jsonContent).version;
     console.log(version);
     return stringified ? JSON.stringify(version) : version;
 };
 
 const getNPMPackageLicense = (packageName: string) => {
-    const jsonContent = readFileSync(`./node_modules/${packageName}/package.json`).toString();
+    const jsonContent = readFileSync(
+        resolve(REPO_ROOT, 'node_modules', packageName, 'package.json')
+    ).toString();
     return JSON.parse(jsonContent).license;
 };
 
 const getDependencies = () => {
-    const jsonContent = readFileSync('./package.json').toString();
+    const jsonContent = readFileSync(resolve(CONFIG_DIR, 'package.json')).toString();
     const dependencyVersions = JSON.parse(jsonContent).dependencies;
     /** @type {import("./dependency").Dependency[]} */
     const dependencies: { name: string; version: string; license: string }[] = [];
@@ -125,8 +134,8 @@ const __canvasEditorVersion = getNPMPackageVersion('kipphi-canvas-editor');
 const __kipphiVersion = getNPMPackageVersion('kipphi');
 const __dependencies = getDependencies();
 
-// 配置文件所在目录就是项目根（比 process.cwd() 稳：从别处带 --config 跑也不会错）
-assertSingleKipphi(dirname(fileURLToPath(import.meta.url)));
+// 从仓库根往下找（cwd 可能被 bun workspace 改过）
+assertSingleKipphi(REPO_ROOT);
 
 // https://vite.dev/config/
 export default defineConfig(() => {
@@ -165,8 +174,8 @@ export default defineConfig(() => {
 
     return {
         plugins,
-        // SvelteKit 时代的 `static/`，grain 这边继续用它当静态目录
-        publicDir: 'static',
+        // 静态目录在仓库根（桌面/移动端共用），不在 apps/desktop 里
+        publicDir: resolve(REPO_ROOT, 'static'),
         // Tauri 期望的构建产物目录
         build: {
             outDir: 'build',

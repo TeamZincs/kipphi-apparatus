@@ -1,6 +1,17 @@
-.DS_Store
+﻿.DS_Store
 node_modules
 /build
+/apps/desktop/build
+/apps/desktop/dist-electron
+/apps/desktop/release
+/apps/mobile/build
+/apps/mobile/dist
+
+# Rust 构建产物
+apps/desktop/src-tauri/target
+# 搬家后遗留的空壳（只剩 target，删掉后可去掉这行）
+/src-tauri/
+
 /.svelte-kit
 /package
 .env
@@ -8,7 +19,6 @@ node_modules
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-
 
 audacity
 

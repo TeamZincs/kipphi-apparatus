@@ -10,6 +10,7 @@
         "frontendDist": "../build"
     },
     "app": {
+        "withGlobalTauri": true,
         "windows": [
             {
                 "title": "kipphi-apparatus",
@@ -75,7 +76,7 @@
                 ]
             }
         },
-        "licenseFile": "../LICENSE"
+        "licenseFile": "../../../LICENSE"
     },
     "plugins": {
         "fs": {}

@@ -29,4 +29,5 @@ tauri-plugin-fs = "2.7"
 tracing = "0.1.41"
 async-stream = "0.3.6"
 futures = "0.3.0"
+tauri-plugin-mcp-bridge = "0.13.2"
 

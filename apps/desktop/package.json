@@ -1,0 +1,118 @@
+{
+    "name": "@kpa/desktop",
+    "version": "2.2.0-beta.2",
+    "private": true,
+    "description": "Kipphi Apparatus - Rhythm Game Chart Editor (desktop)",
+    "author": "TeamZincs",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "build:electron": "vite build -c vite.config.mts -- --electron",
+        "preview": "vite preview",
+        "typecheck": "tsc --noEmit",
+        "tauri": "tauri",
+        "watchLocales": "bun scripts/type-i18n --watch",
+        "locales": "bun scripts/type-i18n",
+        "release": "py scripts/release.py",
+        "ele": "py scripts/build_local.py"
+    },
+    "build": {
+        "appId": "com.zincs.kpa",
+        "productName": "kipphi-apparatus-electron",
+        "directories": {
+            "output": "release"
+        },
+        "publish": {
+            "provider": "github",
+            "owner": "TeamZincs",
+            "repo": "kipphi-apparatus"
+        },
+        "files": [
+            "package.json",
+            {
+                "from": "build",
+                "to": ".",
+                "filter": [
+                    "**/*"
+                ]
+            },
+            "dist-electron/**/*"
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "icon": "src-tauri/icons/icon.ico",
+            "signAndEditExecutable": false,
+            "artifactName": "${productName}-Setup-${version}.${ext}"
+        },
+        "mac": {
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
+            ],
+            "icon": "src-tauri/icons/icon.icns",
+            "category": "public.app-category.music"
+        },
+        "linux": {
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
+            ],
+            "icon": "src-tauri/icons",
+            "category": "Audio"
+        }
+    },
+    "license": "MIT",
+    "dependencies": {
+        "@graints/runtime": "link:@graints/runtime",
+        "@tauri-apps/api": "^2.12.4",
+        "@tauri-apps/plugin-fs": "^2.7.1",
+        "@tauri-apps/plugin-opener": "^2.7.2",
+        "electron-updater": "^6.8.3",
+        "jszip": "^3.10.1",
+        "kipphi": "link:kipphi",
+        "kipphi-canvas-editor": "link:kipphi-canvas-editor",
+        "kipphi-player": "link:kipphi-player",
+        "mime": "^4.1.0",
+        "yaml": "^2.8.2"
+    },
+    "devDependencies": {
+        "@graints/vite-plugin": "link:@graints/vite-plugin",
+        "@internationalized/date": "^3.11.0",
+        "@tauri-apps/cli": "^2.12.4",
+        "@types/node": "^25.5.0",
+        "clsx": "^2.1.1",
+        "electron": "^42.1.0",
+        "electron-builder": "^26.8.1",
+        "less": "^4.5.1",
+        "monaco-editor": "^0.55.1",
+        "typescript": "~5.6.3",
+        "vite": "8",
+        "vite-plugin-electron": "^0.29.1"
+    },
+    "main": "dist-electron/main/main.js"
+}

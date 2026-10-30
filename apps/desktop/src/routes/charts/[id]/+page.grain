@@ -472,6 +472,11 @@ async function boot() {
         activeSecondarySidebar.set(SecondarySidebar.MULTI_NOTE);
     });
     eventSequenceEditors.addEventListenerForAll("nodeselected", (ev) => {
+        // @ts-expect-error 仅供调试
+        window.__lastNode = ev.node;
+        // @ts-expect-error 仅供调试
+        window.__nodeStore = selectedNode;
+
         selectedNode.set(ev.node);
         activeSecondarySidebar.set(SecondarySidebar.EVENT);
     });

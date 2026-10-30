@@ -4,6 +4,10 @@
   "workspaces": {
     "": {
       "name": "kipphi-apparatus",
+    },
+    "apps/desktop": {
+      "name": "@kpa/desktop",
+      "version": "2.2.0-beta.2",
       "dependencies": {
         "@graints/runtime": "link:@graints/runtime",
         "@tauri-apps/api": "^2.12.4",
@@ -11,9 +15,9 @@
         "@tauri-apps/plugin-opener": "^2.7.2",
         "electron-updater": "^6.8.3",
         "jszip": "^3.10.1",
-        "kipphi": "2.2.0-beta.1",
-        "kipphi-canvas-editor": "2.2.0-beta.1",
-        "kipphi-player": "2.2.0-beta.1",
+        "kipphi": "link:kipphi",
+        "kipphi-canvas-editor": "link:kipphi-canvas-editor",
+        "kipphi-player": "link:kipphi-player",
         "mime": "^4.1.0",
         "yaml": "^2.8.2",
       },
@@ -61,6 +65,8 @@
     "@internationalized/date": ["@internationalized/date@3.11.0", "https://registry.npmmirror.com/@internationalized/date/-/date-3.11.0.tgz", { "dependencies": { "@swc/helpers": "^0.5.0" } }, "sha512-BOx5huLAWhicM9/ZFs84CzP+V3gBW6vlpM02yzsdYC7TGlZJX1OJiEEHcSayF00Z+3jLlm4w79amvSt6RqKN3Q=="],
 
     "@isaacs/fs-minipass": ["@isaacs/fs-minipass@4.0.1", "https://registry.npmmirror.com/@isaacs/fs-minipass/-/fs-minipass-4.0.1.tgz", { "dependencies": { "minipass": "^7.0.4" } }, "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w=="],
+
+    "@kpa/desktop": ["@kpa/desktop@workspace:apps/desktop"],
 
     "@malept/cross-spawn-promise": ["@malept/cross-spawn-promise@2.0.0", "https://registry.npmmirror.com/@malept/cross-spawn-promise/-/cross-spawn-promise-2.0.0.tgz", { "dependencies": { "cross-spawn": "^7.0.1" } }, "sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg=="],
 
@@ -432,11 +438,11 @@
 
     "keyv": ["keyv@4.5.4", "https://registry.npmmirror.com/keyv/-/keyv-4.5.4.tgz", { "dependencies": { "json-buffer": "3.0.1" } }, "sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw=="],
 
-    "kipphi": ["kipphi@2.2.0-beta.1", "https://registry.npmmirror.com/kipphi/-/kipphi-2.2.0-beta.1.tgz", { "peerDependencies": { "typescript": "^5" } }, "sha512-2TqFUc7b6dg7KA/57UppJVPo92B/+BhXTm1U2M6QHlrqQnLfRPsqy3iY16mzYJ2bUcqctywWPkwstqPCfkMHbQ=="],
+    "kipphi": ["kipphi@link:kipphi", {}],
 
-    "kipphi-canvas-editor": ["kipphi-canvas-editor@2.2.0-beta.1", "https://registry.npmmirror.com/kipphi-canvas-editor/-/kipphi-canvas-editor-2.2.0-beta.1.tgz", { "dependencies": { "kipphi": "2.2.0-beta.1", "kipphi-player": "2.2.0-beta.1" }, "peerDependencies": { "typescript": "^5" } }, "sha512-8bVo972FiX/TigqfMUI9X8pS0Mv+hVlK4AtalDE8C6X8AEU8S5WtaGkBt5RcciTaTaSoJOSn2zzjAqqTfyb/cg=="],
+    "kipphi-canvas-editor": ["kipphi-canvas-editor@link:kipphi-canvas-editor", {}],
 
-    "kipphi-player": ["kipphi-player@2.2.0-beta.1", "https://registry.npmmirror.com/kipphi-player/-/kipphi-player-2.2.0-beta.1.tgz", { "dependencies": { "kipphi": "2.2.0-beta.1", "yaml": "^2.8.2" }, "peerDependencies": { "typescript": "^5" } }, "sha512-3PM/xwqLVOUgL18lB9l4/l3ZRgXGtJq7mXNiM50Hbb0xBa1auDy0NNHdacsoRMRfmyxIT3vZodcnLkggbLQAoQ=="],
+    "kipphi-player": ["kipphi-player@link:kipphi-player", {}],
 
     "lazy-val": ["lazy-val@1.0.5", "https://registry.npmmirror.com/lazy-val/-/lazy-val-1.0.5.tgz", {}, "sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q=="],
 
