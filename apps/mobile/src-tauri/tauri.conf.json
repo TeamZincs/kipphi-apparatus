@@ -1,0 +1,46 @@
+{
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "kipphi-mobile",
+    "version": "2.2.0-beta.2",
+    "identifier": "com.zincs.kpa.mobile",
+    "build": {
+        "beforeDevCommand": "bun run dev",
+        "devUrl": "http://localhost:1422",
+        "beforeBuildCommand": "bun run build",
+        "frontendDist": "../build"
+    },
+    "app": {
+        "windows": [
+            {
+                "title": "Kipphi",
+                "width": 390,
+                "height": 844,
+                "resizable": true
+            }
+        ],
+        "security": {
+            "csp": {
+                "img-src": ["'self'", "asset:", "data:", "blob:"],
+                "script-src": ["'self'", "blob:", "'unsafe-eval'"],
+                "connect-src": ["'self'", "ipc:", "http://ipc.localhost", "http://tauri.localhost"]
+            },
+            "assetProtocol": {
+                "enable": true,
+                "scope": ["$RESOURCE/**", "$APPDATA/**"]
+            }
+        }
+    },
+    "bundle": {
+        "active": true,
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ]
+    },
+    "plugins": {
+        "fs": {}
+    }
+}

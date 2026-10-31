@@ -1,0 +1,307 @@
+<script>
+    import { bootPlayer, player, seek, togglePlay } from "#/boot";
+    import { currentTime, duration, isPlaying, playerError, playerReady } from "#/store";
+
+    let playerCanvas: HTMLCanvasElement;
+    let box: HTMLDivElement;
+
+    /**
+     * 画布用**固定逻辑分辨率**（跟桌面端一样：高 900，宽 = 高 × 宽高比），
+     * 显示尺寸交给 CSS。按 CSS 像素设 width/height 会随设备像素比抖动，
+     * 而且 Player 的坐标换算、模糊底图都按这个逻辑尺寸算。
+     */
+    const BASE_HEIGHT = 900;
+
+    /** 竖屏 3:2；全屏时强制 16:9（并尝试锁横屏） */
+    let aspect = $state(3 / 2);
+
+    const playerWidth = $node({ get: () => Math.round(aspect * BASE_HEIGHT) });
+
+    function onFullscreenChange() {
+        const fullscreen = !!document.fullscreenElement;
+
+        aspect = fullscreen ? 16 / 9 : 3 / 2;
+
+        // 画布尺寸变了，播放器要重新按新宽高比算一次布局
+        requestAnimationFrame(() => player?.useNewAspect());
+
+        try {
+            if (fullscreen) void screen.orientation?.lock?.("landscape");
+            else screen.orientation?.unlock?.();
+        } catch {
+            // 桌面浏览器 / 部分 WebView 不支持锁方向，忽略
+        }
+    }
+
+
+
+    // store -> 模板：跟桌面端一样用 $node 订阅
+    const ready = $node({ get: () => playerReady.get(), listen: (update) => playerReady.subscribe(update) });
+    const playing = $node({ get: () => isPlaying.get(), listen: (update) => isPlaying.subscribe(update) });
+    const time = $node({ get: () => currentTime.get(), listen: (update) => currentTime.subscribe(update) });
+    const total = $node({ get: () => duration.get(), listen: (update) => duration.subscribe(update) });
+    const failed = $node({ get: () => playerError.get(), listen: (update) => playerError.subscribe(update) });
+
+    let controlsVisible = $state(false);
+    let dragging = $state(false);
+    let seekHint = $state("");
+
+    /** 5s 不用就收回控制条 */
+    const HIDE_DELAY = 5000;
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+    let startX = 0;
+    let startTime = 0;
+    let movedBy = 0;
+
+    function scheduleHide() {
+        if (hideTimer) clearTimeout(hideTimer);
+
+        hideTimer = setTimeout(() => {
+            controlsVisible = false;
+        }, HIDE_DELAY);
+    }
+
+    function showControls() {
+        controlsVisible = true;
+        scheduleHide();
+    }
+
+    function hideControls() {
+        if (hideTimer) clearTimeout(hideTimer);
+        controlsVisible = false;
+    }
+
+    function onPointerDown(event: PointerEvent) {
+        startX = event.clientX;
+        startTime = time;
+        movedBy = 0;
+        dragging = true;
+        showControls();
+    }
+
+    function onPointerMove(event: PointerEvent) {
+        if (!dragging || !box) return;
+
+        const dx = event.clientX - startX;
+
+        if (Math.abs(dx) < 4) return;
+
+        movedBy = dx;
+
+        // 整个宽度 = 整首时长（跟 B 站的横滑手感一致：拖到头就是结尾）
+        const span = total || 30;
+        const scale = span / Math.max(box.clientWidth, 1);
+        const next = startTime + dx * scale;
+
+        seek(next);
+        showControls();
+
+        const delta = next - startTime;
+
+        seekHint = `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}s  ${format(next)}`;
+    }
+
+    function onPointerUp() {
+        if (!dragging) return;
+
+        dragging = false;
+        seekHint = "";
+
+        // 没怎么动 = 点击：切换控制条；拖过就保持显示并重新计时
+        if (Math.abs(movedBy) < 4) {
+            if (controlsVisible) hideControls();
+            else showControls();
+        } else {
+            showControls();
+        }
+    }
+
+    function onProgressInput(event: Event) {
+        event.stopPropagation();
+        seek(Number((event.target as HTMLInputElement).value));
+        showControls();
+    }
+
+    function onTogglePlay(event: MouseEvent) {
+        event.stopPropagation();
+        togglePlay();
+        showControls();
+    }
+
+    function onToggleFullscreen(event: MouseEvent) {
+        event.stopPropagation();
+        showControls();
+
+        if (document.fullscreenElement) {
+            void document.exitFullscreen();
+        } else {
+            void box?.requestFullscreen?.();
+        }
+    }
+
+    function format(seconds: number): string {
+        const value = Math.max(0, seconds || 0);
+        const minutes = Math.floor(value / 60);
+        const rest = Math.floor(value % 60);
+
+        return `${minutes}:${rest.toString().padStart(2, "0")}`;
+    }
+</script>
+
+<script onmount>
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+
+    void bootPlayer(playerCanvas);
+</script>
+
+<div class="player-box" bind:this={box}
+    style="aspect-ratio: {aspect}"
+    onpointerdown={onPointerDown}
+    onpointermove={onPointerMove}
+    onpointerup={onPointerUp}
+    onpointercancel={onPointerUp}
+    onpointerleave={onPointerUp}
+>
+    <!-- 逻辑分辨率（跟桌面端一样按 900 高算），CSS 只负责缩放 -->
+    <canvas class="player-canvas" bind:this={playerCanvas} width={playerWidth} height={BASE_HEIGHT}></canvas>
+
+    {#if !ready}
+        <div class="player-placeholder">
+            {#if failed}
+                <span class="err">播放器初始化失败：{failed}</span>
+            {:else}
+                <span>载入中…</span>
+            {/if}
+        </div>
+    {/if}
+
+    {#if dragging && seekHint !== ""}
+        <div class="seek-hint">{seekHint}</div>
+    {/if}
+
+    <div class="controls {controlsVisible ? "visible" : ""}">
+        <button class="ctrl" onclick={onTogglePlay}>{playing ? "❚❚" : "▶"}</button>
+
+        <input
+            class="progress"
+            type="range"
+            min="0"
+            max={total || 30}
+            step="0.01"
+            value={time}
+            oninput={onProgressInput}
+            onclick={(event) => event.stopPropagation()}
+        />
+
+        <span class="time">{format(time)} / {format(total || 30)}</span>
+
+        <button class="ctrl" onclick={onToggleFullscreen}>⛶</button>
+    </div>
+</div>
+
+<style>
+.player-box {
+    position: relative;
+    width: 100%;
+    /* 实际宽高比由内联样式给（3:2，全屏时 16:9） */
+    aspect-ratio: 3 / 2;
+    background: #000;
+    overflow: hidden;
+    touch-action: none;
+    border-radius: 8px;
+}
+
+/* 全屏时铺满整块屏幕（此时宽高比已经被切成 16:9） */
+.player-box:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+}
+
+.player-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.player-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 13px;
+    background: #000;
+}
+
+.player-placeholder .err {
+    color: #ff8080;
+    padding: 0 12px;
+    text-align: center;
+}
+
+.seek-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: var(--overlay);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+}
+
+.controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    pointer-events: none;
+}
+
+.controls.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.ctrl {
+    border: none;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    font-size: 14px;
+}
+
+.progress {
+    flex: 1;
+    height: 4px;
+    accent-color: var(--accent);
+    min-width: 0;
+}
+
+.time {
+    color: #fff;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    flex: none;
+}
+</style>

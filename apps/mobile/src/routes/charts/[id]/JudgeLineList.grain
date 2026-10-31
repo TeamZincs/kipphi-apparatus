@@ -1,0 +1,64 @@
+<script>
+    import { chart, operationList, selectedLineId } from "#/store";
+
+    const lines = $node({
+        get: () => (chart ? [...chart.judgeLines] : []),
+        listen: (update) => operationList?.addEventListener("needsreflow", update)
+    });
+
+    const currentId = $node({
+        get: () => selectedLineId.get(),
+        listen: (update) => selectedLineId.subscribe(update)
+    });
+
+    function pick(id: number) {
+        selectedLineId.set(id);
+    }
+</script>
+
+<div class="list">
+    {#for line of lines with key = line}
+        <button class="row {line.id === currentId ? 'active' : ''}" onclick={() => pick(line.id)}>
+            <span class="id">#{line.id}</span>
+            <span class="name">{line.name ?? ""}</span>
+        </button>
+    {/for}
+</div>
+
+<style>
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    text-align: left;
+    box-shadow: var(--shadow);
+}
+
+.row.active {
+    border-color: var(--accent);
+    background: var(--surface-2);
+}
+
+.id {
+    color: var(--text-dim);
+    font-size: 12px;
+    min-width: 34px;
+}
+
+.name {
+    font-size: 14px;
+}
+</style>

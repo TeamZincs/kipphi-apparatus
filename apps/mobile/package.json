@@ -1,0 +1,31 @@
+{
+    "name": "@kpa/mobile",
+    "version": "2.2.0-beta.2",
+    "private": true,
+    "type": "module",
+    "description": "Kipphi Apparatus - mobile UI (portrait only)",
+    "scripts": {
+        "dev": "vite",
+        "dev:portrait": "tauri dev",
+        "tauri": "tauri",
+        "build": "vite build",
+        "preview": "vite preview",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@graints/runtime": "link:@graints/runtime",
+        "@kpa/shared": "workspace:*",
+        "@tauri-apps/api": "^2.12.4",
+        "@tauri-apps/plugin-fs": "^2.7.1",
+        "@tauri-apps/plugin-opener": "^2.7.2",
+        "kipphi": "link:kipphi",
+        "kipphi-canvas-editor": "link:kipphi-canvas-editor",
+        "kipphi-player": "link:kipphi-player"
+    },
+    "devDependencies": {
+        "@graints/vite-plugin": "link:@graints/vite-plugin",
+        "@tauri-apps/cli": "^2.12.4",
+        "typescript": "~5.6.3",
+        "vite": "8"
+    }
+}

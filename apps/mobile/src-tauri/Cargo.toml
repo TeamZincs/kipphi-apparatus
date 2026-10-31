@@ -1,0 +1,27 @@
+[package]
+name = "kipphi-mobile"
+version = "2.2.0"
+description = "Kipphi Apparatus - mobile (portrait)"
+authors = ["TeamZincs"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+# `_lib` 后缀看着多余，但 Windows 下必须：lib 名不能和 bin 名撞
+name = "kipphi_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+license = "MIT"
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+# 版本要和 npm 那边的 @tauri-apps/api / plugin-* 对齐（Tauri 会校验 major/minor 一致）
+tauri = { version = "2.12", features = ["protocol-asset", "devtools"] }
+tauri-plugin-opener = "2.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-fs = "2.7"
+tracing = "0.1.41"
+async-stream = "0.3.6"
+futures = "0.3.0"

@@ -1,0 +1,57 @@
+/*
+ * 移动端主题：浅色 / 深色两套变量，挂在 <html data-theme> 上。
+ * 组件里的 <style> 只写布局，颜色一律走这里的变量，换主题时不用改第二处。
+ */
+:root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #eaeef3;
+    --text: #1a1d21;
+    --text-dim: #6b7280;
+    --accent: #2f6fed;
+    --border: #d9dee6;
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    --overlay: rgba(255, 255, 255, 0.92);
+}
+
+:root[data-theme='dark'] {
+    --bg: #0f1115;
+    --surface: #171a20;
+    --surface-2: #20242c;
+    --text: #e6e8ec;
+    --text-dim: #98a0ac;
+    --accent: #5b9bff;
+    --border: #2a2f38;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+    --overlay: rgba(12, 14, 18, 0.86);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+#app {
+    height: 100%;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, 'Noto Sans SC', 'PingFang SC', sans-serif;
+    /* 编辑器自己处理手势，禁掉页面级的下拉刷新与长按选择 */
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+}

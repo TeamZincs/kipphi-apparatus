@@ -1,0 +1,155 @@
+<script>
+    import { navigate, route } from "@graints/runtime";
+
+    // 这几个都只在这个页面用一次，所以放在同目录，不占 components/
+    import PlayerBox from "./PlayerBox.grain";
+    import JudgeLineList from "./JudgeLineList.grain";
+    import NotesPane from "./NotesPane.grain";
+    import EventsPane from "./EventsPane.grain";
+
+    import { activeTab, loadChart, loadError, ready, type MobileTab } from "#/store";
+
+    const tab = $node({ get: () => activeTab.get(), listen: (update) => activeTab.subscribe(update) });
+    const isReady = $node({ get: () => ready.get(), listen: (update) => ready.subscribe(update) });
+    const failed = $node({ get: () => loadError.get(), listen: (update) => loadError.subscribe(update) });
+
+    const tabs: Array<{ id: MobileTab; label: string }> = [
+        { id: "lines", label: "判定线列表" },
+        { id: "notes", label: "音符画布" },
+        { id: "events", label: "事件画布" }
+    ];
+
+    function pick(id: MobileTab) {
+        activeTab.set(id);
+    }
+
+    function back() {
+        navigate("/");
+    }
+</script>
+
+<script onmount>
+    // 路由参数在这一刻已经由 router 写好了
+    void loadChart(route.get().params.id ?? null);
+</script>
+
+<main class="app">
+    {#if isReady}
+        <section class="player">
+            <PlayerBox></PlayerBox>
+        </section>
+
+        <section class="content">
+            {#if tab === "lines"}
+                <JudgeLineList></JudgeLineList>
+            {:else if tab === "notes"}
+                <NotesPane></NotesPane>
+            {:else}
+                <EventsPane></EventsPane>
+            {/if}
+        </section>
+
+        <nav class="tabs">
+            {#for item of tabs with key = item}
+                <button class="tab {item.id === tab ? 'active' : ''}" onclick={() => pick(item.id)}>
+                    {item.label}
+                </button>
+            {/for}
+        </nav>
+    {:else}
+        <div class="center">
+            {#if failed}
+                <p class="err">打开谱面失败：{failed}</p>
+                <button class="back-inline" onclick={back}>返回</button>
+            {:else}
+                <p>正在打开谱面…</p>
+            {/if}
+        </div>
+    {/if}
+
+    <!-- 返回：不做顶栏，就浮一个小按钮在左上角 -->
+    <button class="back" onclick={back} aria-label="返回">‹</button>
+</main>
+
+<style>
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: env(safe-area-inset-top) 0 0;
+}
+
+.player {
+    flex: none;
+    padding: 8px;
+}
+
+.content {
+    flex: 1;
+    min-height: 0;
+}
+
+.tabs {
+    display: flex;
+    flex: none;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 12px 4px;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+.tab.active {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-dim);
+    font-size: 14px;
+}
+
+.err {
+    color: #d9534f;
+    padding: 0 16px;
+    text-align: center;
+}
+
+.back-inline {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 8px 16px;
+}
+
+.back {
+    position: fixed;
+    left: 12px;
+    top: calc(12px + env(safe-area-inset-top));
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.42);
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+</style>
