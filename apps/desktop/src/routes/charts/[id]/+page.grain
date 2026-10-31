@@ -1,6 +1,6 @@
 <script>
 import { Player, AudioProcessor, Images, VideoFrameSource, setWasmPath } from "kipphi-player";
-import { EventSequenceEditors, NotesEditor, NotesEditorState } from "kipphi-canvas-editor";
+import { EventSequenceEditors, NotesEditor, NotesEditorState } from "@kpa/canvas";
 import { route } from "@graints/runtime";
 import { getChartProject } from "#/background";
 import { setID, setOperationList, registerPageCleanup } from "./store";

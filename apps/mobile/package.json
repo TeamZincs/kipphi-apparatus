@@ -19,7 +19,7 @@
         "@tauri-apps/plugin-fs": "^2.7.1",
         "@tauri-apps/plugin-opener": "^2.7.2",
         "kipphi": "link:kipphi",
-        "kipphi-canvas-editor": "link:kipphi-canvas-editor",
+        "@kpa/canvas": "workspace:*",
         "kipphi-player": "link:kipphi-player"
     },
     "devDependencies": {

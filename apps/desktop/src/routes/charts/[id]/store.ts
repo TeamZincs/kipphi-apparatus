@@ -1,5 +1,5 @@
 import { writable } from "@graints/runtime";
-import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState, NewNodeState, EventSequenceEditor } from "kipphi-canvas-editor"
+import { type NotesEditor, type EventSequenceEditors, NotesEditorState, EventCurveEditorState, SelectState, NewNodeState, EventSequenceEditor } from "@kpa/canvas"
 import { easingArray, EventEndNode, EventNode, EventStartNode, EventType, NNList, Note, NoteType, type EventMacroTime, type EventMacroValue, type ExtendedEventTypeName, type MacroEvaluator, type NoteMacro, type Op } from "kipphi";
 import type { Player } from "kipphi-player";
 type OperationList = Op.OperationList;
@@ -237,7 +237,12 @@ eventsType.subscribe(v => {
         eventSequenceEditors.activatedEditor = eventSequenceEditors.general;
         return;
     }
-    const e = eventSequenceEditors.activatedEditor = eventSequenceEditors[v];
+    // 按事件类型名取编辑器：`EventSequenceEditors` 没有索引签名（运行时是有的），
+    // 各类型编辑器的公共基类上才有 `state`，所以这里只能放宽成 any
+    const e = eventSequenceEditors.activatedEditor = (eventSequenceEditors as unknown as Record<
+        string,
+        any
+    >)[v];
     eventsEditChecked.set(e.state === EventCurveEditorState.edit);
     if (v === "easing") {
         switchEasing(templateName.get())

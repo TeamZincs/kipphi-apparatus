@@ -1,4 +1,4 @@
-import { BezierEditor } from 'kipphi-canvas-editor';
+import { BezierEditor } from '@kpa/canvas';
 
 /**
  * 贝塞尔曲线编辑器的单例。

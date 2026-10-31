@@ -1,0 +1,23 @@
+{
+    "name": "@kpa/canvas",
+    "version": "2.2.0-beta.1",
+    "private": true,
+    "type": "module",
+    "description": "Kipphi Apparatus - 画布编辑器内核（音符 / 事件曲线 / 缓动曲线 / 选择)",
+    "main": "src/index.ts",
+    "module": "src/index.ts",
+    "exports": {
+        ".": "./src/index.ts",
+        "./messages": "./src/messages.ts",
+        "./notesEditor": "./src/notesEditor.ts",
+        "./eventCurveEditor": "./src/eventCurveEditor.ts",
+        "./bezierEditor": "./src/bezierEditor.ts",
+        "./selectionManager": "./src/selectionManager.ts",
+        "./coordinate": "./src/coordinate.ts",
+        "./util": "./src/util.ts"
+    },
+    "dependencies": {
+        "kipphi": "link:kipphi",
+        "kipphi-player": "link:kipphi-player"
+    }
+}

@@ -1,4 +1,4 @@
-﻿import { EventSequenceEditors, NotesEditor } from 'kipphi-canvas-editor';
+import { EventSequenceEditors, NotesEditor } from '@kpa/canvas';
 import {
     AudioProcessor,
     Images,

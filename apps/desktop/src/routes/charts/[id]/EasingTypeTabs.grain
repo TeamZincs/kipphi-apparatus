@@ -1,8 +1,8 @@
 <script>
-    import { SelectionManager } from "kipphi-canvas-editor";
-    import type { LTWH } from "kipphi-canvas-editor/notesEditor";
+    import { SelectionManager } from "@kpa/canvas";
+    import type { LTWH } from "@kpa/canvas/notesEditor";
     import { identity, type Matrix33 } from "kipphi-player";
-    import { getCanvasCoordFromEvent, on } from "kipphi-canvas-editor/util";
+    import { getCanvasCoordFromEvent, on } from "@kpa/canvas/util";
     import {
         Easing,
         EasingType,

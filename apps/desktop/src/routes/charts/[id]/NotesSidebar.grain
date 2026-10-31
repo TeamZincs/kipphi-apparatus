@@ -19,7 +19,7 @@
     import Tooltip from '#/components/Tooltip.grain';
     import PopupOption from '#/components/PopupOption/PopupOption.grain';
     import { NoteType, type NNList } from 'kipphi';
-    import { SelectState } from 'kipphi-canvas-editor';
+    import { SelectState } from '@kpa/canvas';
     import UnitInput from '#/components/Inputs/UnitInput.grain';
 
     const lineNumber = $node({

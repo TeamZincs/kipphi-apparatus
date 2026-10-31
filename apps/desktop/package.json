@@ -96,7 +96,7 @@
         "electron-updater": "^6.8.3",
         "jszip": "^3.10.1",
         "kipphi": "link:kipphi",
-        "kipphi-canvas-editor": "link:kipphi-canvas-editor",
+        "@kpa/canvas": "workspace:*",
         "kipphi-player": "link:kipphi-player",
         "mime": "^4.1.0",
         "yaml": "^2.8.2"

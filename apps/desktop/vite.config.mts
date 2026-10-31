@@ -12,7 +12,8 @@ import TAURI_CONF from './src-tauri/tauri.conf.json';
 const host = process.env.TAURI_DEV_HOST;
 
 /** 这几个包是本地 link 的项目仓库，各自的 `node_modules` 里可能还压着一份陈旧的 kipphi */
-const LOCAL_KIPPHI_USERS = ['kipphi-player', 'kipphi-canvas-editor'];
+// 画布编辑器已经吸进本仓库（`packages/canvas`），不再是外部 link 包
+const LOCAL_KIPPHI_USERS = ['kipphi-player'];
 
 /** 从 `from` 开始往上找 `node_modules/kipphi`，返回真实路径（找不到返回 null） */
 const findKipphi = (from: string): string | null => {
@@ -42,7 +43,7 @@ const kipphiVersion = (dir: string): string => {
 /**
  * 全项目只能有一份 `kipphi`。
  *
- * 本地 link 的包（`kipphi-player` / `kipphi-canvas-editor`）自己 `node_modules` 里
+ * 本地 link 的包（`kipphi-player`）自己 `node_modules` 里
  * 如果压着一份旧版，打包器会拿到两份声明：rolldown 直接报
  * `MISSING_EXPORT: "VideoScale" is not exported by ...`（rollup 时代只是被容忍）。
  * 这种错误很难从报错信息看出是"链接不一致"，所以在 dev/build 开始前直接拦掉。
@@ -116,7 +117,7 @@ const getDependencies = () => {
     /** @type {import("./dependency").Dependency[]} */
     const dependencies: { name: string; version: string; license: string }[] = [];
     for (const name in dependencyVersions) {
-        if (['kipphi', 'kipphi-player', 'kipphi-canvas-editor'].includes(name)) {
+        if (['kipphi', 'kipphi-player', '@kpa/canvas'].includes(name)) {
             continue;
         }
         dependencies.push({
@@ -130,7 +131,7 @@ const getDependencies = () => {
 
 // compute at top level so defineConfig stays sync
 const __playerVersion = getNPMPackageVersion('kipphi-player');
-const __canvasEditorVersion = getNPMPackageVersion('kipphi-canvas-editor');
+const __canvasEditorVersion = getNPMPackageVersion('@kpa/canvas');
 const __kipphiVersion = getNPMPackageVersion('kipphi');
 const __dependencies = getDependencies();
 

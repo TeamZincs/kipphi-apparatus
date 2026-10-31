@@ -9,7 +9,7 @@
  * 换语言不会自动重画。换语言只发生在设置页，所以这里换完直接整页重载 ——
  * 简单、且不会留下"有些字没换"的半吊子状态。
  */
-import { setLocale as KPCESetLocale } from 'kipphi-canvas-editor/messages';
+import { setLocale as KPCESetLocale } from '@kpa/canvas/messages';
 
 import { KPASettings } from './settings';
 import type { I18nMapping } from './i18n-types';

@@ -19,10 +19,10 @@
     import TextSwitchButton from '#/components/IconButtons/TextSwitchButton.grain';
     import EasingBox from './EasingBox.grain';
     import ProgressiveButton from '#/components/buttons/ProgressiveButton.grain';
-    import { EventSequenceEditor } from 'kipphi-canvas-editor/eventCurveEditor';
+    import { EventSequenceEditor } from '@kpa/canvas/eventCurveEditor';
     import { notify } from '#/notify';
     import { eventSequenceEditors } from './store';
-    import { SelectState, NumericEventCurveEditor, NewNodeState } from 'kipphi-canvas-editor';
+    import { SelectState, NumericEventCurveEditor, NewNodeState } from '@kpa/canvas';
     import SuggestionInput from '#/components/Inputs/SuggestionInput.grain';
     import Tooltip from '#/components/Tooltip.grain';
 
