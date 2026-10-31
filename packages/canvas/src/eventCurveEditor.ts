@@ -1434,7 +1434,18 @@ export abstract class EventSequenceEditor<
     VT extends EventValueESType,
 > extends EventSequenceEditorBase {
     readonly valueType: EventValueTypeOfType<VT>;
-    override readonly type: EventType;
+    /**
+     * `declare` 而不是 `override readonly type: EventType;`
+     *
+     * 带 `override` 但**没有初始化器**的字段声明，在 `useDefineForClassFields`
+     * （target ES2022 的默认值）下会被发射成自有属性，把基类构造函数
+     * （`public readonly type` 参数属性）赋好的值覆盖成 undefined。
+     * `this.type` 是这个编辑器判断 bpm / easing / speed 分支的依据，
+     * 被覆盖后 `EventType[this.type]` 全是 undefined。
+     *
+     * 与 kipphi 侧 `EventNodeLike.parentSeq` 是同一类问题。
+     */
+    declare readonly type: EventType;
 
     target: EventNodeSequence<VT>;
     targetEasing?: TemplateEasing;
@@ -2140,7 +2151,12 @@ export abstract class EventSequenceEditor<
     }
 
     // begin 以下朝生夕死，不配置不可读的状态。如果你觉得哪个应该是可读的，请提issue拷打杨哲思
-    protected override selectionManager: SelectionManager<
+    /**
+     * 同样要 `declare`：基类构造函数里 `this.selectionManager = new SelectionManager()`，
+     * 子类这条**没有初始化器**的声明会在之后把自有属性覆盖成 undefined
+     * （`useDefineForClassFields`，target ES2022 的默认值），选中状态直接失效。
+     */
+    declare protected selectionManager: SelectionManager<
         EventStartNode<VT> | EventEndNode<VT> | "return"
     >;
     protected startingPoint: Coordinate;
