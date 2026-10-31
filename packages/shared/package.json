@@ -1,0 +1,24 @@
+{
+    "name": "@kpa/shared",
+    "version": "2.2.0-beta.2",
+    "private": true,
+    "type": "module",
+    "description": "Kipphi Apparatus - 桌面/移动端共用的逻辑层（Tauri 读写、mime、解压）",
+    "exports": {
+        ".": "./src/index.ts",
+        "./background/tauri": "./src/background/tauri.ts",
+        "./mime": "./src/mime.ts",
+        "./mime-types": "./src/mime-types.ts",
+        "./uncompress": "./src/uncompress.ts",
+        "./workers/unzip.worker": "./src/workers/unzip.worker.ts"
+    },
+    "dependencies": {
+        "@tauri-apps/api": "^2.12.4",
+        "@tauri-apps/plugin-fs": "^2.7.1",
+        "@tauri-apps/plugin-opener": "^2.7.2",
+        "jszip": "^3.10.1",
+        "kipphi": "link:kipphi",
+        "mime": "^4.1.0",
+        "yaml": "^2.8.2"
+    }
+}

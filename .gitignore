@@ -9,6 +9,8 @@ node_modules
 
 # Rust 构建产物
 apps/desktop/src-tauri/target
+apps/mobile/src-tauri/target
+apps/mobile/src-tauri/gen/schemas/android-schema.json
 # 搬家后遗留的空壳（只剩 target，删掉后可去掉这行）
 /src-tauri/
 

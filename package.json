@@ -10,6 +10,7 @@
     ],
     "scripts": {
         "dev": "cd apps/desktop && bun run dev",
+        "dev:mobile": "cd apps/mobile && bun run dev:portrait",
         "build": "cd apps/desktop && bun run build",
         "typecheck": "cd apps/desktop && bun run typecheck",
         "tauri": "cd apps/desktop && bun run tauri",

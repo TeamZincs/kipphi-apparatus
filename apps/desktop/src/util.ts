@@ -1,4 +1,3 @@
-import mime from "./mime";
 
 /**
  * 获取文件的扩展名。
@@ -25,15 +24,8 @@ export function getExtension(file: File) {
     }
 }
 
-export function getExtensionFromName(filename: string) {
-    return filename.match(/\.([^.]+)$/)?.[1] || null;
-}
-
- 
-
-export function getMimeTypeFromName(filename: string) {
-    return mime.getType(filename)
-}
+// 这两个已经搬进 `@kpa/shared/mime`（移动端也要用），这里保留导出免得改一堆调用点
+export { getExtensionFromName, getMimeTypeFromName } from '@kpa/shared/mime';
 
 export function addListenerForElements<T extends keyof HTMLElementEventMap>(elements: HTMLElement[], type: T, fn: (event: HTMLElementEventMap[T]) => void) {
     for (const ele of elements) {

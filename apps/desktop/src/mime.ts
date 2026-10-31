@@ -1,12 +1,2 @@
-import { Mime } from "mime";
-
-import standardTypes from 'mime/types/standard.js';
-import otherTypes from 'mime/types/other.js';
-
-const mime = new Mime(standardTypes, otherTypes);
-
-mime.define({
-    "audio/mpeg": ["mp3"] // RPE不认识.mpga
-}, true)
-
-export default mime;
+// 统一的 Mime 实例搬进 `@kpa/shared/mime-types`（移动端也用同一份）
+export { default } from '@kpa/shared/mime-types';
