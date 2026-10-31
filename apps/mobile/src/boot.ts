@@ -12,6 +12,7 @@ import {
 import { fetchTexture, _ReturnType } from '@kpa/shared/background/tauri';
 
 import { readDefaultRespackFile } from './tauri';
+import { scheduleSave } from './save';
 
 import {
     chart,
@@ -177,7 +178,14 @@ export async function bootPlayer(canvas: HTMLCanvasElement): Promise<void> {
         // `playSounds` 里 `undefined.type` 崩）、同步资源并 warmup
         await player.receive(chart);
 
-        if (operationList) player.watch(operationList);
+        if (operationList) {
+            player.watch(operationList);
+
+            // 任何一次操作（含撤销/重做）都排一次自动保存
+            for (const type of ['do', 'undo', 'redo'] as const) {
+                operationList.addEventListener(type, () => scheduleSave());
+            }
+        }
 
         if (!musicUrl) {
             // 没有音源：`time` 会一直读 audio.currentTime（恒为 0），改成自己推 offlineTime
@@ -200,6 +208,35 @@ export async function bootPlayer(canvas: HTMLCanvasElement): Promise<void> {
 /** 播放状态与进度同步 */
 let lastFrame = 0;
 
+/** 上一次同步给画布编辑器的拍数（只在真的变了才重绘） */
+let lastBeats = Number.NaN;
+/** 上一次重绘编辑器的时刻（播放时限流用） */
+let lastEditorDraw = 0;
+
+/**
+ * 播放器是时间的**唯一来源**：每帧把当前拍数喂给两个画布编辑器。
+ *
+ * 桌面端只在滚动/拖进度条时手动 `draw()` 一次；移动端播放时画面是动的，
+ * 这里按帧同步（拍数没变就跳过）。
+ */
+function drawEditorsAt(beats: number): void {
+    if (!Number.isFinite(beats)) return;
+    // 没有判定线时编辑器还没 target，画会报错
+    if (!lineOf(selectedLineId.get())) return;
+    if (Math.abs(beats - lastBeats) < 1e-6) return;
+
+    // 播放时每帧重绘两个 600×900 的画布太费，限到 ~20fps；
+    // 暂停（拖进度条）时不限，保证松手就位
+    const now = performance.now();
+
+    if (isPlaying.get() && now - lastEditorDraw < 50) return;
+
+    lastBeats = beats;
+    lastEditorDraw = now;
+    notesEditor?.draw(beats);
+    eventEditors?.draw(beats);
+}
+
 function startTicker(): void {
     const step = (now: number) => {
         if (player) {
@@ -213,6 +250,8 @@ function startTicker(): void {
                     currentTime.set(player.offlineTime);
                 }
             }
+
+            drawEditorsAt(player.renderingBeats);
         }
 
         lastFrame = now;
@@ -220,6 +259,14 @@ function startTicker(): void {
     };
 
     requestAnimationFrame(step);
+}
+
+/** 强制暂停（拖进度条时用） */
+export function pause(): void {
+    if (!player) return;
+
+    player.pause();
+    isPlaying.set(false);
 }
 
 export function togglePlay(): void {
@@ -254,6 +301,13 @@ export function seek(time: number): void {
     }
 
     currentTime.set(next);
+
+    // 暂停时没有播放循环，得手动把现在的画面和两个编辑器刷到新位置
+    requestAnimationFrame(() => {
+        player?.render();
+        lastBeats = Number.NaN;
+        if (player) drawEditorsAt(player.renderingBeats);
+    });
 }
 
 /** 编辑器画布的逻辑尺寸（模板里写死 600×900，跟桌面端一致） */

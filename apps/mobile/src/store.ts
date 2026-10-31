@@ -71,7 +71,8 @@ export async function loadChart(id: string | null): Promise<void> {
 
             chartId = id;
             chart = project.chart;
-            illustration = project.illustration;
+            // `getChartProject` 默认给的是 Blob，播放器要 ImageBitmap
+            illustration = project.illustration ? await createImageBitmap(project.illustration) : null;
             musicUrl = project.music ? URL.createObjectURL(project.music) : null;
             operationList = new Op.OperationList(chart);
         } else {

@@ -1,7 +1,15 @@
 /*
- * 移动端主题：浅色 / 深色两套变量，挂在 <html data-theme> 上。
- * 组件里的 <style> 只写布局，颜色一律走这里的变量，换主题时不用改第二处。
+ * 移动端全局样式。
+ *
+ * 一条硬规则：整页**不滚动**、不留白。移动端的交互都发生在三块固定区域里
+ * （播放器 / 标签栏 / 内容区），页面本身一旦能滚，手势就会互相打架。
  */
+@font-face {
+    font-family: phigros;
+    src: url('/cmdysj.ttf');
+    font-display: swap;
+}
+
 :root {
     --bg: #f4f6f8;
     --surface: #ffffff;
@@ -34,24 +42,31 @@ html,
 body {
     height: 100%;
     margin: 0;
+    padding: 0;
+    overflow: hidden;
+    /* 顶住 iOS 的橡皮筋：整页固定住，只有内容区自己滚 */
+    position: fixed;
+    inset: 0;
+    overscroll-behavior: none;
 }
 
 #app {
     height: 100%;
+    overflow: hidden;
 }
 
 body {
     background: var(--bg);
     color: var(--text);
-    font-family: system-ui, -apple-system, 'Noto Sans SC', 'PingFang SC', sans-serif;
-    /* 编辑器自己处理手势，禁掉页面级的下拉刷新与长按选择 */
-    overscroll-behavior: none;
+    font-family: phigros, system-ui, -apple-system, 'Noto Sans SC', 'PingFang SC', sans-serif;
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 button {
     font: inherit;
     color: inherit;
+    border-radius: 0;
 }

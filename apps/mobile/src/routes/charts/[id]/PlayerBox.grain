@@ -1,5 +1,5 @@
 <script>
-    import { bootPlayer, player, seek, togglePlay } from "#/boot";
+    import { bootPlayer, pause, player, seek, togglePlay } from "#/boot";
     import { currentTime, duration, isPlaying, playerError, playerReady } from "#/store";
 
     let playerCanvas: HTMLCanvasElement;
@@ -77,6 +77,9 @@
         startTime = time;
         movedBy = 0;
         dragging = true;
+
+        // 一按就暂停：拖进度条的时候声音继续放会很乱（桌面端拖动也是先 pause）
+        pause();
         showControls();
     }
 
@@ -110,7 +113,7 @@
 
         // 没怎么动 = 点击：切换控制条；拖过就保持显示并重新计时
         if (Math.abs(movedBy) < 4) {
-            if (controlsVisible) hideControls();
+            if (controlsVisible) scheduleHide();
             else showControls();
         } else {
             showControls();
@@ -209,7 +212,9 @@
     background: #000;
     overflow: hidden;
     touch-action: none;
-    border-radius: 8px;
+    /* 贴边：不要圆角，也不要外边距 */
+    border-radius: 0;
+    margin: 0;
 }
 
 /* 全屏时铺满整块屏幕（此时宽高比已经被切成 16:9） */
