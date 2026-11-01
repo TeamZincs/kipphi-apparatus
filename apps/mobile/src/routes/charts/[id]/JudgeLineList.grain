@@ -1,5 +1,5 @@
 <script>
-    import type { JudgeLine } from "kipphi";
+    import { Op, type JudgeLine } from "kipphi";
 
     import Select from "#/components/Select.grain";
 
@@ -9,7 +9,7 @@
      * 三种布局，跟桌面端 `JudgeLinesManager` 一致：
      *   ordered —— `chart.judgeLines` 平铺（不展开子判定线）
      *   tree    —— 从 `orphanLines` 递归展开 children
-     *   grouped —— 按 `judgeLineGroups` 分组显示
+     *   grouped —— 按 `judgeLineGroups` 分组
      */
     type Layout = "ordered" | "tree" | "grouped";
 
@@ -18,9 +18,30 @@
         id?: number;
         text: string;
         level: number;
+        /** 树形：有没有子判定线（决定显不显示折叠三角） */
+        hasChildren?: boolean;
+        folded?: boolean;
+        /** 组的成员数 */
+        count?: number;
+        x?: string;
+        y?: string;
+        rotate?: string;
+        alpha?: string;
     }
 
+    const ACTION_WIDTH = 132;
+
     let layout = $state<Layout>("ordered");
+
+    /** 折叠起来的判定线 id 与组名（用数组，改了直接换引用才能触发刷新） */
+    let foldedIds = $state<number[]>([]);
+    let foldedGroups = $state<string[]>([]);
+
+    /** 当前左滑展开操作的那一行 */
+    let openId = $state<number | null>(null);
+    let dragId: number | null = null;
+    let dragOffset = $state(0);
+    let dragStartX = 0;
 
     const layoutOptions = [
         { value: "ordered", label: "顺序" },
@@ -30,11 +51,33 @@
 
     const byId = (a: JudgeLine, b: JudgeLine) => a.id - b.id;
 
-    /** 树形：从根判定线往下递归（这里拍平成带缩进的行，避免组件自递归） */
+    const num = (value: number | undefined, digits = 1): string =>
+        typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
+
+    const stats = (line: JudgeLine) => ({
+        x: num(line.moveX),
+        y: num(line.moveY),
+        rotate: num(((line.rotate ?? 0) * 180) / Math.PI),
+        alpha: num(line.alpha, 0)
+    });
+
+    /** 树形：从根判定线往下递归，遇到折叠的就不往下走 */
     function walk(lines: Iterable<JudgeLine>, level: number, out: Row[]): void {
         for (const line of [...lines].sort(byId)) {
-            out.push({ kind: "line", id: line.id, text: line.name ?? "", level });
-            walk(line.children, level + 1, out);
+            const children = [...line.children];
+            const folded = foldedIds.includes(line.id);
+
+            out.push({
+                kind: "line",
+                id: line.id,
+                text: line.name ?? "",
+                level,
+                hasChildren: children.length > 0,
+                folded,
+                ...stats(line)
+            });
+
+            if (!folded && children.length > 0) walk(children, level + 1, out);
         }
     }
 
@@ -47,16 +90,26 @@
 
             if (layout === "ordered") {
                 for (const line of [...target.judgeLines].sort(byId)) {
-                    out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 0 });
+                    out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 0, ...stats(line) });
                 }
             } else if (layout === "tree") {
                 walk(target.orphanLines, 0, out);
             } else {
                 for (const group of target.judgeLineGroups) {
-                    out.push({ kind: "group", text: group.name, level: 0 });
+                    const folded = foldedGroups.includes(group.name);
+
+                    out.push({
+                        kind: "group",
+                        text: group.name,
+                        level: 0,
+                        count: group.judgeLines.length,
+                        folded
+                    });
+
+                    if (folded) continue;
 
                     for (const line of group.judgeLines) {
-                        out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 1 });
+                        out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 1, ...stats(line) });
                     }
                 }
             }
@@ -64,8 +117,7 @@
             return out;
         },
         listen: (update) => {
-            // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人），
-            // 靠这个信号重算一次；之后增删判定线走 operationList 的 needsreflow
+            // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人）
             chartLoaded.subscribe(update);
             operationList?.addEventListener("needsreflow", update);
         }
@@ -76,9 +128,73 @@
         listen: (update) => selectedLineId.subscribe(update)
     });
 
-    function pick(id: number) {
+    function pick(id: number): void {
+        if (openId !== null) {
+            openId = null;
+
+            return;
+        }
+
         selectedLineId.set(id);
     }
+
+    function toggleFold(id: number): void {
+        foldedIds = foldedIds.includes(id) ? foldedIds.filter((item) => item !== id) : [...foldedIds, id];
+    }
+
+    function toggleGroup(name: string): void {
+        foldedGroups = foldedGroups.includes(name)
+            ? foldedGroups.filter((item) => item !== name)
+            : [...foldedGroups, name];
+    }
+
+    //#region 左滑露出操作
+    function onRowDown(event: PointerEvent, id: number): void {
+        dragId = id;
+        dragStartX = event.clientX;
+        dragOffset = 0;
+    }
+
+    function onRowMove(event: PointerEvent, id: number): void {
+        if (dragId !== id) return;
+
+        const dx = Math.min(0, event.clientX - dragStartX);
+
+        dragOffset = Math.max(-ACTION_WIDTH, dx);
+    }
+
+    function onRowUp(id: number): void {
+        if (dragId !== id) return;
+
+        const shouldOpen = dragOffset < -ACTION_WIDTH / 3;
+
+        openId = shouldOpen ? id : null;
+        dragId = null;
+        dragOffset = 0;
+    }
+
+    function removeLine(id: number): void {
+        const line = chart?.judgeLines.find((item) => item.id === id);
+
+        if (!line || !operationList) return;
+
+        operationList.do(new Op.JudgeLineDeleteOperation(line));
+        openId = null;
+    }
+
+    /** 预留：判定线设定面板还没做 */
+    function openSettings(): void {
+        openId = null;
+    }
+
+    /** 这一行当前该偏移多少（拖拽中跟手，松手后停在展开位） */
+    function offsetOf(id: number | undefined): number {
+        if (openId === id) return -ACTION_WIDTH;
+        if (dragId === id) return dragOffset;
+
+        return 0;
+    }
+    //#endregion
 </script>
 
 <div class="pane">
@@ -90,16 +206,43 @@
     <div class="list">
         {#for row of rows with key = row}
             {#if row.kind === "group"}
-                <div class="group">{row.text}</div>
+                <div class="group" onclick={() => toggleGroup(row.text)}>
+                    <span class="caret {row.folded ? 'folded' : ''}">▾</span>
+                    <span class="group-name">{row.text}</span>
+                    <span class="count">{row.count}</span>
+                </div>
             {:else}
-                <button
-                    class="row {row.id === currentId ? 'active' : ''}"
-                    style="padding-left: {14 + row.level * 16}px"
-                    onclick={() => pick(row.id)}
-                >
-                    <span class="id">#{row.id}</span>
-                    <span class="name">{row.text}</span>
-                </button>
+                <div class="item">
+                    <div class="actions">
+                        <button class="action settings" onclick={openSettings}>设定</button>
+                        <button class="action danger" onclick={() => removeLine(row.id)}>删除</button>
+                    </div>
+
+                    <div
+                        class="row {row.id === currentId ? 'active' : ''}"
+                        style="padding-left: {12 + row.level * 16}px; transform: translateX({offsetOf(row.id)}px)"
+                        onpointerdown={(event) => onRowDown(event, row.id)}
+                        onpointermove={(event) => onRowMove(event, row.id)}
+                        onpointerup={() => onRowUp(row.id)}
+                        onpointercancel={() => onRowUp(row.id)}
+                        onclick={() => pick(row.id)}
+                    >
+                        <span
+                            class="caret {row.folded ? 'folded' : ''} {row.hasChildren ? '' : 'hidden'}"
+                            onclick={(event) => {
+                                event.stopPropagation();
+                                toggleFold(row.id);
+                            }}
+                        >▾</span>
+
+                        <span class="id">#{row.id}</span>
+                        <span class="name">{row.text}</span>
+
+                        <span class="stats">
+                            x {row.x} · y {row.y} · θ {row.rotate}° · α {row.alpha}
+                        </span>
+                    </div>
+                </div>
             {/if}
         {/for}
     </div>
@@ -137,31 +280,93 @@
 }
 
 .group {
-    padding: 8px 14px 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
     background: var(--surface-2);
     border-bottom: 1px solid var(--border);
     color: var(--text-dim);
     font-size: 12px;
 }
 
-.row {
+.group-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.count {
+    color: var(--text-dim);
+}
+
+/* 一行：下面垫着操作按钮，内容层左滑露出 */
+.item {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+}
+
+.actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 14px 16px;
+}
+
+.action {
+    width: 66px;
     border: none;
-    border-bottom: 1px solid var(--border);
     border-radius: 0;
+    font-size: 13px;
+    color: #fff;
+}
+
+.action.settings {
+    background: #6b7280;
+}
+
+.action.danger {
+    background: #d9534f;
+}
+
+.row {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
-    text-align: left;
-    min-width: 0;
+    touch-action: pan-y;
+    transition: transform 0.16s ease;
+    will-change: transform;
 }
 
 .row.active {
     background: var(--surface-2);
     box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.caret {
+    flex: none;
+    width: 14px;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-align: center;
+    transition: transform 0.15s ease;
+}
+
+.caret.folded {
+    transform: rotate(-90deg);
+}
+
+.caret.hidden {
+    visibility: hidden;
 }
 
 .id {
@@ -171,9 +376,19 @@
 }
 
 .name {
+    flex: 1;
     font-size: 14px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* 状态行：x / y / θ / α，独占一行，跟桌面端一致 */
+.stats {
+    flex: 0 0 100%;
+    padding-left: 22px;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 </style>
