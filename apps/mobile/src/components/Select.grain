@@ -25,11 +25,21 @@
     let open = $state(false);
     let root: HTMLDivElement;
 
-    function currentLabel(): string {
-        return options.find((item) => item.value === value)?.label ?? placeholder;
-    }
+    /**
+     * 当前值的本地副本。
+     *
+     * 模板里的依赖是按**读到的变量**算的，`value` 是 `$bindable` 的 prop，
+     * 直接写 `currentLabel()` 这种普通函数调用，编译器看不到"它读了 value"，
+     * 于是选项已经变了、标题还停在旧文本上。这里用 `$state` + `$node` 让它可见。
+     */
+    let current = $state(value);
+
+    const label = $node({
+        get: () => options.find((item) => item.value === current)?.label ?? placeholder
+    });
 
     function select(next: string): void {
+        current = next;
         value = next;
         open = false;
     }
@@ -47,7 +57,7 @@
 
 <div class="select" bind:this={root}>
     <button class="trigger {open ? 'open' : ''}" type="button" onclick={() => (open = !open)}>
-        <span class="text">{currentLabel()}</span>
+        <span class="text">{label}</span>
         <span class="chevron">▾</span>
     </button>
 
@@ -55,7 +65,7 @@
         <div class="menu">
             {#for item of options with key = item}
                 <button
-                    class="item {item.value === value ? 'active' : ''}"
+                    class="item {item.value === current ? 'active' : ''}"
                     type="button"
                     onclick={() => select(item.value)}
                 >

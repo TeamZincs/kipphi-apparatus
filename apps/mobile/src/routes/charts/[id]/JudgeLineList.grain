@@ -106,8 +106,9 @@
                 </div>
 
                 {#if !foldedGroups.includes(group.name)}
+                    <!-- 分组是**平铺**的：组内只列本组的线，不再展开子判定线（树只属于树形布局） -->
                     {#for line of group.judgeLines with key = line}
-                        <JudgeLineRow target={line} level={1} />
+                        <JudgeLineRow target={line} level={1} flat />
                     {/for}
                 {/if}
             {/for}
