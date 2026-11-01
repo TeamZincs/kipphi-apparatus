@@ -73,10 +73,9 @@
     let playerCanvas: HTMLCanvasElement;
     let notesCanvas: HTMLCanvasElement;
     let eventsCanvas: HTMLCanvasElement;
-    let playerBox: HTMLDivElement;
+    let playerBox: HTMLElement;
     let pageTrack: HTMLDivElement;
     let progressEl: HTMLInputElement;
-    let timeLabel: HTMLSpanElement;
 
     let player: Player | null = null;
     let notesEditor: NotesEditor | null = null;
@@ -210,6 +209,7 @@
                 respack,
                 { renderer: "webgl1" }
             );
+            player.hitEffectNoFollows = true;
 
             // 贴图 / 视频 / 着色器都从谱面目录读
             if (chartId) {
@@ -228,6 +228,7 @@
             // 桌面端同一个钩子：播放器每画完一帧，编辑器跟着画、UI 直接写 DOM
             player.addEventListener("drawn", () => {
                 if (!player) return;
+                
 
                 drawEditors(player.renderingBeats);
                 syncProgress();
@@ -556,7 +557,6 @@
         currentTime = now;
 
         if (progressEl) progressEl.value = String(now);
-        if (timeLabel) timeLabel.textContent = `${format(now)} / ${format(total || 30)}`;
     }
 
     function format(seconds: number): string {
@@ -569,7 +569,7 @@
     }
 // #endregion
 
-    //#region 页面导航
+// #region 页面导航
     function pick(id: MobileTab): void {
         const next = Math.max(0, tabs.findIndex((item) => item.id === id));
 
@@ -682,7 +682,7 @@
                 onclick={(event) => event.stopPropagation()}
             />
 
-            <span class="time" bind:this={timeLabel}>{format(currentTime)} / {format(total || 30)}</span>
+            <span class="time">{format(currentTime)}</span>
 
             <button class="ctrl" onclick={onToggleFullscreen}>⛶</button>
         </div>
@@ -848,6 +848,7 @@
     color: #fff;
     font-size: 12px;
     font-variant-numeric: tabular-nums;
+    width: 5em;
     flex: none;
 }
 
