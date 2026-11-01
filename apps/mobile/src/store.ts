@@ -25,6 +25,14 @@ export let chartId: string | null = null;
 /** 当前选中的判定线（编辑器与判定线列表共用） */
 export const selectedLineId = writable<number | null>(null);
 
+/**
+ * 谱面加载完成的信号（每次 `loadChart` 成功就 +1）。
+ *
+ * `chart` 是模块级 `let`，赋值本身不会通知任何人；`JudgeLineList` 的 `$node`
+ * 在挂载时就把 `chart.judgeLines` 读进缓存了，所以需要一个可订阅的信号让它重算。
+ */
+export const chartLoaded = writable(0);
+
 export const lineOf = (id: number | null): JudgeLine | null =>
     chart && id !== null ? chart.judgeLines.find((line) => line.id === id) ?? null : null;
 
@@ -70,4 +78,7 @@ export async function loadChart(id: string | null): Promise<void> {
     const first = chart.judgeLines[0];
 
     selectedLineId.set(first ? first.id : null);
+
+    // 通知订阅者（判定线列表）谱面已经就位
+    chartLoaded.set(chartLoaded.get() + 1);
 }

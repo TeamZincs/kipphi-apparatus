@@ -1,9 +1,14 @@
 <script>
-    import { chart, operationList, selectedLineId } from "#/store";
+    import { chart, chartLoaded, operationList, selectedLineId } from "#/store";
 
     const lines = $node({
         get: () => (chart ? [...chart.judgeLines] : []),
-        listen: (update) => operationList?.addEventListener("needsreflow", update)
+        listen: (update) => {
+            // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人），
+            // 靠这个信号重算一次；之后增删判定线走 operationList 的 needsreflow
+            chartLoaded.subscribe(update);
+            operationList?.addEventListener("needsreflow", update);
+        }
     });
 
     const currentId = $node({
