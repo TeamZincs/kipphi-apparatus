@@ -7,8 +7,8 @@
         chart,
         chartLoaded,
         operationList,
-        playbackTick,
         reflowAll,
+        registerRefresh,
         registerReflow,
         selectedLineId
     } from "#/store";
@@ -130,8 +130,8 @@
         listen: (update) => {
             // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人）
             chartLoaded.subscribe(update);
-            // 播放时 x / y / θ / α / 速度都在变，跟着页面的节流信号重算
-            playbackTick.subscribe(update);
+            // 播放时刷新数值（x / y / θ / α / 速度），跟结构重建分开
+            registerRefresh(update);
             // operationList 的 `needsreflow` 由 store 转成一次全量回流广播到这里
             registerReflow(update);
         }

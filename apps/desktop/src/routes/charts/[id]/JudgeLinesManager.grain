@@ -7,7 +7,7 @@ import { _ } from "#/i18n";
     import PopupOption from "#/components/PopupOption/PopupOption.grain";
     import JudgeLineGroup from "./JudgeLineGroup.grain";
     import ProgressiveButton from "#/components/buttons/ProgressiveButton.grain";
-    import { reflowAll } from "./store";
+    import { refreshAll } from "./store";
 
 const ORDERED = 0b001;
 const TREE = 0b010;
@@ -25,9 +25,14 @@ export function ForceReflow() {
     key++;
 }
 
-/** 兼容旧调用点：真正干活的判线节点自己登记在 store 的 reflow 表里 */
+/**
+ * 兼容旧调用点（Svelte 原版 `drawn` 里就是 `judgeLinesManager?.update()`）。
+ *
+ * 原版这里调的是各节点的 `update()` → `refreshKey++`，也就是**只刷新数值**，
+ * 不动结构。重建结构是 `ForceReflow()` 的事。
+ */
 export function update() {
-    reflowAll();
+    refreshAll();
 }
 </script>
 

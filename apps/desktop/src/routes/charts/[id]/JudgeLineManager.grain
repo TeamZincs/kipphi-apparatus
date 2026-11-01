@@ -7,7 +7,7 @@
         activeSecondarySidebar,
         SecondarySidebar,
         operationList,
-        registerReflow
+        registerRefresh
     } from './store';
     import { Op } from 'kipphi';
 
@@ -140,7 +140,7 @@
 
 <script onmount>
     // 父级要"重画判线列表"时喊一声：bump 一下 refreshKey，`values` 跟着重算
-    registerReflow(() => (refreshKey += 1));
+    registerRefresh(() => (refreshKey += 1));
 
     selectedLineNumber.subscribe((lineNumber) => {
         // 只在真的变了才写：无条件写会把"订阅 -> 刷新 -> 写 -> 订阅"接成环

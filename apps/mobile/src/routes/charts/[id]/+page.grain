@@ -31,7 +31,7 @@
         loadChart,
         musicUrl,
         operationList,
-        reflowAll,
+        refreshAll,
         selectedLineId
     } from "#/store";
     import { readDefaultRespackFile } from "#/tauri";
@@ -233,13 +233,13 @@
                 syncProgress();
 
                 // 判定线列表的状态（x/y/θ/α/速度）也要跟着动。
-                // 桌面端在 `drawn` 里直接 `reflowAll()`（每帧）；移动端每帧重排整个列表
-                // 太贵，节流到 ~10Hz 再广播。
+                // 这里只**刷新数值**（桌面端 `drawn` 里调的也是 refresh）；
+                // 结构重建走 `needsreflow` → `reflowAll()`。移动端再节流到 ~10Hz。
                 const now = performance.now();
 
                 if (now - lastTickAt > 100) {
                     lastTickAt = now;
-                    reflowAll();
+                    refreshAll();
                 }
             });
 

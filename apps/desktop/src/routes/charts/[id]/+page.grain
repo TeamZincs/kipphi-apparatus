@@ -26,7 +26,7 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     eventsType, eventsLayer,
     playerShowsUI, playerShowsLineID, playerHitEffectNoFollows, playerShowsCurve, playerCameraZoom,
     selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
-    timeDivisor, chartId, reflowAll } from "./store";
+    timeDivisor, chartId, refreshAll, reflowAll } from "./store";
     import NoteEditor from "./NoteEditor.grain";
     import Constants from "./constants";
     import NotesSidebar from "./NotesSidebar.grain";
@@ -437,7 +437,9 @@ async function boot() {
             notesEditor.draw(player.renderingBeats);
             eventSequenceEditors.draw(player.renderingBeats);
         }
-        reflowAll();
+        // 每帧只**刷新数值**（Svelte 原版就是 `judgeLinesManager?.update()`）；
+        // 结构重建走 `needsreflow` → `reflowAll()`
+        refreshAll();
     });
     const updateUndoRedoAvailability = () => {
         undoAvailable = operationList.operations.length > 0;
@@ -449,6 +451,10 @@ async function boot() {
 
     operationList.addEventListener("needsupdate", () => {
         player.render();
+    });
+    // 增删判定线 / 改父子关系之后才需要重建列表结构
+    operationList.addEventListener("needsreflow", () => {
+        reflowAll();
     });
     // maxCombo 由 kipphi 的 OperationList 自己维护，这里不需要再算
     operationList.addEventListener("firstmodified", (ev) => {

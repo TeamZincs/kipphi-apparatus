@@ -313,7 +313,41 @@ templateName.subscribe(v => {
 })
 
 /**
- * "重画判线列表"的登记处。
+ * "刷新判线列表数值"的登记处（对应 Svelte 原版各节点的 `update()` → `refreshKey++`）。
+ *
+ * 跟下面的 `reflowAll` 是**两件事**，别合并：
+ *   · refresh —— 只重算每行的 x / y / θ / α 这些随时间变的数值，播放时每帧调；
+ *   · reflow  —— 增删判定线、改父子关系之后重建结构，只在 `needsreflow` 时调。
+ *
+ * 之前 grain 迁移时把两者并成了一个 `reflowAll()`，于是播放时每帧都在做全量
+ * 重建 —— 跟 Svelte 原版行为不一致。
+ */
+const refreshHandlers = new Set<() => void>();
+
+export function registerRefresh(handler: () => void) {
+    refreshHandlers.add(handler);
+
+    return () => {
+        refreshHandlers.delete(handler);
+    };
+}
+
+let refreshing = false;
+
+export function refreshAll() {
+    if (refreshing) return;
+
+    refreshing = true;
+
+    try {
+        for (const handler of refreshHandlers) handler();
+    } finally {
+        refreshing = false;
+    }
+}
+
+/**
+ * "重建判线列表结构"的登记处。
  *
  * Svelte 里父组件靠 `bind:this={child}` 拿到子组件实例再调它的 `update()`；
  * grain 的组件实例没有对外方法，所以改成子组件自己登记、父组件广播。

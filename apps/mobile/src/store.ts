@@ -37,11 +37,38 @@ export const lineOf = (id: number | null): JudgeLine | null =>
     chart && id !== null ? chart.judgeLines.find((line) => line.id === id) ?? null : null;
 
 /**
- * "全量回流"的回调表（跟桌面端 `store.ts` 同一个写法）。
+ * 刷新 / 回流是**两件事**（跟桌面端 `store.ts`、Svelte 原版一致）：
+ *
+ *   · refresh —— 只重算每行的 x / y / θ / α / 速度这些随时间变的数值，播放时调；
+ *   · reflow  —— 增删判定线、改父子关系之后重建列表结构，只在 `needsreflow` 时调。
  *
  * grain 的组件实例没有对外方法，父级没法像 Svelte 那样 `bind:this` 之后调
  * `child.update()`，所以改成子级自己登记、store 统一广播。
  */
+const refreshHandlers = new Set<() => void>();
+
+export function registerRefresh(handler: () => void): () => void {
+    refreshHandlers.add(handler);
+
+    return () => {
+        refreshHandlers.delete(handler);
+    };
+}
+
+let refreshing = false;
+
+export function refreshAll(): void {
+    if (refreshing) return;
+
+    refreshing = true;
+
+    try {
+        for (const handler of refreshHandlers) handler();
+    } finally {
+        refreshing = false;
+    }
+}
+
 const reflowHandlers = new Set<() => void>();
 
 export function registerReflow(handler: () => void): () => void {
