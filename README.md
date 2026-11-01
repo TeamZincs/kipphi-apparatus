@@ -1,16 +1,18 @@
-# 奇谱发生器/Kipphi Apparatus 2
+# 奇谱发生器/Kipphi Apparatus
 [点此查看官方 Wiki 的介绍](https://pgrfm.miraheze.org/wiki/奇谱发生器)
 
-奇谱发生器（KPA）是一款基于 Tauri + Svelte 架构的 Phigros 制谱器。项目优势：
+奇谱发生器（KPA）是一款基于 Tauri + Grain 架构的 Phigros 制谱器。项目优势：
 - 高性能。在老酷睿上即可以 60fps 跑通谱面《Singularity at 2.64e+6 BPM》（物量 84488），完胜 Re:PhiEdit，力压包含 Phichain 在内的一众制谱器。不过，运行大故事版谱面对于独立显卡的要求较高，将来可能优化。
 - 较好的 Re:PhiEdit 兼容性。支持直接从 Re:PhiEdit 导入半完成的谱面，也支持从 KPAJSON 格式编译到 RPEJSON 格式。实现了大量特性，除了着色器、控制序列等。所有自有的特性均可编译到 RPEJSON，兼容 Phigros 自制谱主流生态。
-- 跨平台。基于 Tauri 开发，可在 Windows、MacOS、Linux 上运行。
-- 轻量级。基于 Tauri 开发，安装包大小不足 10 MiB。不过为了避免行为不一致，未来亦会提供 Electron 版本，该版本将会实现增量更新。
+- 跨平台。基于 Tauri 开发，可在 Windows、MacOS、Linux 上运行，且 3.x 将设计专用于 Android 的版本。
+- 轻量级。基于 Tauri 开发，安装包大小不足 10 MiB。亦有 Electron 版本，体积较大，但可通过在后续更新中仅获取 ASAR 文件来减少所需网络流量。
 - 提倡复用性。利用“模板缓动”等概念，降低事件重复性，可通过修改模板缓动来替换大段动效。
 
 “奇谱发生器”原先只是由杨哲思制作的谐音梗梗图（谐音化学仪器“奇谱发生器”），后来杨哲思苦于当时 Re:PhiEdit 1.3 的各种问题，从零开始搭建了一个基于 Web 技术栈的制谱器，并以“奇谱发生器”命名。因此，奇谱发生器事实上是历史相当悠久的制谱器，开发时间早于 PhiEdit 2573和 Open PhiEdit。奇谱发生器的诞生离不开 cmdysj 的 Re:PhiEdit，在 KPA 2.x 时代也尽可能贴近 Re:PhiEdit 的一些设计以降低迁移门槛。现仍应肯定和感谢其对于 Phigros 自制谱早期生态的贡献。
 
-本项目为KPA的2.x版本，基于 Tauri+Svelte 开发。其谱面内核代码和谱面播放器代码作为NPM包分别单独发布。您可在本组织（TeamZincs）的其他GitHub仓库中找到。
+KPA 3.x 基于 Tauri + Grain 开发。其谱面内核代码和谱面播放器代码作为NPM包分别单独发布。您可在本组织（TeamZincs）的其他GitHub仓库中找到它们。KPA 2.2 也引入了 Electron 版本，用于解决 Linux 和 MacOS 平台系统 Webview 更新困难带来行为不一致的问题。
+
+[Grain](https://github.com/Zes-Minkey-Young/Grain) 是由 Zes Minkey Young 设计、主要由 AI 编程开发的一个编译时前端框架，专用于构建需要与已有事件总线沟通的、带有画布编辑器的应用，同时解决了 SvelteKit 构建速度较慢的问题。
 
 `/public`下的图片和音频文件均由本人手制，质量不佳。如果您有更好的原创打击特效、音效、音符纹理且愿意将其作为本软件的默认资源包，欢迎贡献。
 
