@@ -89,29 +89,40 @@
     </div>
 
     <div class="list" onclick={onListClick}>
+        <!--
+            每个分支都套一层容器：切分支时运行时会把这一段整个摘掉，
+            而 `{#for}` 生成的列表节点是列表自己管的，不套容器就摘不干净 ——
+            表现为"新布局追加在旧布局下面"。
+        -->
         {#if layout === "ordered"}
-            {#for line of orderedLines with key = line}
-                <JudgeLineRow target={line} flat />
-            {/for}
+            <div class="rows">
+                {#for line of orderedLines with key = line}
+                    <JudgeLineRow target={line} flat />
+                {/for}
+            </div>
         {:else if layout === "tree"}
-            {#for line of treeLines with key = line}
-                <JudgeLineRow target={line} />
-            {/for}
+            <div class="rows">
+                {#for line of treeLines with key = line}
+                    <JudgeLineRow target={line} />
+                {/for}
+            </div>
         {:else}
-            {#for group of groups with key = group}
-                <div class="group" data-group={group.name}>
-                    <span class="caret {foldedGroups.includes(group.name) ? 'folded' : ''}">▾</span>
-                    <span class="group-name">{group.name}</span>
-                    <span class="count">{group.judgeLines.length}</span>
-                </div>
+            <div class="rows">
+                {#for group of groups with key = group}
+                    <div class="group" data-group={group.name}>
+                        <span class="caret {foldedGroups.includes(group.name) ? 'folded' : ''}">▾</span>
+                        <span class="group-name">{group.name}</span>
+                        <span class="count">{group.judgeLines.length}</span>
+                    </div>
 
-                {#if !foldedGroups.includes(group.name)}
-                    <!-- 分组是**平铺**的：组内只列本组的线，不再展开子判定线（树只属于树形布局） -->
-                    {#for line of group.judgeLines with key = line}
-                        <JudgeLineRow target={line} level={1} flat />
-                    {/for}
-                {/if}
-            {/for}
+                    {#if !foldedGroups.includes(group.name)}
+                        <!-- 分组是**平铺**的：组内只列本组的线，不再展开子判定线（树只属于树形布局） -->
+                        {#for line of group.judgeLines with key = line}
+                            <JudgeLineRow target={line} level={1} flat />
+                        {/for}
+                    {/if}
+                {/for}
+            </div>
         {/if}
     </div>
 </div>
