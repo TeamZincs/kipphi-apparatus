@@ -389,16 +389,17 @@
 
         drawActiveEditor();
     }
-    //#endregion
+// #endregion
 
-    //#region 播放器交互
+// #region 播放器交互
     const HIDE_DELAY = 5000;
     const DOUBLE_TAP_MS = 300;
 
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
-    let startX = 0;
+    let lastX = 0;
     let startTime = 0;
     let movedBy = 0;
+    let timeDelta = 0;
     let pausedByDrag = false;
     let lastTapAt = 0;
 
@@ -416,7 +417,7 @@
     }
 
     function onPointerDown(event: PointerEvent): void {
-        startX = event.clientX;
+        lastX = event.clientX;
         startTime = currentTime;
         movedBy = 0;
         pausedByDrag = false;
@@ -426,12 +427,13 @@
         showControls();
     }
 
+    const clamp = (x: number, l: number, r: number) => Math.min(r, Math.max(l, x))
+
     function onPointerMove(event: PointerEvent): void {
         if (!dragging || !playerBox) return;
 
-        const dx = event.clientX - startX;
-
-        if (Math.abs(dx) < 4) return;
+        const dx = event.clientX - lastX;
+        lastX = event.clientX;
 
         // 真的开始拖了才暂停
         if (!pausedByDrag) {
@@ -447,14 +449,14 @@
         // 整宽 = 整首时长（B 站那种手感）
         const span = total || 30;
         const scale = span / Math.max(playerBox.clientWidth, 1);
-        const next = startTime + dx * scale * rate;
+        timeDelta += dx * scale * rate;
+        const next = clamp(startTime + timeDelta, 0, (chart?.duration ?? 30));
 
         seek(next);
         showControls();
 
-        const delta = next - startTime;
 
-        seekHint = `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}s (x${rate}) ${format(next)}`;
+        seekHint = `${timeDelta >= 0 ? "+" : ""}${timeDelta.toFixed(1)}s (x${rate}) ${format(next)}`;
     }
 
     function onPointerUp(): void {
@@ -462,6 +464,7 @@
 
         dragging = false;
         seekHint = "";
+        timeDelta = 0;
 
         if (Math.abs(movedBy) < 4) {
             const now = Date.now();
@@ -541,7 +544,7 @@
 
         return `${minutes}:${rest.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
     }
-    //#endregion
+// #endregion
 
     //#region 页面导航
     function pick(id: MobileTab): void {
