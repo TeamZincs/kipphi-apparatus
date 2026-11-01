@@ -23,28 +23,38 @@
         { value: "grouped", label: "分组" }
     ];
 
-    /** 谱面是异步加载的（`chart` 只是个 let），靠 signal 与 reflow 通知 */
-    const listen = (update: () => void) => {
-        chartLoaded.subscribe(update);
-        registerReflow(update);
-    };
+    /*
+     * 注意：`listen` 必须**内联成箭头函数**。
+     * 编译器只认 `listen: (update) => …` 这种字面写法，写成
+     * `listen: someConst` 会被直接丢掉（产物里 $node 就只剩 get，
+     * 于是谱面加载完也不会重算 —— 列表永远是空的）。
+     */
 
     /** 顺序：平铺，不展开子线 */
     const orderedLines = $node({
         get: () => (chart ? [...chart.judgeLines].sort((a, b) => a.id - b.id) : []),
-        listen
+        listen: (update) => {
+            chartLoaded.subscribe(update);
+            registerReflow(update);
+        }
     });
 
     /** 树形：只给根判定线，子线由行组件自己递归 */
     const treeLines = $node({
         get: () => (chart ? [...chart.orphanLines].sort((a, b) => a.id - b.id) : []),
-        listen
+        listen: (update) => {
+            chartLoaded.subscribe(update);
+            registerReflow(update);
+        }
     });
 
     /** 分组 */
     const groups = $node({
         get: () => (chart ? [...chart.judgeLineGroups] : []),
-        listen
+        listen: (update) => {
+            chartLoaded.subscribe(update);
+            registerReflow(update);
+        }
     });
 
     function toggleGroup(name: string): void {

@@ -8,7 +8,15 @@
 
     import Self from "./JudgeLineRow.grain";
 
-    import { chart, openLineId, operationList, reflowAll, registerRefresh, selectedLineId } from "#/store";
+    import {
+        chart,
+        chartLoaded,
+        openLineId,
+        operationList,
+        reflowAll,
+        registerRefresh,
+        selectedLineId
+    } from "#/store";
 
     let {
         target,
@@ -61,6 +69,11 @@
             lastSorted = [...source].sort((a, b) => a.id - b.id);
 
             return lastSorted;
+        },
+        // 增删子线 / 换父子关系后要重算（同样必须内联成箭头函数）
+        listen: (update) => {
+            chartLoaded.subscribe(update);
+            registerReflow(update);
         }
     });
 
