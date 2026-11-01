@@ -62,6 +62,24 @@
             ? foldedGroups.filter((item) => item !== name)
             : [...foldedGroups, name];
     }
+
+    /**
+     * 组标题的点击走**事件委托**。
+     *
+     * 不在 `{#for}` 里直接写 `onclick={() => toggleGroup(group.name)}`：编译器对
+     * `{#for}` 内的事件处理器会生成 `__handler$N` 并要求把定义填回行内的占位符，
+     * 但那个占位符（`/*@row:N*\/`）目前没有写入点，定义被丢掉之后就成了
+     * `ReferenceError: __handler$N is not defined`。
+     */
+    function onListClick(event: MouseEvent): void {
+        const element = (event.target as HTMLElement).closest<HTMLElement>("[data-group]");
+
+        if (!element) return;
+
+        const name = element.dataset.group;
+
+        if (name !== undefined) toggleGroup(name);
+    }
 </script>
 
 <div class="pane">
@@ -70,7 +88,7 @@
         <Select options={layoutOptions} bind:value={layout} />
     </div>
 
-    <div class="list">
+    <div class="list" onclick={onListClick}>
         {#if layout === "ordered"}
             {#for line of orderedLines with key = line}
                 <JudgeLineRow target={line} flat />
@@ -81,7 +99,7 @@
             {/for}
         {:else}
             {#for group of groups with key = group}
-                <div class="group" onclick={() => toggleGroup(group.name)}>
+                <div class="group" data-group={group.name}>
                     <span class="caret {foldedGroups.includes(group.name) ? 'folded' : ''}">▾</span>
                     <span class="group-name">{group.name}</span>
                     <span class="count">{group.judgeLines.length}</span>
