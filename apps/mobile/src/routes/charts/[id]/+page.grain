@@ -621,6 +621,13 @@
 </script>
 
 <main class="app">
+    <!--
+        等谱面加载完再建这几块：`JudgeLineList` 的 `$node` 在挂载那一刻就把
+        `chart.judgeLines` 读进了缓存，而 `chart` 是模块级 let —— 挂早了，
+        它拿到空数组以后没有任何东西会触发它刷新，列表就一直是空的。
+        桌面端也是 load 完才渲染页面主体。
+    -->
+    {#if ready}
     <!-- 播放器：和桌面端一样，逻辑分辨率按 900 高算，CSS 只负责缩放 -->
     <section
         class="player"
@@ -662,9 +669,7 @@
         <!-- 返回按钮和控制条同一个显现周期 -->
         <button class="back {controlsVisible ? "visible" : ""}" onclick={back} aria-label="返回">‹</button>
 
-        {#if !ready}
-            <div class="placeholder">{#if loadError}打开谱面失败：{loadError}{:else}正在打开谱面…{/if}</div>
-        {:else if playerError}
+        {#if playerError}
             <div class="placeholder err">播放器初始化失败：{playerError}</div>
         {/if}
     </section>
@@ -694,6 +699,9 @@
             </div>
         </div>
     </section>
+    {:else}
+        <div class="center">{#if loadError}打开谱面失败：{loadError}{:else}正在打开谱面…{/if}</div>
+    {/if}
 </main>
 
 <style>
@@ -747,6 +755,17 @@
 
 .placeholder.err {
     color: #ff8080;
+}
+
+.center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
 }
 
 .seek-hint {
