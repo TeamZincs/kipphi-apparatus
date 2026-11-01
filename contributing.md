@@ -38,6 +38,21 @@ scripts/         仓库级脚本（fix-bom 等）
    注意 `kipphi`、`kipphi-player`、`@graints/*` 都是 `link:` 依赖（作者本地链接的），`bun install` 之后如果解析不到，说明这几个仓库没克隆到同级目录。
 5. 试构建：`bun run dev`（桌面端）或 `bun run dev:mobile`（移动端）。
 
+### 不想碰外部仓库的话：把 `link:` 换成发布版
+
+上面那四个 `link:` 依赖只是为了"跟着本地仓库一起改"。**如果你只想改 KPA**（不打算改 `grain` / `kipphi` / `kpp`），把它们换成 npm 上的发布版就行，这样不用把外部仓库克隆到同级目录：
+
+```sh
+# apps/desktop 和 apps/mobile 各执行一次
+bun remove kipphi kipphi-player @graints/runtime @graints/vite-plugin
+bun add kipphi kipphi-player @graints/runtime
+bun add -d @graints/vite-plugin
+```
+
+等价做法是直接改 `package.json`：把 `"kipphi": "link:kipphi"` 这类值改成版本号（如 `"^0.1.0"`），再 `bun install`。
+
+需要跟着改外部仓库时，把值换回 `link:` 即可（`@kpa/*` 那几条是 workspace，不用动）。
+
 ### 如果你也要改 `kipphi` / `kipphi-player` / `grain`
 
 ```sh
