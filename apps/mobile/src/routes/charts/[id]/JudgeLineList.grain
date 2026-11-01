@@ -186,7 +186,8 @@
         const { actions, head } = partsOf(item);
 
         if (actions) actions.style.transform = `translateX(${(1 - value) * 100}%)`;
-        if (head) head.style.transform = `translateX(${value * 6}px)`;
+        // 名字往**左**让一点，给右边滑进来的按钮腾位置
+        if (head) head.style.transform = `translateX(${-value * 8}px)`;
     }
 
     /** 清掉内联位移，让 `.open` 类的 CSS 接管最终状态 */
@@ -220,8 +221,9 @@
             options
         );
 
+        // 名字的弹性位移**松手就归位**（不管最后是展开还是收起）
         head?.animate(
-            [{ transform: `translateX(${from * 6}px)` }, { transform: `translateX(${to * 6}px)` }],
+            [{ transform: `translateX(${-from * 8}px)` }, { transform: "translateX(0px)" }],
             options
         );
     }
@@ -453,11 +455,16 @@
     border-bottom: 1px solid var(--border);
 }
 
+/*
+ * 按钮层必须在行**上面**：行是不透明的、本身不再左移，
+ * 放在下面会被整行盖住 —— 那就"滑不出来"了。
+ */
 .actions {
     position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
+    z-index: 2;
     display: flex;
     width: 132px;
     transform: translateX(100%);
@@ -506,17 +513,12 @@
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* id + 名字：展开时向右做一点弹性位移，绝不藏起来 */
+/* id + 名字：只在拖拽时向左让位，松手自己回弹（不跟"是否展开"绑定） */
 .head {
     display: flex;
     align-items: center;
     gap: 8px;
     flex: 0 0 auto;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.item.open .head {
-    transform: translateX(6px);
 }
 
 .caret {
