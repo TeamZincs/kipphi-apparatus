@@ -1,0 +1,141 @@
+<script>
+    /*
+     * 主题化的下拉选择框。
+     *
+     * 用法：
+     *   <Select options={[{ value: "list", label: "列表" }]} bind:value={layout} />
+     *
+     * 只依赖 app.css 里的那套 CSS 变量，所以浅色/深色自动跟着走。
+     */
+    interface Option {
+        value: string;
+        label: string;
+    }
+
+    let {
+        options,
+        value = $bindable(""),
+        placeholder = "请选择"
+    } = $props<{
+        options: Option[];
+        value?: string;
+        placeholder?: string;
+    }>();
+
+    let open = $state(false);
+    let root: HTMLDivElement;
+
+    function currentLabel(): string {
+        return options.find((item) => item.value === value)?.label ?? placeholder;
+    }
+
+    function select(next: string): void {
+        value = next;
+        open = false;
+    }
+</script>
+
+<script onmount>
+    // 点空白处收起（capture 阶段，避免被别的 stopPropagation 拦掉）
+    const onDocumentPointerDown = (event: PointerEvent) => {
+        if (!open) return;
+        if (root && !root.contains(event.target as Node)) open = false;
+    };
+
+    document.addEventListener("pointerdown", onDocumentPointerDown, true);
+</script>
+
+<div class="select" bind:this={root}>
+    <button class="trigger {open ? 'open' : ''}" type="button" onclick={() => (open = !open)}>
+        <span class="text">{currentLabel()}</span>
+        <span class="chevron">▾</span>
+    </button>
+
+    {#if open}
+        <div class="menu">
+            {#for item of options with key = item}
+                <button
+                    class="item {item.value === value ? 'active' : ''}"
+                    type="button"
+                    onclick={() => select(item.value)}
+                >
+                    {item.label}
+                </button>
+            {/for}
+        </div>
+    {/if}
+</div>
+
+<style>
+.select {
+    position: relative;
+    display: inline-block;
+    min-width: 96px;
+}
+
+.trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.trigger.open {
+    border-color: var(--accent);
+}
+
+.text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chevron {
+    color: var(--text-dim);
+    font-size: 11px;
+    transform: translateY(1px);
+}
+
+.menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 20;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overscroll-behavior: contain;
+}
+
+.item {
+    display: block;
+    width: 100%;
+    padding: 9px 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    text-align: left;
+}
+
+.item:hover {
+    background: var(--surface-2);
+}
+
+.item.active {
+    color: var(--accent);
+    font-weight: 600;
+}
+</style>

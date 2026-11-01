@@ -1,4 +1,6 @@
 <script>
+    import Select from "#/components/Select.grain";
+
     import { chart, chartLoaded, operationList, selectedLineId } from "#/store";
 
     const lines = $node({
@@ -16,29 +18,94 @@
         listen: (update) => selectedLineId.subscribe(update)
     });
 
+    /** 列表布局：一行一条 / 两列网格（窄屏上一屏能多看到几条） */
+    let layout = $state("rows");
+
+    const layoutOptions = [
+        { value: "rows", label: "列表" },
+        { value: "grid", label: "网格" }
+    ];
+
     function pick(id: number) {
         selectedLineId.set(id);
     }
 </script>
 
-<div class="list">
-    {#for line of lines with key = line}
-        <button class="row {line.id === currentId ? 'active' : ''}" onclick={() => pick(line.id)}>
-            <span class="id">#{line.id}</span>
-            <span class="name">{line.name ?? ""}</span>
-        </button>
-    {/for}
+<div class="pane">
+    <div class="toolbar">
+        <span class="hint">布局</span>
+        <Select options={layoutOptions} bind:value={layout} />
+        <span class="count">{lines.length} 条判定线</span>
+    </div>
+
+    <div class="list {layout}">
+        {#for line of lines with key = line}
+            <button class="row {line.id === currentId ? 'active' : ''}" onclick={() => pick(line.id)}>
+                <span class="id">#{line.id}</span>
+                <span class="name">{line.name ?? ""}</span>
+            </button>
+        {/for}
+    </div>
 </div>
 
 <style>
+.pane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.hint {
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.count {
+    margin-left: auto;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
 .list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0;
+}
+
+/* 列表：一行一条 */
+.list.rows {
     display: flex;
     flex-direction: column;
     gap: 0;
-    padding: 0;
-    overflow-y: auto;
-    height: 100%;
-    overscroll-behavior: contain;
+}
+
+.list.rows .row {
+    border-bottom: 1px solid var(--border);
+}
+
+/* 网格：两列卡片 */
+.list.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.list.grid .row {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    min-height: 56px;
 }
 
 .row {
@@ -47,24 +114,28 @@
     gap: 10px;
     padding: 14px 16px;
     border: none;
-    border-bottom: 1px solid var(--border);
     border-radius: 0;
     background: var(--surface);
+    color: var(--text);
     text-align: left;
+    min-width: 0;
 }
 
 .row.active {
-    border-color: var(--accent);
     background: var(--surface-2);
+    box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .id {
     color: var(--text-dim);
     font-size: 12px;
-    min-width: 34px;
+    flex: none;
 }
 
 .name {
     font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>
