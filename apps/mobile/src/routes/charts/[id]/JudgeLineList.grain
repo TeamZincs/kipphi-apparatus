@@ -1,10 +1,68 @@
 <script>
+    import type { JudgeLine } from "kipphi";
+
     import Select from "#/components/Select.grain";
 
     import { chart, chartLoaded, operationList, selectedLineId } from "#/store";
 
-    const lines = $node({
-        get: () => (chart ? [...chart.judgeLines] : []),
+    /**
+     * 三种布局，跟桌面端 `JudgeLinesManager` 一致：
+     *   ordered —— `chart.judgeLines` 平铺（不展开子判定线）
+     *   tree    —— 从 `orphanLines` 递归展开 children
+     *   grouped —— 按 `judgeLineGroups` 分组显示
+     */
+    type Layout = "ordered" | "tree" | "grouped";
+
+    interface Row {
+        kind: "line" | "group";
+        id?: number;
+        text: string;
+        level: number;
+    }
+
+    let layout = $state<Layout>("ordered");
+
+    const layoutOptions = [
+        { value: "ordered", label: "顺序" },
+        { value: "tree", label: "树形" },
+        { value: "grouped", label: "分组" }
+    ];
+
+    const byId = (a: JudgeLine, b: JudgeLine) => a.id - b.id;
+
+    /** 树形：从根判定线往下递归（这里拍平成带缩进的行，避免组件自递归） */
+    function walk(lines: Iterable<JudgeLine>, level: number, out: Row[]): void {
+        for (const line of [...lines].sort(byId)) {
+            out.push({ kind: "line", id: line.id, text: line.name ?? "", level });
+            walk(line.children, level + 1, out);
+        }
+    }
+
+    const rows = $node({
+        get: () => {
+            const target = chart;
+            const out: Row[] = [];
+
+            if (!target) return out;
+
+            if (layout === "ordered") {
+                for (const line of [...target.judgeLines].sort(byId)) {
+                    out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 0 });
+                }
+            } else if (layout === "tree") {
+                walk(target.orphanLines, 0, out);
+            } else {
+                for (const group of target.judgeLineGroups) {
+                    out.push({ kind: "group", text: group.name, level: 0 });
+
+                    for (const line of group.judgeLines) {
+                        out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 1 });
+                    }
+                }
+            }
+
+            return out;
+        },
         listen: (update) => {
             // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人），
             // 靠这个信号重算一次；之后增删判定线走 operationList 的 needsreflow
@@ -18,14 +76,6 @@
         listen: (update) => selectedLineId.subscribe(update)
     });
 
-    /** 列表布局：一行一条 / 两列网格（窄屏上一屏能多看到几条） */
-    let layout = $state("rows");
-
-    const layoutOptions = [
-        { value: "rows", label: "列表" },
-        { value: "grid", label: "网格" }
-    ];
-
     function pick(id: number) {
         selectedLineId.set(id);
     }
@@ -35,15 +85,22 @@
     <div class="toolbar">
         <span class="hint">布局</span>
         <Select options={layoutOptions} bind:value={layout} />
-        <span class="count">{lines.length} 条判定线</span>
     </div>
 
-    <div class="list {layout}">
-        {#for line of lines with key = line}
-            <button class="row {line.id === currentId ? 'active' : ''}" onclick={() => pick(line.id)}>
-                <span class="id">#{line.id}</span>
-                <span class="name">{line.name ?? ""}</span>
-            </button>
+    <div class="list">
+        {#for row of rows with key = row}
+            {#if row.kind === "group"}
+                <div class="group">{row.text}</div>
+            {:else}
+                <button
+                    class="row {row.id === currentId ? 'active' : ''}"
+                    style="padding-left: {14 + row.level * 16}px"
+                    onclick={() => pick(row.id)}
+                >
+                    <span class="id">#{row.id}</span>
+                    <span class="name">{row.text}</span>
+                </button>
+            {/if}
         {/for}
     </div>
 </div>
@@ -71,12 +128,6 @@
     font-size: 12px;
 }
 
-.count {
-    margin-left: auto;
-    color: var(--text-dim);
-    font-size: 12px;
-}
-
 .list {
     flex: 1;
     min-height: 0;
@@ -85,35 +136,22 @@
     padding: 0;
 }
 
-/* 列表：一行一条 */
-.list.rows {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-}
-
-.list.rows .row {
+.group {
+    padding: 8px 14px 6px;
+    background: var(--surface-2);
     border-bottom: 1px solid var(--border);
-}
-
-/* 网格：两列卡片 */
-.list.grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.list.grid .row {
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    min-height: 56px;
+    color: var(--text-dim);
+    font-size: 12px;
 }
 
 .row {
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
     padding: 14px 16px;
     border: none;
+    border-bottom: 1px solid var(--border);
     border-radius: 0;
     background: var(--surface);
     color: var(--text);
