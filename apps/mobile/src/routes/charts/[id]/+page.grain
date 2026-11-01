@@ -1,4 +1,4 @@
-﻿<script>
+<script>
     /*
      * 移动端编辑器页：播放器 + 标签栏 + 两块画布，全部内联。
      *
@@ -75,8 +75,6 @@
      * 画布编辑器则是桌面端那套写死的 600×900。
      */
     const BASE_HEIGHT = 900;
-    const EDITOR_WIDTH = 600;
-    const EDITOR_HEIGHT = 900;
 
     const playerWidth = $node({ get: () => Math.round(aspect * BASE_HEIGHT) });
 
@@ -317,22 +315,24 @@
 
     //#region 画布编辑器
     /**
-     * 位图保持 600×900（桌面端同款，编辑器内部按这个坐标排版），
-     * 只把**显示尺寸**等比缩放进面板。
+     * 画布的**逻辑尺寸按面板实际大小来**（位图 = 显示尺寸，1:1）。
+     *
+     * 桌面端能用死 600×900，因为它的画布就是按 600×900 显示的；
+     * 手机上如果还按 600×900 建位图再缩小显示，线条和文字会被重采样得发虚。
+     * 编辑器内部只按 `clippingRect` 排版，给多少就按多少算，所以直接给实际尺寸。
      */
     function fitEditorCanvas(canvas: HTMLCanvasElement): [number, number, number, number] {
         const pane = canvas.parentElement;
 
-        const availableWidth = pane?.clientWidth || 360;
-        const availableHeight = pane?.clientHeight || 540;
-        const scale = Math.min(availableWidth / EDITOR_WIDTH, availableHeight / EDITOR_HEIGHT);
+        const width = Math.max(200, Math.floor(pane?.clientWidth || canvas.clientWidth || 360));
+        const height = Math.max(240, Math.floor(pane?.clientHeight || canvas.clientHeight || 540));
 
-        canvas.width = EDITOR_WIDTH;
-        canvas.height = EDITOR_HEIGHT;
-        canvas.style.width = `${Math.round(EDITOR_WIDTH * scale)}px`;
-        canvas.style.height = `${Math.round(EDITOR_HEIGHT * scale)}px`;
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
 
-        return [0, 0, EDITOR_WIDTH, EDITOR_HEIGHT];
+        return [0, 0, width, height];
     }
 
     /**
@@ -677,17 +677,17 @@
     <!-- 三块内容始终存活：切页只平移轨道 + 切 visibility，不销毁 DOM -->
     <section class="content">
         <div class="track" bind:this={pageTrack} style="transform: translateX({-tabIndex * 100}%)">
+            <!-- 列表页**不加** flex 居中：那会把 .list 挤成内容宽度 -->
             <div class="slide {tabIndex === 0 ? "active" : ""}">
                 <JudgeLineList></JudgeLineList>
             </div>
 
-            <div class="slide {tabIndex === 1 ? "active" : ""}">
-                <!-- 逻辑分辨率固定 600×900（桌面端同款），显示尺寸由 JS 等比缩放 -->
-                <canvas class="editor-canvas" bind:this={notesCanvas} width={600} height={900}></canvas>
+            <div class="slide center {tabIndex === 1 ? "active" : ""}">
+                <canvas class="editor-canvas" bind:this={notesCanvas}></canvas>
             </div>
 
-            <div class="slide {tabIndex === 2 ? "active" : ""}">
-                <canvas class="editor-canvas" bind:this={eventsCanvas} width={600} height={900}></canvas>
+            <div class="slide center {tabIndex === 2 ? "active" : ""}">
+                <canvas class="editor-canvas" bind:this={eventsCanvas}></canvas>
             </div>
         </div>
     </section>
@@ -884,12 +884,16 @@
     height: 100%;
     min-width: 0;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     /* 非当前页 visibility: hidden（不是移除 DOM），滑完再隐藏 */
     visibility: hidden;
     transition: visibility 0s linear 0.24s;
+}
+
+/* 只有画布页需要居中；列表页要铺满，不能改成 flex */
+.slide.center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .slide.active {
