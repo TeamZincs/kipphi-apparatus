@@ -57,19 +57,24 @@
         }
     });
 
-    let refreshKey = $state(0);
-
     let root: HTMLDivElement;
 
-    const values = $node({
-        get: () => ({
-            moveX: target.moveX,
-            moveY: target.moveY,
-            rotate: target.rotate,
-            alpha: target.alpha,
-            refreshKey
-        })
-    });
+    //#region 状态数值：钩子里从 target 读（原来是 refreshKey + $node 重算）
+    let moveX = $state(target.moveX);
+    let moveY = $state(target.moveY);
+    let rotate = $state(target.rotate);
+    let alpha = $state(target.alpha);
+
+    /** 刷新钩子：`refreshAll()` 时被调用 */
+    function refreshValues(): void {
+        moveX = target.moveX;
+        moveY = target.moveY;
+        rotate = target.rotate;
+        alpha = target.alpha;
+    }
+
+    registerRefresh(refreshValues);
+    //#endregion
 
     let folded = $state(false);
     let lineName = $state(target.name);
@@ -119,13 +124,13 @@
     <input class="name" bind:value={lineName} onclick={(e) => e.stopPropagation()}
         onchange={() => operationList.do(new Op.JudgeLineRenameOperation(target, lineName))}
     >
-    <span>x</span><span>{values.moveX?.toFixed?.(2)}</span>
-    <span>y</span><span>{values.moveY?.toFixed?.(2)}</span>
+    <span>x</span><span>{moveX?.toFixed?.(2)}</span>
+    <span>y</span><span>{moveY?.toFixed?.(2)}</span>
     <span class="triangle {!flat && sortedChildren.length > 0 ? '' : 'hidden'} {folded ? 'folded' : ''}"
         onclick={(e) => {folded = !folded; e.stopPropagation()}}
         ></span>
-    <span>θ</span><span>{values.rotate !== undefined ? (values.rotate * 180 / Math.PI).toFixed?.(2) : "N/A"}</span>
-    <span>α</span><span>{values.alpha !== undefined ? Math.round(values.alpha).toString?.(16) + "/" + Math.round(values.alpha) : "N/A"}</span>
+    <span>θ</span><span>{rotate !== undefined ? (rotate * 180 / Math.PI).toFixed?.(2) : "N/A"}</span>
+    <span>α</span><span>{alpha !== undefined ? Math.round(alpha).toString?.(16) + "/" + Math.round(alpha) : "N/A"}</span>
 </div>
 {#if !flat && sortedChildren.length > 0}
     <!-- 用判定线对象本身当 key：行复用时不会因为数组重建而整片重刷 -->
@@ -139,9 +144,6 @@
 {/if}
 
 <script onmount>
-    // 父级要"重画判线列表"时喊一声：bump 一下 refreshKey，`values` 跟着重算
-    registerRefresh(() => (refreshKey += 1));
-
     selectedLineNumber.subscribe((lineNumber) => {
         // 只在真的变了才写：无条件写会把"订阅 -> 刷新 -> 写 -> 订阅"接成环
         const next = lineNumber === target.id;

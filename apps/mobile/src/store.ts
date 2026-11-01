@@ -26,6 +26,13 @@ export let chartId: string | null = null;
 export const selectedLineId = writable<number | null>(null);
 
 /**
+ * 左滑露出操作按钮的那一行（同一时刻只允许一行展开）。
+ *
+ * 递归组件之间没法靠 props 传递"谁开着"，放在这里最简单。
+ */
+export const openLineId = writable<number | null>(null);
+
+/**
  * 谱面加载完成的信号（每次 `loadChart` 成功就 +1）。
  *
  * `chart` 是模块级 `let`，赋值本身不会通知任何人；`JudgeLineList` 的 `$node`

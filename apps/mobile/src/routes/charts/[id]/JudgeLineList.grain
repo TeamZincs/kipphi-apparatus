@@ -1,57 +1,21 @@
 <script>
-    import { Op, type JudgeLine } from "kipphi";
-
+    /*
+     * 判定线列表：工具栏（布局下拉框）+ 三种布局的容器。
+     *
+     * 每一行都是递归组件 `JudgeLineRow`（含子树），跟桌面端
+     * `JudgeLinesManager` → `JudgeLineManager` 的结构一致。
+     */
     import Select from "#/components/Select.grain";
 
-    import {
-        chart,
-        chartLoaded,
-        operationList,
-        reflowAll,
-        registerRefresh,
-        registerReflow,
-        selectedLineId
-    } from "#/store";
+    import { chart, chartLoaded, registerReflow } from "#/store";
 
-    /**
-     * 三种布局，跟桌面端 `JudgeLinesManager` 一致：
-     *   ordered —— `chart.judgeLines` 平铺（不展开子判定线）
-     *   tree    —— 从 `orphanLines` 递归展开 children
-     *   grouped —— 按 `judgeLineGroups` 分组
-     */
+    import JudgeLineRow from "./JudgeLineRow.grain";
+
+    /** 三种布局，跟桌面端 `JudgeLinesManager` 一致 */
     type Layout = "ordered" | "tree" | "grouped";
 
-    interface Row {
-        kind: "line" | "group";
-        id?: number;
-        text: string;
-        level: number;
-        hasChildren?: boolean;
-        folded?: boolean;
-        count?: number;
-        x?: string;
-        y?: string;
-        rotate?: string;
-        alpha?: string;
-        speed?: string;
-    }
-
-    /** 两个操作按钮的总宽（CSS 里 `.actions` 的宽度要对上） */
-    const ACTION_WIDTH = 132;
-    /** 展开 / 收起的基础时长 */
-    const BASE_DURATION = 160;
-    const MAX_DURATION = 320;
-    /** 松手时超过这个进度就停在展开位 */
-    const OPEN_PROGRESS = 0.35;
-
     let layout = $state<Layout>("ordered");
-    let foldedIds = $state<number[]>([]);
     let foldedGroups = $state<string[]>([]);
-
-    /** 当前展开操作的那一行 */
-    let openId = $state<number | null>(null);
-    /** 展开那一行的 DOM（要在别的行开始滑时把它收回去） */
-    let openElement: HTMLElement | null = null;
 
     const layoutOptions = [
         { value: "ordered", label: "顺序" },
@@ -59,292 +23,35 @@
         { value: "grouped", label: "分组" }
     ];
 
-    const byId = (a: JudgeLine, b: JudgeLine) => a.id - b.id;
+    /** 谱面是异步加载的（`chart` 只是个 let），靠 signal 与 reflow 通知 */
+    const listen = (update: () => void) => {
+        chartLoaded.subscribe(update);
+        registerReflow(update);
+    };
 
-    const num = (value: number | undefined, digits = 1): string =>
-        typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
-
-    const stats = (line: JudgeLine) => ({
-        x: num(line.moveX),
-        y: num(line.moveY),
-        rotate: num(((line.rotate ?? 0) * 180) / Math.PI),
-        alpha: num(line.alpha, 0),
-        speed: num(line.speed)
+    /** 顺序：平铺，不展开子线 */
+    const orderedLines = $node({
+        get: () => (chart ? [...chart.judgeLines].sort((a, b) => a.id - b.id) : []),
+        listen
     });
 
-    /** 树形：从根判定线往下递归，遇到折叠的就不往下走 */
-    function walk(lines: Iterable<JudgeLine>, level: number, out: Row[]): void {
-        for (const line of [...lines].sort(byId)) {
-            const children = [...line.children];
-            const folded = foldedIds.includes(line.id);
-
-            out.push({
-                kind: "line",
-                id: line.id,
-                text: line.name ?? "",
-                level,
-                hasChildren: children.length > 0,
-                folded,
-                ...stats(line)
-            });
-
-            if (!folded && children.length > 0) walk(children, level + 1, out);
-        }
-    }
-
-    const rows = $node({
-        get: () => {
-            const target = chart;
-            const out: Row[] = [];
-
-            if (!target) return out;
-
-            if (layout === "ordered") {
-                for (const line of [...target.judgeLines].sort(byId)) {
-                    out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 0, ...stats(line) });
-                }
-            } else if (layout === "tree") {
-                walk(target.orphanLines, 0, out);
-            } else {
-                for (const group of target.judgeLineGroups) {
-                    const folded = foldedGroups.includes(group.name);
-
-                    out.push({
-                        kind: "group",
-                        text: group.name,
-                        level: 0,
-                        count: group.judgeLines.length,
-                        folded
-                    });
-
-                    if (folded) continue;
-
-                    for (const line of group.judgeLines) {
-                        out.push({ kind: "line", id: line.id, text: line.name ?? "", level: 1, ...stats(line) });
-                    }
-                }
-            }
-
-            return out;
-        },
-        listen: (update) => {
-            // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人）
-            chartLoaded.subscribe(update);
-            // 播放时刷新数值（x / y / θ / α / 速度），跟结构重建分开
-            registerRefresh(update);
-            // operationList 的 `needsreflow` 由 store 转成一次全量回流广播到这里
-            registerReflow(update);
-        }
+    /** 树形：只给根判定线，子线由行组件自己递归 */
+    const treeLines = $node({
+        get: () => (chart ? [...chart.orphanLines].sort((a, b) => a.id - b.id) : []),
+        listen
     });
 
-    const currentId = $node({
-        get: () => selectedLineId.get(),
-        listen: (update) => selectedLineId.subscribe(update)
+    /** 分组 */
+    const groups = $node({
+        get: () => (chart ? [...chart.judgeLineGroups] : []),
+        listen
     });
-
-    function pick(id: number): void {
-        if (suppressClick) {
-            suppressClick = false;
-
-            return;
-        }
-
-        if (openId !== null) {
-            closeOpen();
-
-            return;
-        }
-
-        selectedLineId.set(id);
-    }
-
-    function toggleFold(id: number): void {
-        foldedIds = foldedIds.includes(id) ? foldedIds.filter((item) => item !== id) : [...foldedIds, id];
-    }
 
     function toggleGroup(name: string): void {
         foldedGroups = foldedGroups.includes(name)
             ? foldedGroups.filter((item) => item !== name)
             : [...foldedGroups, name];
     }
-
-    //#region 左滑：按钮从右侧滑入，id/名字做小幅度弹性位移
-    const EASE = "cubic-bezier(0.22, 0.61, 0.36, 1)";
-
-    let dragId: number | null = null;
-    let dragItem: HTMLElement | null = null;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    /** 起始进度：0 = 关闭，1 = 完全展开 */
-    let startProgress = 0;
-    let progress = 0;
-    let vertical = false;
-    let suppressClick = false;
-    let lastX = 0;
-    let lastTime = 0;
-    let velocity = 0;
-
-    /** 按钮层与 id/名字层：位置都由 progress(0~1) 推导 */
-    function partsOf(item: HTMLElement) {
-        return {
-            actions: item.querySelector<HTMLElement>(".actions"),
-            head: item.querySelector<HTMLElement>(".head")
-        };
-    }
-
-    /** 直接把进度写到 DOM（拖拽期间用，不要过渡） */
-    function paint(item: HTMLElement, value: number): void {
-        const { actions, head } = partsOf(item);
-
-        if (actions) actions.style.transform = `translateX(${(1 - value) * 100}%)`;
-        // 名字往**左**让一点，给右边滑进来的按钮腾位置
-        if (head) head.style.transform = `translateX(${-value * 8}px)`;
-    }
-
-    /** 清掉内联位移，让 `.open` 类的 CSS 接管最终状态 */
-    function clearInline(item: HTMLElement): void {
-        const { actions, head } = partsOf(item);
-
-        if (actions) actions.style.transform = "";
-        if (head) head.style.transform = "";
-    }
-
-    /**
-     * 从当前进度动画到目标进度。
-     *
-     * 时长取 `max(基础时长, 剩余距离 / 速度)`：慢慢拖松手时按速度算出来的会更长，
-     * 保证不会"啪"一下跳过去；快速甩动时速度大、算出来的短，跟手。
-     */
-    function animateProgress(item: HTMLElement, from: number, to: number, speed: number): void {
-        const remaining = Math.abs(to - from) * ACTION_WIDTH;
-        const derived = speed > 0.05 ? remaining / speed : MAX_DURATION;
-        const duration = Math.min(MAX_DURATION, Math.max(BASE_DURATION, derived));
-        const { actions, head } = partsOf(item);
-        const options: KeyframeAnimationOptions = { duration, easing: EASE };
-
-        clearInline(item);
-
-        actions?.animate(
-            [
-                { transform: `translateX(${(1 - from) * 100}%)` },
-                { transform: `translateX(${(1 - to) * 100}%)` }
-            ],
-            options
-        );
-
-        // 名字的弹性位移**松手就归位**（不管最后是展开还是收起）
-        head?.animate(
-            [{ transform: `translateX(${-from * 8}px)` }, { transform: "translateX(0px)" }],
-            options
-        );
-    }
-
-    function closeOpen(): void {
-        const item = openElement;
-
-        openId = null;
-        openElement = null;
-
-        if (item) animateProgress(item, 1, 0, 0);
-    }
-
-    function onRowDown(event: PointerEvent, id: number): void {
-        const item = (event.currentTarget as HTMLElement).closest(".item") as HTMLElement | null;
-
-        // 滑另一行时，先把当前展开的那行**立刻**收回去（不等这一行滑完）
-        if (openId !== null && openId !== id) closeOpen();
-
-        dragId = id;
-        dragItem = item;
-        dragStartX = event.clientX;
-        dragStartY = event.clientY;
-        startProgress = openId === id ? 1 : 0;
-        progress = startProgress;
-        vertical = false;
-        velocity = 0;
-        lastX = event.clientX;
-        lastTime = performance.now();
-        suppressClick = false;
-
-        if (item) paint(item, progress);
-    }
-
-    function onRowMove(event: PointerEvent, id: number): void {
-        if (dragId !== id || !dragItem) return;
-
-        const dx = event.clientX - dragStartX;
-        const dy = event.clientY - dragStartY;
-
-        if (!vertical && Math.abs(dy) > Math.abs(dx) + 4) {
-            vertical = true;
-
-            // 认定是滚动列表：把这一行恢复原状
-            paint(dragItem, startProgress);
-
-            return;
-        }
-
-        if (vertical) return;
-
-        const now = performance.now();
-        const elapsed = Math.max(1, now - lastTime);
-
-        velocity = (event.clientX - lastX) / elapsed;
-        lastX = event.clientX;
-        lastTime = now;
-
-        progress = Math.min(1, Math.max(0, startProgress - dx / ACTION_WIDTH));
-        paint(dragItem, progress);
-    }
-
-    function onRowUp(id: number): void {
-        if (dragId !== id) return;
-
-        const item = dragItem;
-        const scrolled = vertical;
-        const speed = Math.abs(velocity);
-
-        if (Math.abs(progress - startProgress) > 0.03) suppressClick = true;
-
-        dragId = null;
-        dragItem = null;
-        vertical = false;
-
-        if (!item) return;
-
-        if (scrolled) {
-            paint(item, startProgress);
-
-            return;
-        }
-
-        // 甩得快就按方向定，否则看过没过阈值
-        const target = speed > 0.5 ? (velocity < 0 ? 1 : 0) : progress > OPEN_PROGRESS ? 1 : 0;
-
-        openId = target === 1 ? id : null;
-        openElement = target === 1 ? item : null;
-
-        animateProgress(item, progress, target, speed);
-    }
-
-    /** 预留：判定线设定面板还没做 */
-    function openSettings(): void {
-        closeOpen();
-    }
-
-    function removeLine(id: number): void {
-        const target = chart?.judgeLines.find((item) => item.id === id);
-
-        // 有子判定线的先不让删（删了子线会失去父级）
-        if (!chart || !target || !operationList || target.children.size > 0) return;
-
-        operationList.do(new Op.JudgeLineDeleteOperation(chart, target));
-
-        // 删除会连带改后面所有线的 id，直接要一次全量回流，别等事件
-        reflowAll();
-        closeOpen();
-    }
-    //#endregion
 </script>
 
 <div class="pane">
@@ -354,57 +61,29 @@
     </div>
 
     <div class="list">
-        {#for row of rows with key = row}
-            {#if row.kind === "group"}
-                <div class="group" onclick={() => toggleGroup(row.text)}>
-                    <span class="caret {row.folded ? 'folded' : ''}">▾</span>
-                    <span class="group-name">{row.text}</span>
-                    <span class="count">{row.count}</span>
+        {#if layout === "ordered"}
+            {#for line of orderedLines with key = line}
+                <JudgeLineRow target={line} flat />
+            {/for}
+        {:else if layout === "tree"}
+            {#for line of treeLines with key = line}
+                <JudgeLineRow target={line} />
+            {/for}
+        {:else}
+            {#for group of groups with key = group}
+                <div class="group" onclick={() => toggleGroup(group.name)}>
+                    <span class="caret {foldedGroups.includes(group.name) ? 'folded' : ''}">▾</span>
+                    <span class="group-name">{group.name}</span>
+                    <span class="count">{group.judgeLines.length}</span>
                 </div>
-            {:else}
-                <div class="item {openId === row.id ? 'open' : ''}">
-                    <div class="actions">
-                        <button class="action settings" onclick={openSettings}>设定</button>
-                        <button
-                            class="action danger {row.hasChildren ? 'disabled' : ''}"
-                            onclick={() => removeLine(row.id)}
-                        >删除</button>
-                    </div>
 
-                    <div
-                        class="row {row.id === currentId ? 'active' : ''}"
-                        style="padding-left: {12 + row.level * 16}px"
-                        onpointerdown={(event) => onRowDown(event, row.id)}
-                        onpointermove={(event) => onRowMove(event, row.id)}
-                        onpointerup={() => onRowUp(row.id)}
-                        onpointercancel={() => onRowUp(row.id)}
-                        onclick={() => pick(row.id)}
-                    >
-                        <span
-                            class="caret {row.folded ? 'folded' : ''} {row.hasChildren ? '' : 'hidden'}"
-                            onclick={(event) => {
-                                event.stopPropagation();
-                                toggleFold(row.id);
-                            }}
-                        >▾</span>
-
-                        <span class="head">
-                            <span class="id">#{row.id}</span>
-                            <span class="name">{row.text}</span>
-                        </span>
-
-                        <!-- 状态不如 id/名字重要：展开时会被两个按钮遮住 -->
-                        <span class="stats">
-                            <span>x {row.x}</span>
-                            <span>y {row.y}</span>
-                            <span>θ {row.rotate}°</span>
-                            <span>α {row.alpha}</span>
-                            <span>v {row.speed}</span>
-                        </span>
-                    </div>
-                </div>
-            {/if}
-        {/for}
+                {#if !foldedGroups.includes(group.name)}
+                    {#for line of group.judgeLines with key = line}
+                        <JudgeLineRow target={line} level={1} />
+                    {/for}
+                {/if}
+            {/for}
+        {/if}
     </div>
 </div>
 
@@ -461,84 +140,9 @@
     color: var(--text-dim);
 }
 
-/* 一行：按钮层压在状态上面，行本身不动 */
-.item {
-    position: relative;
-    overflow: hidden;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-}
-
-/*
- * 按钮层必须在行**上面**：行是不透明的、本身不再左移，
- * 放在下面会被整行盖住 —— 那就"滑不出来"了。
- */
-.actions {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 2;
-    display: flex;
-    width: 132px;
-    transform: translateX(100%);
-    transition: transform 0.16s ease;
-}
-
-.item.open .actions {
-    transform: translateX(0);
-}
-
-.action {
-    flex: 1;
-    border: none;
-    border-radius: 0;
-    font-size: 13px;
-    color: #fff;
-}
-
-.action.settings {
-    background: #6b7280;
-}
-
-.action.danger {
-    background: #d9534f;
-}
-
-.action.danger.disabled {
-    background: #9aa1ab;
-    color: #eceff3;
-}
-
-.row {
-    position: relative;
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    background: var(--surface);
-    color: var(--text);
-    touch-action: pan-y;
-}
-
-.row.active {
-    background: var(--surface-2);
-    box-shadow: inset 3px 0 0 var(--accent);
-}
-
-/* id + 名字：只在拖拽时向左让位，松手自己回弹（不跟"是否展开"绑定） */
-.head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 0 0 auto;
-}
-
 .caret {
     flex: none;
     width: 14px;
-    color: var(--text-dim);
     font-size: 11px;
     text-align: center;
     transition: transform 0.15s ease;
@@ -546,34 +150,5 @@
 
 .caret.folded {
     transform: rotate(-90deg);
-}
-
-.caret.hidden {
-    visibility: hidden;
-}
-
-.id {
-    color: var(--text-dim);
-    font-size: 12px;
-    flex: none;
-}
-
-/* 线号 + 线名是最重要的信息：保持原字号，不收缩、不折行 */
-.name {
-    font-size: 14px;
-    white-space: nowrap;
-}
-
-/* 状态跟着名字后面，空间不够时这一块内部折行 */
-.stats {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0 8px;
-    color: var(--text-dim);
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
 }
 </style>
