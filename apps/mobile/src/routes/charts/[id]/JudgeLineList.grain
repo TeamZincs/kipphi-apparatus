@@ -3,7 +3,7 @@
 
     import Select from "#/components/Select.grain";
 
-    import { chart, chartLoaded, operationList, selectedLineId } from "#/store";
+    import { chart, chartLoaded, operationList, playbackTick, selectedLineId } from "#/store";
 
     /**
      * 三种布局，跟桌面端 `JudgeLinesManager` 一致：
@@ -27,6 +27,7 @@
         y?: string;
         rotate?: string;
         alpha?: string;
+        speed?: string;
     }
 
     const ACTION_WIDTH = 132;
@@ -42,6 +43,8 @@
     let dragId: number | null = null;
     let dragOffset = $state(0);
     let dragStartX = 0;
+    /** 滑动结束后紧跟的那次 click 要吞掉（否则刚滑开就被自己关掉） */
+    let suppressClick = false;
 
     const layoutOptions = [
         { value: "ordered", label: "顺序" },
@@ -58,7 +61,8 @@
         x: num(line.moveX),
         y: num(line.moveY),
         rotate: num(((line.rotate ?? 0) * 180) / Math.PI),
-        alpha: num(line.alpha, 0)
+        alpha: num(line.alpha, 0),
+        speed: num(line.speed)
     });
 
     /** 树形：从根判定线往下递归，遇到折叠的就不往下走 */
@@ -119,6 +123,8 @@
         listen: (update) => {
             // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人）
             chartLoaded.subscribe(update);
+            // 播放时 x / y / θ / α / 速度都在变，跟着页面的节流信号重算
+            playbackTick.subscribe(update);
             operationList?.addEventListener("needsreflow", update);
         }
     });
@@ -129,6 +135,13 @@
     });
 
     function pick(id: number): void {
+        // 刚滑开（或刚收起）时那次 click 不能当成"点选"，否则一滑就被立刻关掉
+        if (suppressClick) {
+            suppressClick = false;
+
+            return;
+        }
+
         if (openId !== null) {
             openId = null;
 
@@ -166,9 +179,11 @@
     function onRowUp(id: number): void {
         if (dragId !== id) return;
 
-        const shouldOpen = dragOffset < -ACTION_WIDTH / 3;
+        const moved = dragOffset < -4;
 
-        openId = shouldOpen ? id : null;
+        if (moved) suppressClick = true;
+
+        openId = dragOffset < -ACTION_WIDTH / 3 ? id : null;
         dragId = null;
         dragOffset = 0;
     }
@@ -238,8 +253,13 @@
                         <span class="id">#{row.id}</span>
                         <span class="name">{row.text}</span>
 
+                        <!-- 状态紧跟在名字右边；挤不下时只有这些数值折行，名字不缩不折 -->
                         <span class="stats">
-                            x {row.x} · y {row.y} · θ {row.rotate}° · α {row.alpha}
+                            <span>x {row.x}</span>
+                            <span>y {row.y}</span>
+                            <span>θ {row.rotate}°</span>
+                            <span>α {row.alpha}</span>
+                            <span>v {row.speed}</span>
                         </span>
                     </div>
                 </div>
@@ -335,7 +355,8 @@
 .row {
     position: relative;
     display: flex;
-    flex-wrap: wrap;
+    /* 名字不换行；要折的是右边那串状态 */
+    flex-wrap: nowrap;
     align-items: center;
     gap: 8px;
     padding: 12px 16px;
@@ -375,18 +396,21 @@
     flex: none;
 }
 
+/* 线号 + 线名是最重要的信息：保持原字号，不收缩、不折行 */
 .name {
-    flex: 1;
+    flex: 0 0 auto;
     font-size: 14px;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-/* 状态行：x / y / θ / α，独占一行，跟桌面端一致 */
+/* 状态跟着名字后面，空间不够时**这一块内部**折行 */
 .stats {
-    flex: 0 0 100%;
-    padding-left: 22px;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0 8px;
     color: var(--text-dim);
     font-size: 11px;
     font-variant-numeric: tabular-nums;

@@ -33,6 +33,14 @@ export const selectedLineId = writable<number | null>(null);
  */
 export const chartLoaded = writable(0);
 
+/**
+ * 播放中的"刷新一下"信号（页面按 ~10Hz 递增）。
+ *
+ * 判定线的 x / y / θ / α / 速度都是随时间插值的，播放时要在列表里跟着变，
+ * 但每帧都重算整个列表太贵，所以节流成一个可订阅的 tick。
+ */
+export const playbackTick = writable(0);
+
 export const lineOf = (id: number | null): JudgeLine | null =>
     chart && id !== null ? chart.judgeLines.find((line) => line.id === id) ?? null : null;
 

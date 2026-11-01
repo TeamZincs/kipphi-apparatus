@@ -23,7 +23,17 @@
     import JudgeLineList from "./JudgeLineList.grain";
 
     import { scheduleSave } from "#/save";
-    import { chart, chartId, illustration, lineOf, loadChart, musicUrl, operationList, selectedLineId } from "#/store";
+    import {
+        chart,
+        chartId,
+        illustration,
+        lineOf,
+        loadChart,
+        musicUrl,
+        operationList,
+        playbackTick,
+        selectedLineId
+    } from "#/store";
     import { readDefaultRespackFile } from "#/tauri";
 
     //#region 页面状态
@@ -51,6 +61,9 @@
     let controlsVisible = $state(false);
     let dragging = $state(false);
     let seekHint = $state("");
+
+    /** 判定线列表状态刷新的节流时刻 */
+    let lastTickAt = 0;
 
     /** 竖屏 3:2；全屏时强制 16:9（并尝试锁横屏） */
     let aspect = $state(3 / 2);
@@ -218,6 +231,14 @@
 
                 drawEditors(player.renderingBeats);
                 syncProgress();
+
+                // 判定线列表的状态（x/y/θ/α/速度）也要跟着动，但每帧重算太贵 —— 节流到 ~10Hz
+                const now = performance.now();
+
+                if (now - lastTickAt > 100) {
+                    lastTickAt = now;
+                    playbackTick.set(playbackTick.get() + 1);
+                }
             });
 
             const ops = operationList;
