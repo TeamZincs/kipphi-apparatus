@@ -18,10 +18,8 @@
         id?: number;
         text: string;
         level: number;
-        /** 树形：有没有子判定线（决定显不显示折叠三角） */
         hasChildren?: boolean;
         folded?: boolean;
-        /** 组的成员数 */
         count?: number;
         x?: string;
         y?: string;
@@ -30,28 +28,22 @@
         speed?: string;
     }
 
-    /** 两个按钮的总宽（要和 CSS 里 `.row.open` 的位移一致） */
+    /** 两个操作按钮的总宽（CSS 里 `.actions` 的宽度要对上） */
     const ACTION_WIDTH = 132;
-    /** 滑过这个距离就停成展开态（越小越容易呼出） */
-    const OPEN_THRESHOLD = 28;
+    /** 展开 / 收起的基础时长 */
+    const BASE_DURATION = 160;
+    const MAX_DURATION = 320;
+    /** 松手时超过这个进度就停在展开位 */
+    const OPEN_PROGRESS = 0.35;
 
     let layout = $state<Layout>("ordered");
-
-    /** 折叠起来的判定线 id 与组名（用数组，改了直接换引用才能触发刷新） */
     let foldedIds = $state<number[]>([]);
     let foldedGroups = $state<string[]>([]);
 
-    /** 当前左滑展开操作的那一行 */
+    /** 当前展开操作的那一行 */
     let openId = $state<number | null>(null);
-    let dragId: number | null = null;
-    /** 普通变量：拖拽过程中不要触发任何重渲染（位移是直接写 DOM 的） */
-    let dragOffset = 0;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    /** 这一次手势是不是竖向滚动（是的话就不做左滑） */
-    let vertical = false;
-    /** 滑动结束后紧跟的那次 click 要吞掉（否则刚滑开就被自己关掉） */
-    let suppressClick = false;
+    /** 展开那一行的 DOM（要在别的行开始滑时把它收回去） */
+    let openElement: HTMLElement | null = null;
 
     const layoutOptions = [
         { value: "ordered", label: "顺序" },
@@ -128,9 +120,7 @@
             return out;
         },
         listen: (update) => {
-            // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人）
             chartLoaded.subscribe(update);
-            // 播放时 x / y / θ / α / 速度都在变，跟着页面的节流信号重算
             playbackTick.subscribe(update);
             operationList?.addEventListener("needsreflow", update);
         }
@@ -142,7 +132,6 @@
     });
 
     function pick(id: number): void {
-        // 刚滑开（或刚收起）时那次 click 不能当成"点选"，否则一滑就被立刻关掉
         if (suppressClick) {
             suppressClick = false;
 
@@ -150,7 +139,7 @@
         }
 
         if (openId !== null) {
-            openId = null;
+            closeOpen();
 
             return;
         }
@@ -168,79 +157,177 @@
             : [...foldedGroups, name];
     }
 
-    //#region 左滑露出操作
+    //#region 左滑：按钮从右侧滑入，id/名字做小幅度弹性位移
+    const EASE = "cubic-bezier(0.22, 0.61, 0.36, 1)";
+
+    let dragId: number | null = null;
+    let dragItem: HTMLElement | null = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    /** 起始进度：0 = 关闭，1 = 完全展开 */
+    let startProgress = 0;
+    let progress = 0;
+    let vertical = false;
+    let suppressClick = false;
+    let lastX = 0;
+    let lastTime = 0;
+    let velocity = 0;
+
+    /** 按钮层与 id/名字层：位置都由 progress(0~1) 推导 */
+    function partsOf(item: HTMLElement) {
+        return {
+            actions: item.querySelector<HTMLElement>(".actions"),
+            head: item.querySelector<HTMLElement>(".head")
+        };
+    }
+
+    /** 直接把进度写到 DOM（拖拽期间用，不要过渡） */
+    function paint(item: HTMLElement, value: number): void {
+        const { actions, head } = partsOf(item);
+
+        if (actions) actions.style.transform = `translateX(${(1 - value) * 100}%)`;
+        if (head) head.style.transform = `translateX(${value * 6}px)`;
+    }
+
+    /** 清掉内联位移，让 `.open` 类的 CSS 接管最终状态 */
+    function clearInline(item: HTMLElement): void {
+        const { actions, head } = partsOf(item);
+
+        if (actions) actions.style.transform = "";
+        if (head) head.style.transform = "";
+    }
+
     /**
-     * 拖拽期间**直接改 DOM**，不经过响应式状态：
-     * 每次 pointermove 走一遍状态会让整个列表重渲染，手指就跟不上了。
-     * 松手时清掉内联样式，交给 `.row.open` 的 `transition` 做动画。
+     * 从当前进度动画到目标进度。
+     *
+     * 时长取 `max(基础时长, 剩余距离 / 速度)`：慢慢拖松手时按速度算出来的会更长，
+     * 保证不会"啪"一下跳过去；快速甩动时速度大、算出来的短，跟手。
      */
-    let dragElement: HTMLElement | null = null;
+    function animateProgress(item: HTMLElement, from: number, to: number, speed: number): void {
+        const remaining = Math.abs(to - from) * ACTION_WIDTH;
+        const derived = speed > 0.05 ? remaining / speed : MAX_DURATION;
+        const duration = Math.min(MAX_DURATION, Math.max(BASE_DURATION, derived));
+        const { actions, head } = partsOf(item);
+        const options: KeyframeAnimationOptions = { duration, easing: EASE };
+
+        clearInline(item);
+
+        actions?.animate(
+            [
+                { transform: `translateX(${(1 - from) * 100}%)` },
+                { transform: `translateX(${(1 - to) * 100}%)` }
+            ],
+            options
+        );
+
+        head?.animate(
+            [{ transform: `translateX(${from * 6}px)` }, { transform: `translateX(${to * 6}px)` }],
+            options
+        );
+    }
+
+    function closeOpen(): void {
+        const item = openElement;
+
+        openId = null;
+        openElement = null;
+
+        if (item) animateProgress(item, 1, 0, 0);
+    }
 
     function onRowDown(event: PointerEvent, id: number): void {
+        const item = (event.currentTarget as HTMLElement).closest(".item") as HTMLElement | null;
+
+        // 滑另一行时，先把当前展开的那行**立刻**收回去（不等这一行滑完）
+        if (openId !== null && openId !== id) closeOpen();
+
         dragId = id;
+        dragItem = item;
         dragStartX = event.clientX;
         dragStartY = event.clientY;
-        dragOffset = 0;
+        startProgress = openId === id ? 1 : 0;
+        progress = startProgress;
         vertical = false;
-        dragElement = event.currentTarget as HTMLElement;
+        velocity = 0;
+        lastX = event.clientX;
+        lastTime = performance.now();
+        suppressClick = false;
 
-        // 拖的时候不要过渡，否则跟手有延迟
-        if (dragElement) dragElement.style.transition = "none";
+        if (item) paint(item, progress);
     }
 
     function onRowMove(event: PointerEvent, id: number): void {
-        if (dragId !== id || !dragElement) return;
+        if (dragId !== id || !dragItem) return;
 
-        const dx = Math.min(0, event.clientX - dragStartX);
+        const dx = event.clientX - dragStartX;
         const dy = event.clientY - dragStartY;
 
-        // 先判方向：竖着滑是要滚列表，不要让行跟着动
-        if (!vertical && dragOffset === 0 && Math.abs(dy) > Math.abs(dx) + 4) {
+        if (!vertical && Math.abs(dy) > Math.abs(dx) + 4) {
             vertical = true;
+
+            // 认定是滚动列表：把这一行恢复原状
+            paint(dragItem, startProgress);
+
+            return;
         }
 
         if (vertical) return;
 
-        dragOffset = Math.max(-ACTION_WIDTH, dx);
-        dragElement.style.transform = `translateX(${dragOffset}px)`;
+        const now = performance.now();
+        const elapsed = Math.max(1, now - lastTime);
+
+        velocity = (event.clientX - lastX) / elapsed;
+        lastX = event.clientX;
+        lastTime = now;
+
+        progress = Math.min(1, Math.max(0, startProgress - dx / ACTION_WIDTH));
+        paint(dragItem, progress);
     }
 
     function onRowUp(id: number): void {
         if (dragId !== id) return;
 
+        const item = dragItem;
         const scrolled = vertical;
+        const speed = Math.abs(velocity);
 
-        // 稍微滑一点就算"滑过"，免得和小幅抖动打架
-        if (dragOffset < -6) suppressClick = true;
-
-        if (dragElement) {
-            // 内联的 transition / transform 都撤掉，让 `.open` 的过渡接管
-            dragElement.style.transition = "";
-            dragElement.style.transform = "";
-        }
-
-        if (!scrolled) openId = dragOffset < -OPEN_THRESHOLD ? id : null;
+        if (Math.abs(progress - startProgress) > 0.03) suppressClick = true;
 
         dragId = null;
-        dragElement = null;
-        dragOffset = 0;
+        dragItem = null;
         vertical = false;
-    }
 
-    function removeLine(id: number): void {
-        const line = chart?.judgeLines.find((item) => item.id === id);
+        if (!item) return;
 
-        if (!line || !operationList) return;
+        if (scrolled) {
+            paint(item, startProgress);
 
-        operationList.do(new Op.JudgeLineDeleteOperation(line));
-        openId = null;
+            return;
+        }
+
+        // 甩得快就按方向定，否则看过没过阈值
+        const target = speed > 0.5 ? (velocity < 0 ? 1 : 0) : progress > OPEN_PROGRESS ? 1 : 0;
+
+        openId = target === 1 ? id : null;
+        openElement = target === 1 ? item : null;
+
+        animateProgress(item, progress, target, speed);
     }
 
     /** 预留：判定线设定面板还没做 */
     function openSettings(): void {
-        openId = null;
+        closeOpen();
     }
 
+    function removeLine(id: number): void {
+        const target = chart?.judgeLines.find((item) => item.id === id);
+
+        // 有子判定线的先不让删（删了子线会失去父级）
+        if (!chart || !target || !operationList || target.children.size > 0) return;
+
+        operationList.do(new Op.JudgeLineDeleteOperation(chart, target));
+        closeOpen();
+    }
     //#endregion
 </script>
 
@@ -259,14 +346,17 @@
                     <span class="count">{row.count}</span>
                 </div>
             {:else}
-                <div class="item">
+                <div class="item {openId === row.id ? 'open' : ''}">
                     <div class="actions">
                         <button class="action settings" onclick={openSettings}>设定</button>
-                        <button class="action danger" onclick={() => removeLine(row.id)}>删除</button>
+                        <button
+                            class="action danger {row.hasChildren ? 'disabled' : ''}"
+                            onclick={() => removeLine(row.id)}
+                        >删除</button>
                     </div>
 
                     <div
-                        class="row {row.id === currentId ? 'active' : ''} {openId === row.id ? 'open' : ''}"
+                        class="row {row.id === currentId ? 'active' : ''}"
                         style="padding-left: {12 + row.level * 16}px"
                         onpointerdown={(event) => onRowDown(event, row.id)}
                         onpointermove={(event) => onRowMove(event, row.id)}
@@ -282,10 +372,12 @@
                             }}
                         >▾</span>
 
-                        <span class="id">#{row.id}</span>
-                        <span class="name">{row.text}</span>
+                        <span class="head">
+                            <span class="id">#{row.id}</span>
+                            <span class="name">{row.text}</span>
+                        </span>
 
-                        <!-- 状态紧跟在名字右边；挤不下时只有这些数值折行，名字不缩不折 -->
+                        <!-- 状态不如 id/名字重要：展开时会被两个按钮遮住 -->
                         <span class="stats">
                             <span>x {row.x}</span>
                             <span>y {row.y}</span>
@@ -353,11 +445,12 @@
     color: var(--text-dim);
 }
 
-/* 一行：下面垫着操作按钮，内容层左滑露出 */
+/* 一行：按钮层压在状态上面，行本身不动 */
 .item {
     position: relative;
     overflow: hidden;
-    background: var(--bg);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
 }
 
 .actions {
@@ -366,10 +459,17 @@
     right: 0;
     bottom: 0;
     display: flex;
+    width: 132px;
+    transform: translateX(100%);
+    transition: transform 0.16s ease;
+}
+
+.item.open .actions {
+    transform: translateX(0);
 }
 
 .action {
-    width: 66px;
+    flex: 1;
     border: none;
     border-radius: 0;
     font-size: 13px;
@@ -384,20 +484,21 @@
     background: #d9534f;
 }
 
+.action.danger.disabled {
+    background: #9aa1ab;
+    color: #eceff3;
+}
+
 .row {
     position: relative;
     display: flex;
-    /* 名字不换行；要折的是右边那串状态 */
     flex-wrap: nowrap;
     align-items: center;
     gap: 8px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
     touch-action: pan-y;
-    transition: transform 0.16s ease;
-    will-change: transform;
 }
 
 .row.active {
@@ -405,9 +506,17 @@
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* 展开操作：位移交给过渡做动画（132px = 两个按钮宽） */
-.row.open {
-    transform: translateX(-132px);
+/* id + 名字：展开时向右做一点弹性位移，绝不藏起来 */
+.head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.item.open .head {
+    transform: translateX(6px);
 }
 
 .caret {
@@ -435,12 +544,11 @@
 
 /* 线号 + 线名是最重要的信息：保持原字号，不收缩、不折行 */
 .name {
-    flex: 0 0 auto;
     font-size: 14px;
     white-space: nowrap;
 }
 
-/* 状态跟着名字后面，空间不够时**这一块内部**折行 */
+/* 状态跟着名字后面，空间不够时这一块内部折行 */
 .stats {
     flex: 1 1 auto;
     min-width: 0;
