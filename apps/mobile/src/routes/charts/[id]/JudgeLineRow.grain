@@ -49,7 +49,7 @@
     let lastSource: JudgeLine[] = [];
     let lastSorted: JudgeLine[] = [];
 
-    const children = $node({
+    const childRows = $node({
         get: () => {
             const source = [...target.children];
 
@@ -282,7 +282,7 @@
         onclick={pick}
     >
         <span
-            class="caret {folded ? 'folded' : ''} {!flat && children.length > 0 ? '' : 'hidden'}"
+            class="caret {folded ? 'folded' : ''} {!flat && childRows.length > 0 ? '' : 'hidden'}"
             onclick={toggleFold}
         >▾</span>
 
@@ -301,9 +301,9 @@
     </div>
 </div>
 
-{#if !flat && children.length > 0}
+{#if !flat && childRows.length > 0}
     <!-- 用判定线对象当 key：行复用时不会因为数组重建而整片重刷 -->
-    {#for child of children with key = child}
+    {#for child of childRows with key = child}
         <Self target={child} level={level + 1} show={!folded} />
     {/for}
 {/if}
