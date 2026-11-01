@@ -30,7 +30,10 @@
         speed?: string;
     }
 
+    /** 两个按钮的总宽（要和 CSS 里 `.row.open` 的位移一致） */
     const ACTION_WIDTH = 132;
+    /** 滑过这个距离就停成展开态（越小越容易呼出） */
+    const OPEN_THRESHOLD = 28;
 
     let layout = $state<Layout>("ordered");
 
@@ -41,8 +44,12 @@
     /** 当前左滑展开操作的那一行 */
     let openId = $state<number | null>(null);
     let dragId: number | null = null;
-    let dragOffset = $state(0);
+    /** 普通变量：拖拽过程中不要触发任何重渲染（位移是直接写 DOM 的） */
+    let dragOffset = 0;
     let dragStartX = 0;
+    let dragStartY = 0;
+    /** 这一次手势是不是竖向滚动（是的话就不做左滑） */
+    let vertical = false;
     /** 滑动结束后紧跟的那次 click 要吞掉（否则刚滑开就被自己关掉） */
     let suppressClick = false;
 
@@ -162,30 +169,62 @@
     }
 
     //#region 左滑露出操作
+    /**
+     * 拖拽期间**直接改 DOM**，不经过响应式状态：
+     * 每次 pointermove 走一遍状态会让整个列表重渲染，手指就跟不上了。
+     * 松手时清掉内联样式，交给 `.row.open` 的 `transition` 做动画。
+     */
+    let dragElement: HTMLElement | null = null;
+
     function onRowDown(event: PointerEvent, id: number): void {
         dragId = id;
         dragStartX = event.clientX;
+        dragStartY = event.clientY;
         dragOffset = 0;
+        vertical = false;
+        dragElement = event.currentTarget as HTMLElement;
+
+        // 拖的时候不要过渡，否则跟手有延迟
+        if (dragElement) dragElement.style.transition = "none";
     }
 
     function onRowMove(event: PointerEvent, id: number): void {
-        if (dragId !== id) return;
+        if (dragId !== id || !dragElement) return;
 
         const dx = Math.min(0, event.clientX - dragStartX);
+        const dy = event.clientY - dragStartY;
+
+        // 先判方向：竖着滑是要滚列表，不要让行跟着动
+        if (!vertical && dragOffset === 0 && Math.abs(dy) > Math.abs(dx) + 4) {
+            vertical = true;
+        }
+
+        if (vertical) return;
 
         dragOffset = Math.max(-ACTION_WIDTH, dx);
+        dragElement.style.transform = `translateX(${dragOffset}px)`;
     }
 
     function onRowUp(id: number): void {
         if (dragId !== id) return;
 
-        const moved = dragOffset < -4;
+        const scrolled = vertical;
 
-        if (moved) suppressClick = true;
+        // 稍微滑一点就算"滑过"，免得和小幅抖动打架
+        if (dragOffset < -6) suppressClick = true;
 
-        openId = dragOffset < -ACTION_WIDTH / 3 ? id : null;
+        if (dragElement) {
+            // 内联的 transition / transform 都撤掉，让 `.open` 的过渡接管
+            dragElement.style.transition = "";
+            dragElement.style.transform = "";
+        }
+
+        if (!scrolled) openId = dragOffset < -OPEN_THRESHOLD ? id : null;
+
         dragId = null;
+        dragElement = null;
         dragOffset = 0;
+        vertical = false;
     }
 
     function removeLine(id: number): void {
@@ -202,13 +241,6 @@
         openId = null;
     }
 
-    /** 这一行当前该偏移多少（拖拽中跟手，松手后停在展开位） */
-    function offsetOf(id: number | undefined): number {
-        if (openId === id) return -ACTION_WIDTH;
-        if (dragId === id) return dragOffset;
-
-        return 0;
-    }
     //#endregion
 </script>
 
@@ -234,8 +266,8 @@
                     </div>
 
                     <div
-                        class="row {row.id === currentId ? 'active' : ''}"
-                        style="padding-left: {12 + row.level * 16}px; transform: translateX({offsetOf(row.id)}px)"
+                        class="row {row.id === currentId ? 'active' : ''} {openId === row.id ? 'open' : ''}"
+                        style="padding-left: {12 + row.level * 16}px"
                         onpointerdown={(event) => onRowDown(event, row.id)}
                         onpointermove={(event) => onRowMove(event, row.id)}
                         onpointerup={() => onRowUp(row.id)}
@@ -371,6 +403,11 @@
 .row.active {
     background: var(--surface-2);
     box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* 展开操作：位移交给过渡做动画（132px = 两个按钮宽） */
+.row.open {
+    transform: translateX(-132px);
 }
 
 .caret {
