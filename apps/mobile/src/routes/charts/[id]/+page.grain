@@ -31,7 +31,7 @@
         loadChart,
         musicUrl,
         operationList,
-        playbackTick,
+        reflowAll,
         selectedLineId
     } from "#/store";
     import { readDefaultRespackFile } from "#/tauri";
@@ -232,12 +232,14 @@
                 drawEditors(player.renderingBeats);
                 syncProgress();
 
-                // 判定线列表的状态（x/y/θ/α/速度）也要跟着动，但每帧重算太贵 —— 节流到 ~10Hz
+                // 判定线列表的状态（x/y/θ/α/速度）也要跟着动。
+                // 桌面端在 `drawn` 里直接 `reflowAll()`（每帧）；移动端每帧重排整个列表
+                // 太贵，节流到 ~10Hz 再广播。
                 const now = performance.now();
 
                 if (now - lastTickAt > 100) {
                     lastTickAt = now;
-                    playbackTick.set(playbackTick.get() + 1);
+                    reflowAll();
                 }
             });
 

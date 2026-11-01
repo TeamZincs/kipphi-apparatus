@@ -3,7 +3,15 @@
 
     import Select from "#/components/Select.grain";
 
-    import { chart, chartLoaded, operationList, playbackTick, selectedLineId } from "#/store";
+    import {
+        chart,
+        chartLoaded,
+        operationList,
+        playbackTick,
+        reflowAll,
+        registerReflow,
+        selectedLineId
+    } from "#/store";
 
     /**
      * 三种布局，跟桌面端 `JudgeLinesManager` 一致：
@@ -120,9 +128,12 @@
             return out;
         },
         listen: (update) => {
+            // 谱面是异步加载的（`chart` 只是个 let，赋值不会通知任何人）
             chartLoaded.subscribe(update);
+            // 播放时 x / y / θ / α / 速度都在变，跟着页面的节流信号重算
             playbackTick.subscribe(update);
-            operationList?.addEventListener("needsreflow", update);
+            // operationList 的 `needsreflow` 由 store 转成一次全量回流广播到这里
+            registerReflow(update);
         }
     });
 
@@ -328,6 +339,9 @@
         if (!chart || !target || !operationList || target.children.size > 0) return;
 
         operationList.do(new Op.JudgeLineDeleteOperation(chart, target));
+
+        // 删除会连带改后面所有线的 id，直接要一次全量回流，别等事件
+        reflowAll();
         closeOpen();
     }
     //#endregion

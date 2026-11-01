@@ -33,16 +33,45 @@ export const selectedLineId = writable<number | null>(null);
  */
 export const chartLoaded = writable(0);
 
-/**
- * 播放中的"刷新一下"信号（页面按 ~10Hz 递增）。
- *
- * 判定线的 x / y / θ / α / 速度都是随时间插值的，播放时要在列表里跟着变，
- * 但每帧都重算整个列表太贵，所以节流成一个可订阅的 tick。
- */
-export const playbackTick = writable(0);
-
 export const lineOf = (id: number | null): JudgeLine | null =>
     chart && id !== null ? chart.judgeLines.find((line) => line.id === id) ?? null : null;
+
+/**
+ * "全量回流"的回调表（跟桌面端 `store.ts` 同一个写法）。
+ *
+ * grain 的组件实例没有对外方法，父级没法像 Svelte 那样 `bind:this` 之后调
+ * `child.update()`，所以改成子级自己登记、store 统一广播。
+ */
+const reflowHandlers = new Set<() => void>();
+
+export function registerReflow(handler: () => void): () => void {
+    reflowHandlers.add(handler);
+
+    return () => {
+        reflowHandlers.delete(handler);
+    };
+}
+
+/** 正在广播中（防重入，见下） */
+let reflowing = false;
+
+/**
+ * 广播一次全量回流。
+ *
+ * 防重入：每个登记方在刷新时都可能间接再触发一次 `reflowAll`（比如刷新里又
+ * 派发了事件），不拦的话会叠成"刷新 → 广播 → 刷新"的环，把 grain 的循环保护打满。
+ */
+export function reflowAll(): void {
+    if (reflowing) return;
+
+    reflowing = true;
+
+    try {
+        for (const handler of reflowHandlers) handler();
+    } finally {
+        reflowing = false;
+    }
+}
 
 /** 没接真实谱面时用的示例谱：3 条判定线，够点一圈 UI */
 function buildDemoChart(): Chart {
@@ -86,6 +115,13 @@ export async function loadChart(id: string | null): Promise<void> {
     const first = chart.judgeLines[0];
 
     selectedLineId.set(first ? first.id : null);
+
+    // 操作列表发来的 `needsreflow` 统一转成一次全量回流。
+    // 必须挂在这里（operationList 刚建好），不能在组件里 `operationList?.addEventListener`：
+    // 组件挂载时 operationList 还是 null，那一句会被直接跳过、再也不补。
+    if (operationList) {
+        operationList.addEventListener("needsreflow", () => reflowAll());
+    }
 
     // 通知订阅者（判定线列表）谱面已经就位
     chartLoaded.set(chartLoaded.get() + 1);
