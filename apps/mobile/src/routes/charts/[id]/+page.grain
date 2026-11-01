@@ -1,17 +1,33 @@
 ﻿<script>
+    /*
+     * 移动端编辑器页：播放器 + 标签栏 + 两块画布，全部内联。
+     *
+     * 跟桌面端 `routes/charts/[id]/+page.grain` 的组织方式一致 —— 只有真正
+     * 会被别处复用的 `JudgeLineList` 拆成组件，其余不留组件边界：
+     * 这些 DOM / 状态 / 生命周期只服务这一个页面。
+     */
     import { navigate, route } from "@graints/runtime";
 
-    // 这几个都只在这个页面用一次，所以放在同目录，不占 components/
-    import PlayerBox from "./PlayerBox.grain";
+    import { EventSequenceEditors, NotesEditor } from "@kpa/canvas";
+    import {
+        AudioProcessor,
+        Images,
+        Player,
+        Respack,
+        setWasmPath,
+        VideoFrameSource,
+        type EffectShader
+    } from "kipphi-player";
+    import { fetchTexture, _ReturnType } from "@kpa/shared/background/tauri";
+
     import JudgeLineList from "./JudgeLineList.grain";
-    import NotesPane from "./NotesPane.grain";
-    import EventsPane from "./EventsPane.grain";
 
-    import { activeTab, chart, loadChart, loadError, ready, type MobileTab } from "#/store";
+    import { scheduleSave } from "#/save";
+    import { chart, chartId, illustration, lineOf, loadChart, musicUrl, operationList, selectedLineId } from "#/store";
+    import { readDefaultRespackFile } from "#/tauri";
 
-    const tab = $node({ get: () => activeTab.get(), listen: (update) => activeTab.subscribe(update) });
-    const isReady = $node({ get: () => ready.get(), listen: (update) => ready.subscribe(update) });
-    const failed = $node({ get: () => loadError.get(), listen: (update) => loadError.subscribe(update) });
+    //#region 页面状态
+    type MobileTab = "lines" | "notes" | "events";
 
     const tabs: Array<{ id: MobileTab; label: string }> = [
         { id: "lines", label: "判定线" },
@@ -19,30 +35,557 @@
         { id: "events", label: "事件" }
     ];
 
-    /** 三个页面共用一个横向轨道：切换时整条轨道平移（要 listen，否则 store 变了不重算） */
-    const pageIndex = $node({
-        get: () => Math.max(0, tabs.findIndex((item) => item.id === activeTab.get())),
-        listen: (update) => activeTab.subscribe(update)
-    });
+    let activeTab = $state<MobileTab>("lines");
+    let tabIndex = $state(0);
 
-    function pick(id: MobileTab) {
-        activeTab.set(id);
+    let ready = $state(false);
+    let loadError = $state<string | null>(null);
+
+    let playerReady = $state(false);
+    let playerError = $state<string | null>(null);
+    let playing = $state(false);
+
+    let currentTime = $state(0);
+    let total = $state(0);
+
+    let controlsVisible = $state(false);
+    let dragging = $state(false);
+    let seekHint = $state("");
+
+    /** 竖屏 3:2；全屏时强制 16:9（并尝试锁横屏） */
+    let aspect = $state(3 / 2);
+    //#endregion
+
+    //#region 引用与实例
+    let playerCanvas: HTMLCanvasElement;
+    let notesCanvas: HTMLCanvasElement;
+    let eventsCanvas: HTMLCanvasElement;
+    let playerBox: HTMLDivElement;
+    let pageTrack: HTMLDivElement;
+    let progressEl: HTMLInputElement;
+    let timeLabel: HTMLSpanElement;
+
+    let player: Player | null = null;
+    let notesEditor: NotesEditor | null = null;
+    let eventEditors: EventSequenceEditors | null = null;
+    //#endregion
+
+    /**
+     * 播放器画布用固定逻辑分辨率（高 900，宽 = 高 × 宽高比），CSS 只负责缩放。
+     * 画布编辑器则是桌面端那套写死的 600×900。
+     */
+    const BASE_HEIGHT = 900;
+    const EDITOR_WIDTH = 600;
+    const EDITOR_HEIGHT = 900;
+
+    const playerWidth = $node({ get: () => Math.round(aspect * BASE_HEIGHT) });
+
+    /** 静态资源（跟桌面端同一批，在仓库根的 static/ 里） */
+    const ASSETS = {
+        tap: "/Tap.wav",
+        drag: "/Drag.wav",
+        flick: "/Flick.wav",
+        anchorImg: "/Anchor.png",
+        belowImg: "/Below.png",
+        selectNoteImg: "/selectNote.png",
+        startNodeImg: "/South.png",
+        endNodeImg: "/North.png"
+    } as const;
+
+    //#region 资源初始化
+    /** 默认 respack：Tauri 读 resource，浏览器退回 fetch */
+    const respackPromise: Promise<Respack | null> = (async () => {
+        try {
+            return await Respack.loadFromPhira(async (filename) => {
+                if (filename.endsWith(".ogg")) return null;
+
+                return await readDefaultRespackFile(filename);
+            });
+        } catch (error) {
+            return null;
+        }
+    })();
+
+    /**
+     * 锚点 / 多押 / 编辑器用的那些小图。
+     * `Player.renderLine` 会 `drawImage(Images.ANCHOR)`，两个画布编辑器也要这些图。
+     */
+    const imagesPromise: Promise<void> = (async () => {
+        await Images.loadAndOptimize({ anchor: ASSETS.anchorImg, below: ASSETS.belowImg });
+        await Images.initImagesForEditor({
+            selectNote: ASSETS.selectNoteImg,
+            startNode: ASSETS.startNodeImg,
+            endNode: ASSETS.endNodeImg
+        });
+    })();
+
+    /** respack 里没有打击音效时退回静态资源里的 wav */
+    async function audioProcessorOf(respack: Respack): Promise<AudioProcessor> {
+        if (respack.TAP_SE && respack.DRAG_SE && respack.FLICK_SE) {
+            return AudioProcessor.fromRespack(respack);
+        }
+
+        const processor = new AudioProcessor();
+
+        await processor.init({ tap: ASSETS.tap, drag: ASSETS.drag, flick: ASSETS.flick });
+
+        return processor;
     }
 
-    function back() {
+    /** 视频：贴图接口拿 blob，再包成 `VideoFrameSource` */
+    async function fetchVideo(id: string, name: string) {
+        const blob = await fetchTexture(id, name, _ReturnType.blob);
+
+        const file = new File([blob], "file.mp4", { type: blob.type, lastModified: Date.now() });
+
+        return await VideoFrameSource.from(file, { bufferSize: 6 });
+    }
+
+    /** 着色器：读出源码，包成 `EffectShader` */
+    async function fetchShader(id: string, name: string): Promise<EffectShader> {
+        const bytes = await fetchTexture(id, name, _ReturnType.u8);
+
+        return { glsl: new TextDecoder().decode(bytes), name };
+    }
+
+    /**
+     * 播放器背景。没有曲绘就用一张深灰画布顶上。
+     *
+     * 兜底不能走 `createImageBitmap(canvas)` —— 这个 WebView 里拿到的不是合法
+     * ImageBitmap，`Player` 构造时 `drawImage` 会抛类型错误，连 Canvas 2D 回退都建不起来。
+     */
+    function backgroundOf(): ImageBitmap {
+        if (illustration && illustration instanceof ImageBitmap) return illustration;
+
+        const canvas = document.createElement("canvas");
+
+        canvas.width = 16;
+        canvas.height = 16;
+
+        const context = canvas.getContext("2d");
+
+        if (context) {
+            context.fillStyle = "#101318";
+            context.fillRect(0, 0, 16, 16);
+        }
+
+        return canvas as unknown as ImageBitmap;
+    }
+    //#endregion
+
+    //#region 播放器
+    async function bootPlayer(): Promise<void> {
+        try {
+            // 抓成局部：`chart` 是 live binding，await 之后不再收窄
+            const target = chart;
+
+            if (!target) throw new Error("谱面还没加载");
+
+            setWasmPath(new URL("/web-demuxer.wasm", window.location.origin).href);
+
+            const respack = await respackPromise;
+
+            if (!respack) throw new Error("respack 没有加载成功");
+
+            const audio = musicUrl ? new Audio(musicUrl) : new Audio();
+
+            await imagesPromise;
+
+            player = await Player.create(
+                playerCanvas,
+                await audioProcessorOf(respack),
+                audio,
+                backgroundOf(),
+                respack,
+                { renderer: "webgl1" }
+            );
+
+            // 贴图 / 视频 / 着色器都从谱面目录读
+            if (chartId) {
+                const id = chartId;
+
+                player.use({
+                    texture: (name) => fetchTexture(id, name),
+                    video: (name) => fetchVideo(id, name),
+                    shader: (name) => fetchShader(id, name.startsWith("/") ? name.slice(1) : name)
+                });
+            }
+
+            // 必须走 `receive`：设 chart + 初始化 lastUnplayedNNNode + 同步资源 + warmup
+            await player.receive(target);
+
+            // 桌面端同一个钩子：播放器每画完一帧，编辑器跟着画、UI 直接写 DOM
+            player.addEventListener("drawn", () => {
+                if (!player) return;
+
+                drawEditors(player.renderingBeats);
+                syncProgress();
+            });
+
+            const ops = operationList;
+
+            if (ops) {
+                player.watch(ops);
+
+                for (const type of ["do", "undo", "redo"] as const) {
+                    ops.addEventListener(type, () => scheduleSave());
+                }
+            }
+
+            if (!musicUrl) player.offlineTime = 0;
+
+            total = target.duration ?? 0;
+            playerReady = true;
+            ready = true;
+
+            startClock();
+            syncProgress();
+            drawEditors(player.renderingBeats);
+        } catch (error) {
+            playerError = `${error instanceof Error ? error.message : String(error)}（曲绘：${
+                illustration === null ? "null" : (illustration as unknown as object)?.constructor?.name ?? "?"
+            }）`;
+            ready = true;
+        }
+    }
+
+    /**
+     * 只有**没有音源**（示例谱面）时才需要自己推进时间；
+     * 有音源时播放器自己有渲染循环。
+     */
+    function startClock(): void {
+        if (musicUrl) return;
+
+        let last = 0;
+
+        const step = (now: number) => {
+            if (player && playing) {
+                const delta = last ? (now - last) / 1000 : 0;
+
+                player.offlineTime = (player.offlineTime ?? 0) + delta;
+                player.render();
+            }
+
+            last = now;
+            requestAnimationFrame(step);
+        };
+
+        requestAnimationFrame(step);
+    }
+
+    function pause(): void {
+        if (!player) return;
+
+        player.pause();
+        playing = false;
+    }
+
+    function togglePlay(): void {
+        if (!player) return;
+
+        if (playing) {
+            pause();
+
+            return;
+        }
+
+        player.play();
+        playing = true;
+    }
+
+    function seek(time: number): void {
+        if (!player) return;
+
+        const next = Math.max(0, total > 0 ? Math.min(time, total) : time);
+
+        // `player.time` 只有 getter，跳转要写底层并做同样的偏移换算
+        const offset = (player.chart?.offset ?? 0) / 1000 - (player.baseOffset ?? 0);
+        const raw = next + offset;
+
+        if (musicUrl) player.audio.currentTime = raw;
+        else player.offlineTime = raw;
+
+        currentTime = next;
+
+        requestAnimationFrame(() => {
+            player?.render();
+
+            if (player) drawEditors(player.renderingBeats);
+        });
+    }
+    //#endregion
+
+    //#region 画布编辑器
+    /**
+     * 位图保持 600×900（桌面端同款，编辑器内部按这个坐标排版），
+     * 只把**显示尺寸**等比缩放进面板。
+     */
+    function fitEditorCanvas(canvas: HTMLCanvasElement): [number, number, number, number] {
+        const pane = canvas.parentElement;
+
+        const availableWidth = pane?.clientWidth || 360;
+        const availableHeight = pane?.clientHeight || 540;
+        const scale = Math.min(availableWidth / EDITOR_WIDTH, availableHeight / EDITOR_HEIGHT);
+
+        canvas.width = EDITOR_WIDTH;
+        canvas.height = EDITOR_HEIGHT;
+        canvas.style.width = `${Math.round(EDITOR_WIDTH * scale)}px`;
+        canvas.style.height = `${Math.round(EDITOR_HEIGHT * scale)}px`;
+
+        return [0, 0, EDITOR_WIDTH, EDITOR_HEIGHT];
+    }
+
+    /**
+     * 把拍数喂给**当前可见**的那个画布编辑器。
+     *
+     * 桌面端在 `drawn` 里两个都画，因为它的两块画布都小；移动端一块画布就占满
+     * 整页，另一块在 `visibility: hidden` 后面，画了也看不见 —— 那是最纯粹的浪费。
+     * 切页时会 `drawActiveEditor()` 补一次，所以不会被落下。
+     */
+    function drawEditors(beats: number): void {
+        if (!player || !Number.isFinite(beats)) return;
+        if (!lineOf(selectedLineId.get())) return;
+
+        if (activeTab === "notes") notesEditor?.draw(beats);
+        else if (activeTab === "events") eventEditors?.draw(beats);
+    }
+
+    /** 切页之后补一次（那一页在后台期间不跟着重绘） */
+    function drawActiveEditor(): void {
+        if (!player) return;
+
+        drawEditors(player.renderingBeats);
+    }
+
+    async function bootEditors(): Promise<void> {
+        // 先抓成局部变量：`operationList` 是 import 进来的 live binding，
+        // `await` 之后 TS 就不再认为它非空了
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const respack = await respackPromise;
+
+        await imagesPromise;
+
+        // 编辑器构造时就用 `canvas.clientWidth / clientHeight` 算输入映射的缩放比，
+        // 面板还没布局出来（尺寸为 0）的话这个比值会是 0 —— 等一帧再建。
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        notesEditor = new NotesEditor(notesCanvas, fitEditorCanvas(notesCanvas), ops, respack as never);
+        eventEditors = new EventSequenceEditors(eventsCanvas, fitEditorCanvas(eventsCanvas), ops, 0.5);
+
+        syncEditorTargets();
+    }
+
+    /** 判定线切换时把两个编辑器指过去 */
+    function syncEditorTargets(): void {
+        const line = lineOf(selectedLineId.get());
+
+        if (!line) return;
+
+        if (notesEditor) notesEditor.target = line;
+        if (eventEditors) eventEditors.changeTarget({ judgeLine: line });
+
+        drawActiveEditor();
+    }
+    //#endregion
+
+    //#region 播放器交互
+    const HIDE_DELAY = 5000;
+    const DOUBLE_TAP_MS = 300;
+
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    let startX = 0;
+    let startTime = 0;
+    let movedBy = 0;
+    let pausedByDrag = false;
+    let lastTapAt = 0;
+
+    function scheduleHide(): void {
+        if (hideTimer) clearTimeout(hideTimer);
+
+        hideTimer = setTimeout(() => {
+            controlsVisible = false;
+        }, HIDE_DELAY);
+    }
+
+    function showControls(): void {
+        controlsVisible = true;
+        scheduleHide();
+    }
+
+    function onPointerDown(event: PointerEvent): void {
+        startX = event.clientX;
+        startTime = currentTime;
+        movedBy = 0;
+        pausedByDrag = false;
+        dragging = true;
+
+        // 只按下不暂停：暂停留给"真的开始左右拖"和双击
+        showControls();
+    }
+
+    function onPointerMove(event: PointerEvent): void {
+        if (!dragging || !playerBox) return;
+
+        const dx = event.clientX - startX;
+
+        if (Math.abs(dx) < 4) return;
+
+        // 真的开始拖了才暂停
+        if (!pausedByDrag) {
+            pause();
+            pausedByDrag = true;
+        }
+
+        movedBy = dx;
+
+        const relY = event.offsetY / playerBox.clientHeight;
+        const rate = relY > 0.33 ? 1 : 0.25;
+
+        // 整宽 = 整首时长（B 站那种手感）
+        const span = total || 30;
+        const scale = span / Math.max(playerBox.clientWidth, 1);
+        const next = startTime + dx * scale * rate;
+
+        seek(next);
+        showControls();
+
+        const delta = next - startTime;
+
+        seekHint = `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}s (x${rate}) ${format(next)}`;
+    }
+
+    function onPointerUp(): void {
+        if (!dragging) return;
+
+        dragging = false;
+        seekHint = "";
+
+        if (Math.abs(movedBy) < 4) {
+            const now = Date.now();
+
+            if (now - lastTapAt < DOUBLE_TAP_MS) {
+                togglePlay();
+                showControls();
+            } else if (controlsVisible) {
+                scheduleHide();
+            } else {
+                showControls();
+            }
+
+            lastTapAt = now;
+
+            return;
+        }
+
+        showControls();
+    }
+
+    function onProgressInput(event: Event): void {
+        event.stopPropagation();
+        seek(Number((event.target as HTMLInputElement).value));
+        showControls();
+    }
+
+    function onTogglePlay(event: MouseEvent): void {
+        event.stopPropagation();
+        togglePlay();
+        showControls();
+    }
+
+    function onToggleFullscreen(event: MouseEvent): void {
+        event.stopPropagation();
+        showControls();
+
+        if (document.fullscreenElement) void document.exitFullscreen();
+        else void playerBox?.requestFullscreen?.();
+    }
+
+    function onFullscreenChange(): void {
+        const fullscreen = !!document.fullscreenElement;
+
+        aspect = fullscreen ? 16 / 9 : 3 / 2;
+
+        requestAnimationFrame(() => player?.useNewAspect());
+
+        try {
+            if (fullscreen) void screen.orientation?.lock?.("landscape");
+            else screen.orientation?.unlock?.();
+        } catch {
+            // 桌面浏览器 / 部分 WebView 不支持锁方向
+        }
+    }
+
+    /**
+     * 把播放器时间直接写到 DOM 上（**不走响应式**）。
+     * 桌面端也是 `progressBar.value = audio.currentTime` 这么写的。
+     */
+    function syncProgress(): void {
+        if (!player) return;
+
+        const now = player.time;
+
+        currentTime = now;
+
+        if (progressEl) progressEl.value = String(now);
+        if (timeLabel) timeLabel.textContent = `${format(now)} / ${format(total || 30)}`;
+    }
+
+    function format(seconds: number): string {
+        const value = Math.max(0, seconds || 0);
+        const minutes = Math.floor(value / 60);
+        const rest = Math.floor(value % 60);
+        const millis = Math.floor((value - Math.floor(value)) * 1000);
+
+        return `${minutes}:${rest.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
+    }
+    //#endregion
+
+    //#region 页面导航
+    function pick(id: MobileTab): void {
+        const next = Math.max(0, tabs.findIndex((item) => item.id === id));
+
+        if (next === tabIndex) return;
+
+        const from = tabIndex;
+
+        tabIndex = next;
+        activeTab = id;
+
+        requestAnimationFrame(() => {
+            const element = pageTrack;
+
+            if (element) {
+                element.style.transform = `translateX(${-next * 100}%)`;
+                // 用 WAAPI 而不是 CSS transition：不依赖元素是否被重建
+                element.animate(
+                    [
+                        { transform: `translateX(${-from * 100}%)` },
+                        { transform: `translateX(${-next * 100}%)` }
+                    ],
+                    { duration: 240, easing: "cubic-bezier(0.22, 0.61, 0.36, 1)" }
+                );
+            }
+
+            drawActiveEditor();
+        });
+    }
+
+    function back(): void {
         if (chart?.modified && !confirm("当前谱面有未保存的更改，确定返回吗？")) return;
 
         navigate("/");
     }
+    //#endregion
 </script>
 
 <script onmount>
-    // 路由参数在这一刻已经由 router 写好了
-    void loadChart(route.get().params.id ?? null);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
 
     // 有未保存改动时，关窗口 / 刷新让浏览器弹它自己的确认框。
-    // 注意别把回调命名成 `guard`：编译器在 dev 下会给每个刷新函数插一句
-    // `guard(...)`（循环检测），同名局部变量会把那个 import 遮住 → TDZ 报错。
+    // 别把回调命名成 `guard`：编译器 dev 下会插 `guard(...)`，同名局部变量会遮住它。
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
         if (!chart?.modified) return;
 
@@ -51,42 +594,103 @@
     };
 
     window.addEventListener("beforeunload", warnBeforeUnload);
+
+    (async () => {
+        try {
+            await loadChart(route.get().params.id ?? null);
+
+            total = chart?.duration ?? 0;
+
+            // 先渲染出画布，量到尺寸之后再建编辑器和播放器
+            ready = true;
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+
+            await bootEditors();
+
+            selectedLineId.subscribe(() => syncEditorTargets());
+
+            await bootPlayer();
+        } catch (error) {
+            loadError = error instanceof Error ? error.message : String(error);
+            ready = true;
+        }
+    })();
 </script>
 
 <main class="app">
-    {#if isReady}
-        <section class="player">
-            <PlayerBox></PlayerBox>
-        </section>
+    <!-- 播放器：和桌面端一样，逻辑分辨率按 900 高算，CSS 只负责缩放 -->
+    <section
+        class="player"
+        bind:this={playerBox}
+        style="aspect-ratio: {aspect}"
+        onpointerdown={onPointerDown}
+        onpointermove={onPointerMove}
+        onpointerup={onPointerUp}
+        onpointercancel={onPointerUp}
+        onpointerleave={onPointerUp}
+    >
+        <canvas class="player-canvas" bind:this={playerCanvas} width={playerWidth} height={BASE_HEIGHT}></canvas>
 
-        <nav class="tabs">
-            {#for item of tabs with key = item}
-                <button class="tab {item.id === tab ? 'active' : ''}" onclick={() => pick(item.id)}>
-                    {item.label}
-                </button>
-            {/for}
-        </nav>
+        {#if dragging && seekHint !== ""}
+            <div class="seek-hint">{seekHint}</div>
+        {/if}
 
-        <!-- 三块内容始终存活：切页只平移轨道 + 切 visibility，不销毁 DOM -->
-        <section class="content">
-            <div class="track" style="transform: translateX({-pageIndex * 100}%)">
-                <div class="slide {pageIndex === 0 ? 'active' : ''}"><JudgeLineList></JudgeLineList></div>
-                <div class="slide {pageIndex === 1 ? 'active' : ''}"><NotesPane></NotesPane></div>
-                <div class="slide {pageIndex === 2 ? 'active' : ''}"><EventsPane></EventsPane></div>
-            </div>
-        </section>
-    {:else}
-        <div class="center">
-            {#if failed}
-                <p class="err">打开谱面失败：{failed}</p>
-                <button class="back-inline" onclick={back}>返回</button>
-            {:else}
-                <p>正在打开谱面…</p>
-            {/if}
+        <div class="controls {controlsVisible ? "visible" : ""}">
+            <button class="ctrl" onclick={onTogglePlay}>{playing ? "❚❚" : "▶"}</button>
+
+            <!-- 进度与时间由 `drawn` 回调直接写 DOM -->
+            <input
+                class="progress"
+                bind:this={progressEl}
+                type="range"
+                min="0"
+                max={total || 30}
+                step="0.01"
+                value={currentTime}
+                oninput={onProgressInput}
+                onclick={(event) => event.stopPropagation()}
+            />
+
+            <span class="time" bind:this={timeLabel}>{format(currentTime)} / {format(total || 30)}</span>
+
+            <button class="ctrl" onclick={onToggleFullscreen}>⛶</button>
         </div>
-    {/if}
 
-    <button class="back" onclick={back} aria-label="返回">‹</button>
+        <!-- 返回按钮和控制条同一个显现周期 -->
+        <button class="back {controlsVisible ? "visible" : ""}" onclick={back} aria-label="返回">‹</button>
+
+        {#if !ready}
+            <div class="placeholder">{#if loadError}打开谱面失败：{loadError}{:else}正在打开谱面…{/if}</div>
+        {:else if playerError}
+            <div class="placeholder err">播放器初始化失败：{playerError}</div>
+        {/if}
+    </section>
+
+    <nav class="tabs">
+        {#for item of tabs with key = item}
+            <button class="tab {item.id === activeTab ? "active" : ""}" onclick={() => pick(item.id)}>
+                {item.label}
+            </button>
+        {/for}
+    </nav>
+
+    <!-- 三块内容始终存活：切页只平移轨道 + 切 visibility，不销毁 DOM -->
+    <section class="content">
+        <div class="track" bind:this={pageTrack} style="transform: translateX({-tabIndex * 100}%)">
+            <div class="slide {tabIndex === 0 ? "active" : ""}">
+                <JudgeLineList></JudgeLineList>
+            </div>
+
+            <div class="slide {tabIndex === 1 ? "active" : ""}">
+                <!-- 逻辑分辨率固定 600×900（桌面端同款），显示尺寸由 JS 等比缩放 -->
+                <canvas class="editor-canvas" bind:this={notesCanvas} width={600} height={900}></canvas>
+            </div>
+
+            <div class="slide {tabIndex === 2 ? "active" : ""}">
+                <canvas class="editor-canvas" bind:this={eventsCanvas} width={600} height={900}></canvas>
+            </div>
+        </div>
+    </section>
 </main>
 
 <style>
@@ -94,20 +698,145 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    /* 不留任何内边距：整屏就是三大块 */
     padding: 0;
     margin: 0;
     overflow: hidden;
 }
 
+/* ---------- 播放器 ---------- */
 .player {
+    position: relative;
     flex: none;
+    width: 100%;
+    aspect-ratio: 3 / 2;
     padding: 0;
     margin: 0;
-    /* 播放器贴边，不要圆角 */
-    --player-radius: 0;
+    background: #000;
+    overflow: hidden;
+    touch-action: none;
+    border-radius: 0;
 }
 
+/* 全屏时铺满整块屏幕（此时宽高比已被切成 16:9） */
+.player:fullscreen {
+    width: 100vw;
+    height: 100vh;
+}
+
+.player-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    text-align: center;
+    color: #bbb;
+    font-size: 13px;
+    background: #000;
+}
+
+.placeholder.err {
+    color: #ff8080;
+}
+
+.seek-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: var(--overlay);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+}
+
+.controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    pointer-events: none;
+}
+
+.controls.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.ctrl {
+    border: none;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    font-size: 14px;
+}
+
+.progress {
+    flex: 1;
+    height: 4px;
+    accent-color: var(--accent);
+    min-width: 0;
+}
+
+.time {
+    color: #fff;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    flex: none;
+}
+
+/* 返回按钮：跟控制条同显现周期 */
+.back {
+    position: absolute;
+    left: 8px;
+    top: calc(8px + env(safe-area-inset-top));
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.42);
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.back.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ---------- 标签栏 ---------- */
 .tabs {
     display: flex;
     flex: none;
@@ -133,6 +862,7 @@
     box-shadow: inset 0 -2px 0 var(--accent);
 }
 
+/* ---------- 内容区 ---------- */
 .content {
     position: relative;
     flex: 1;
@@ -154,8 +884,10 @@
     height: 100%;
     min-width: 0;
     overflow: hidden;
-    /* 非当前页 visibility: hidden（不是移除 DOM）；延迟到滑动结束再隐藏，
-       免得切走的那一页在半路上消失 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 非当前页 visibility: hidden（不是移除 DOM），滑完再隐藏 */
     visibility: hidden;
     transition: visibility 0s linear 0.24s;
 }
@@ -165,45 +897,11 @@
     transition-delay: 0s;
 }
 
-.center {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    color: var(--text-dim);
-    font-size: 14px;
-}
-
-.err {
-    color: #d9534f;
-    padding: 0 16px;
-    text-align: center;
-}
-
-.back-inline {
-    border: 1px solid var(--border);
+.editor-canvas {
+    display: block;
+    border: none;
     border-radius: 0;
     background: var(--surface);
-    padding: 8px 16px;
-}
-
-.back {
-    position: fixed;
-    left: 8px;
-    top: calc(8px + env(safe-area-inset-top));
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(0, 0, 0, 0.42);
-    color: #fff;
-    font-size: 20px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
+    touch-action: none;
 }
 </style>
