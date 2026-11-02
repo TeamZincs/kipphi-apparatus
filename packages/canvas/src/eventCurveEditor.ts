@@ -1770,16 +1770,27 @@ export abstract class EventSequenceEditor<
             );
             context.fillStyle = "#EEE";
             context.textAlign = "center";
-            context.fillText(
+            context.textBaseline = "middle";
+
+            // 提示文案里用 `\n` 分行：整句一行在窄屏上会超界（画布被裁掉一部分）
+            const text =
                 this.type !== EventType.easing
                     ? messages.NO_TARGET(
                           this.parentEditorSet.selectedLayer,
                           EventType[this.type],
                       )
-                    : messages.NO_TARGET_EASING(),
-                0,
-                0,
-            );
+                    : messages.NO_TARGET_EASING();
+            const fontSize = scaleFont(24, this.canvas.width);
+            const lines = text.split("\n");
+            const lineHeight = Math.round(fontSize * 1.35);
+            // 多行时整体居中：第一行往上抬
+            const firstY = -((lines.length - 1) * lineHeight) / 2;
+
+            context.font = `${fontSize}px Phigros`;
+
+            lines.forEach((line, index) => {
+                context.fillText(line, 0, firstY + index * lineHeight);
+            });
             context.restore();
             this.putReturnButton();
             return;
