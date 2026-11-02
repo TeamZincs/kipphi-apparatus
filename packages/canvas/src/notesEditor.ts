@@ -34,6 +34,7 @@ import {
     getOffsetCoordFromEvent,
     on,
 } from "./util";
+import { EditorToolbar } from "./toolbar";
 
 const DRAWS_NN = true;
 const COLOR_1 = "#66ccff";
@@ -390,6 +391,69 @@ export class NotesEditor extends EventTarget {
                 }
         }
     }
+    /** 左上角的模式按钮（select / selectScope / edit） */
+    readonly toolbar = new EditorToolbar();
+
+    /** 把当前模式映射成按钮状态 */
+    private toolbarButtons() {
+        const state = this.state;
+        const selecting = state === NotesEditorState.selecting;
+        const scoping =
+            state === NotesEditorState.selectScope ||
+            state === NotesEditorState.selectingScope;
+
+        return [
+            {
+                id: "select",
+                icon: selecting ? ("selecting" as const) : ("select" as const),
+                active: state === NotesEditorState.select || selecting,
+            },
+            {
+                id: "scope",
+                icon:
+                    state === NotesEditorState.selectingScope
+                        ? ("selectingScope" as const)
+                        : ("selectScope" as const),
+                active: scoping,
+            },
+            {
+                id: "edit",
+                icon: "edit" as const,
+                active: state === NotesEditorState.edit,
+            },
+        ];
+    }
+
+    /** 按钮画在**屏幕坐标**上：编辑器内部有相机变换，这里要临时复位 */
+    private drawToolbar(): void {
+        if (!this.context) return;
+
+        this.toolbar.setButtons(this.toolbarButtons());
+
+        this.context.save();
+        this.context.setTransform(1, 0, 0, 1, 0, 0);
+        this.toolbar.draw(this.context);
+        this.context.restore();
+    }
+
+    /** 点到了按钮就切模式，返回 true 表示这次事件已被消费 */
+    private handleToolbarDown(x: number, y: number): boolean {
+        const hit = this.toolbar.hit(x, y);
+
+        if (!hit) return false;
+
+        this.state =
+            hit === "edit"
+                ? NotesEditorState.edit
+                : hit === "scope"
+                  ? NotesEditorState.selectScope
+                  : NotesEditorState.select;
+
+        this.draw();
+
+        return true;
+    }
+
     downHandler(event: TouchEvent | MouseEvent) {
         const { width, height } = this.canvas;
         // console.log(width, height)
@@ -398,6 +462,9 @@ export class NotesEditor extends EventTarget {
         const canvasCoord = (this.canvasPoint = new Coordinate(offsetX, offsetY)
             .mul(this.elementMatrixInverted)
             .mul(this.canvasMatrixInverted));
+        // 按钮优先于画布：命中就直接吃掉这次事件
+        if (this.handleToolbarDown(canvasCoord.x, canvasCoord.y)) return;
+
         const coord = canvasCoord.mul(this.matrixInverted);
         const { x, y } = coord;
         // console.log("offset:", offsetX, offsetY)
@@ -728,6 +795,7 @@ export class NotesEditor extends EventTarget {
     draw(beats?: number) {
         beats = beats || this.lastBeats || 0;
         this.updateMatrix();
+        this.drawToolbar();
         this.selectionManager.refresh();
         const { context } = this;
         const {
