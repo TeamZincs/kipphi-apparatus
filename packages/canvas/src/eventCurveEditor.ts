@@ -1616,7 +1616,11 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
 
         context.fillStyle = "#DDD";
         context.textBaseline = "top";
-        context.fillText(type, offset, labelY);
+
+        // 往下让半行：`labelY` 正好压在"事件末尾值"那一行的基线上，两串数字会叠一起
+        const labelDrop = Math.round(scaleFont(20, this.canvas.width) * 0.9);
+
+        context.fillText(type, offset, labelY + labelDrop);
         if (options.selectable !== false) {
             selectionManager.add({
                 target: options.onSelect ?? type,

@@ -441,11 +441,15 @@
         eventEditors.addEventListener("timescroll", onTimeScroll);
 
         // 画布里的判定线切换按钮 → 页面（`selectedLineId` 的单一数据源在这里）
-        notesEditor.addEventListener("targetchange", (event) => {
+        const onTargetChange = (event: Event): void => {
             const line = (event as Event & { judgeLine?: { id: number } }).judgeLine;
 
             if (line) selectedLineId.set(line.id);
-        });
+        };
+
+        notesEditor.addEventListener("targetchange", onTargetChange);
+        // 事件画布的换线按钮同样要回灌到页面
+        eventEditors.addEventListener("targetchange", onTargetChange);
 
         syncEditorTargets();
     }
