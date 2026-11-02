@@ -795,7 +795,6 @@ export class NotesEditor extends EventTarget {
     draw(beats?: number) {
         beats = beats || this.lastBeats || 0;
         this.updateMatrix();
-        this.drawToolbar();
         this.selectionManager.refresh();
         const { context } = this;
         const {
@@ -986,6 +985,8 @@ export class NotesEditor extends EventTarget {
 
         this.drawn = false;
         this.lastBeats = beats;
+        // 画在最后：编辑器自己的背景填充会把前面画的盖住
+        this.drawToolbar();
     }
     /**
      *
