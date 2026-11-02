@@ -669,6 +669,14 @@
     /** 正在按住解锁（用来跑进度环） */
     let unlocking = $state(false);
 
+    /**
+     * 锁定按钮的元素引用。
+     *
+     * `class` 属性里只保留**一个**插值（`locked`）—— 实测一个 class 里塞两个表达式时
+     * 只有一个会跟着刷新；所以 `.holding`（按压态）改成 JS 直接 `classList` 切。
+     */
+    let lockEl: HTMLButtonElement;
+
     function cycleRate(): void {
         const index = PLAYBACK_RATES.indexOf(playbackRate);
         const next = PLAYBACK_RATES[(index + 1) % PLAYBACK_RATES.length];
@@ -698,9 +706,12 @@
 
         // 已锁定：按住开始走"解锁进度环"，600ms 走满才解开
         unlocking = true;
+        lockEl?.classList.add("holding");
+
         unlockTimer = setTimeout(() => {
             locked = false;
             unlocking = false;
+            lockEl?.classList.remove("holding");
             unlockTimer = null;
         }, 600);
     }
@@ -708,6 +719,7 @@
     function onLockUp(): void {
         // 中途松手：进度环收回，保持锁定
         unlocking = false;
+        lockEl?.classList.remove("holding");
 
         if (unlockTimer) {
             clearTimeout(unlockTimer);
@@ -838,7 +850,8 @@
         <!-- 全屏锁定：锁定时除了它自己什么都不显示，长按解锁 -->
         {#if fullscreen}
             <button
-                class="lock {locked ? "locked" : ""} {unlocking ? "holding" : ""}"
+                class="lock {locked ? "locked" : ""}"
+                bind:this={lockEl}
                 onpointerdown={onLockDown}
                 onpointerup={onLockUp}
                 onpointercancel={onLockUp}
