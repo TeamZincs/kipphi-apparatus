@@ -1955,6 +1955,51 @@ export abstract class EventSequenceEditor<
         super.addEventListener(type, listener, options);
     }
 
+    /**
+     * 预览位置用**吸附后**的 value / time 算，和真节点同一套坐标
+     *（`calculatePos()` 也是 `new Coordinate(value, beats - beats0).mul(matrix)`）。
+     */
+    private syncPreviewPoint(): void {
+        if (!this.pointedTime || this.pointedValue === undefined) return;
+
+        const offset = TC.toBeats(this.pointedTime) - (this.lastBeats ?? 0);
+        const pos = new Coordinate(
+            this.pointedValue as unknown as number,
+            offset,
+        ).mul(this.matrix);
+
+        this.previewPoint = { x: pos.x, y: pos.y };
+    }
+
+    override beginPreview(): void {
+        this.syncPreviewPoint();
+    }
+
+    override movePreview(): void {
+        this.syncPreviewPoint();
+    }
+
+    /** 预览就画一个**半透明的节点方块**（和真节点同尺寸同位置） */
+    override drawPreviewMarker(): void {
+        if (!this.previewPoint) return;
+
+        const { context } = this;
+        const size = 10;
+        const left = this.previewPoint.x - size / 2;
+        const top = this.previewPoint.y - size / 2;
+
+        context.save();
+        context.globalAlpha = 0.55;
+        context.fillStyle = "#6CF";
+        context.fillRect(left, top, size, size);
+
+        context.globalAlpha = 0.95;
+        context.strokeStyle = "#6CF";
+        context.lineWidth = 1.5;
+        context.strokeRect(left, top, size, size);
+        context.restore();
+    }
+
     /** 松手才真的建节点（预览阶段什么都没建） */
     override commitPreview(): void {
         if (!this.previewPoint) return;
