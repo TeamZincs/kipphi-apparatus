@@ -393,6 +393,10 @@
         if (!delta) return;
 
         player.renderingBeats = Math.max(0, player.renderingBeats + delta);
+
+        // 暂停时没有播放循环 —— 只改 audio.currentTime 不会重绘，
+        // 得手动 render 一次，`drawn` 才会把编辑器带到新位置
+        void player.render();
     }
 
     /** 切页之后补一次（那一页在后台期间不跟着重绘） */

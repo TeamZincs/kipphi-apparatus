@@ -442,6 +442,10 @@ async function boot() {
         if (!delta) return;
 
         player.renderingBeats = Math.max(0, player.renderingBeats + delta);
+
+        // 暂停时没有播放循环 —— 只改 audio.currentTime 不会重绘，
+        // 得手动 render 一次，`drawn` 才会把编辑器带到新位置
+        void player.render();
     };
 
     notesEditor.addEventListener("timescroll", onTimeScroll);
