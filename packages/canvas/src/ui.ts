@@ -9,6 +9,120 @@
  * 由调用方负责把指针位置换算到这个坐标系再调用 `hitTest`。
  */
 
+import { icons } from "lucide";
+
+/** lucide 的图标节点：`[['path', { d: '…' }], …]` */
+type IconNode = ReadonlyArray<readonly [string, Record<string, string | number>]>;
+
+/** 语义名字 -> lucide 图标名。换图标只改这里。 */
+export const ICONS = {
+    select: "Hand",
+    selecting: "Grab",
+    edit: "Pencil",
+    selectScope: "SquareDashed",
+    selectingScope: "Scan",
+    info: "Info",
+    lock: "Lock",
+    unlock: "LockOpen",
+    undo: "Undo2",
+    redo: "Redo2",
+    zoomIn: "ZoomIn",
+    zoomOut: "ZoomOut",
+    previousLine: "ChevronLeft",
+    nextLine: "ChevronRight"
+} as const;
+
+export type IconName = keyof typeof ICONS;
+
+/** 图标节点 -> Path2D（按 24×24 的 viewBox 建，绘制时再缩放） */
+const iconPathCache = new Map<string, Path2D>();
+
+function pathOf(name: IconName): Path2D {
+    const cached = iconPathCache.get(name);
+
+    if (cached) return cached;
+
+    const lucideName = ICONS[name];
+    const nodes: IconNode = (icons as unknown as Record<string, IconNode>)[lucideName] ?? [];
+    const path = new Path2D();
+
+    for (const [tag, attributes] of nodes) {
+        const number = (key: string) => Number(attributes[key] ?? 0);
+
+        switch (tag) {
+            case "path":
+                path.addPath(new Path2D(String(attributes.d ?? "")));
+                break;
+            case "circle":
+                path.moveTo(number("cx") + number("r"), number("cy"));
+                path.arc(number("cx"), number("cy"), number("r"), 0, Math.PI * 2);
+                break;
+            case "ellipse":
+                path.moveTo(number("cx") + number("rx"), number("cy"));
+                path.ellipse(number("cx"), number("cy"), number("rx"), number("ry"), 0, 0, Math.PI * 2);
+                break;
+            case "line":
+                path.moveTo(number("x1"), number("y1"));
+                path.lineTo(number("x2"), number("y2"));
+                break;
+            case "rect":
+                path.rect(number("x"), number("y"), number("width"), number("height"));
+                break;
+            case "polyline":
+            case "polygon": {
+                const points = String(attributes.points ?? "")
+                    .split(/[\s,]+/)
+                    .filter(Boolean)
+                    .map(Number);
+
+                for (let i = 0; i < points.length; i += 2) {
+                    if (i === 0) path.moveTo(points[0], points[1]);
+                    else path.lineTo(points[i], points[i + 1]);
+                }
+
+                if (tag === "polygon") path.closePath();
+
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    iconPathCache.set(name, path);
+
+    return path;
+}
+
+/**
+ * 画一个图标，居中于 (cx, cy)。
+ *
+ * lucide 的图标都是 24×24、线宽 2 的描边图，这里按 size/24 缩放后描边，
+ * 所以放大到 32px 也不会糊（矢量路径，不是位图）。
+ */
+export function drawIcon(
+    context: CanvasRenderingContext2D,
+    name: IconName,
+    cx: number,
+    cy: number,
+    size: number,
+    color: string,
+    strokeWidth = 2
+): void {
+    const path = pathOf(name);
+    const scale = size / 24;
+
+    context.save();
+    context.translate(cx - size / 2, cy - size / 2);
+    context.scale(scale, scale);
+    context.strokeStyle = color;
+    context.lineWidth = strokeWidth;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.stroke(path);
+    context.restore();
+}
+
 /** 字号档位：按画布尺寸取固定几档，不做按比例的连续缩放 */
 export const FONT_TIERS = [12, 14, 16, 20] as const;
 
@@ -52,8 +166,10 @@ export const DEFAULT_PALETTE: ButtonPalette = {
 
 export interface ButtonSpec {
     id: string;
-    /** 按钮上显示的东西（图标字符或英文缩写） */
+    /** 按钮上显示的东西（文字；有 `icon` 时不画它） */
     label: string;
+    /** 用 lucide 图标代替文字 */
+    icon?: IconName;
     /** 当前是否处于激活态 */
     active?: boolean;
     disabled?: boolean;
@@ -208,13 +324,25 @@ export function drawGroup(
     context.textBaseline = "middle";
 
     for (const box of boxes) {
-        context.fillStyle = box.spec.disabled
+        const color = box.spec.disabled
             ? palette.disabledForeground
             : box.spec.active
               ? palette.activeForeground
               : palette.foreground;
 
-        context.fillText(box.spec.label, box.x + box.width / 2, box.y + box.height / 2);
+        const centerX = box.x + box.width / 2;
+        const centerY = box.y + box.height / 2;
+
+        if (box.spec.icon) {
+            const size = Math.min(box.height * 0.56, box.width * 0.56);
+
+            drawIcon(context, box.spec.icon, centerX, centerY, size, color);
+
+            continue;
+        }
+
+        context.fillStyle = color;
+        context.fillText(box.spec.label, centerX, centerY);
     }
 
     context.restore();
@@ -249,8 +377,23 @@ export function drawButton(
     context.font = `${fontSize}px ${options.font ?? "Phigros, sans-serif"}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.fillStyle = box.spec.active ? palette.activeForeground : palette.foreground;
-    context.fillText(box.spec.label, box.x + box.width / 2, box.y + box.height / 2);
+    const color = box.spec.disabled
+        ? palette.disabledForeground
+        : box.spec.active
+          ? palette.activeForeground
+          : palette.foreground;
+
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+
+    if (box.spec.icon) {
+        const size = Math.min(box.height * 0.56, box.width * 0.56);
+
+        drawIcon(context, box.spec.icon, centerX, centerY, size, color);
+    } else {
+        context.fillStyle = color;
+        context.fillText(box.spec.label, centerX, centerY);
+    }
 
     context.restore();
 }

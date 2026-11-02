@@ -37,12 +37,14 @@
     import { readDefaultRespackFile } from "#/tauri";
 
     //#region 页面状态
-    type MobileTab = "lines" | "notes" | "events";
+    type MobileTab = "lines" | "notes" | "events" | "ops";
 
     const tabs: Array<{ id: MobileTab; label: string }> = [
         { id: "lines", label: "判定线" },
         { id: "notes", label: "音符" },
-        { id: "events", label: "事件" }
+        { id: "events", label: "事件" },
+    // 只读的操作栈：已撤销的在上面，用虚线跟已做的分开
+    { id: "ops", label: "操作栈" }
     ];
 
     let activeTab = $state<MobileTab>("lines");
@@ -566,6 +568,52 @@
         if (progressEl) progressEl.value = String(now);
     }
 
+    //#region 操作栈（只读）
+    /** 切到操作栈 tab 时 +1，让下面的 `$node` 重算 */
+    let opsTick = $state(0);
+
+    interface OpsRow {
+        key: string;
+        kind: "op" | "sep";
+        text: string;
+        undone: boolean;
+    }
+
+    const opsRows = $node({
+        get: () => {
+            // 读一下，建立依赖
+            opsTick;
+
+            const rows: OpsRow[] = [];
+            const list = operationList;
+
+            if (!list) return rows;
+
+            const undone = [...list.undoneOperations].reverse();
+            const done = [...list.operations];
+
+            undone.forEach((operation, index) => {
+                rows.push({
+                    key: `u${index}`,
+                    kind: "op",
+                    text: `${operation.constructor.name} · 已撤销`,
+                    undone: true
+                });
+            });
+
+            if (undone.length > 0 && done.length > 0) {
+                rows.push({ key: "sep", kind: "sep", text: "", undone: false });
+            }
+
+            done.forEach((operation, index) => {
+                rows.push({ key: `d${index}`, kind: "op", text: operation.constructor.name, undone: false });
+            });
+
+            return rows;
+        }
+    });
+    //#endregion
+
     //#region 播放速率 / 撤销重做 / 全屏锁定
     /** 固定档位，不做连续可调（连续微调在手机上很难点准） */
     const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5];
@@ -629,6 +677,9 @@
 
 // #region 页面导航
     function pick(id: MobileTab): void {
+        // 操作栈是只读快照：切过去时重新算一次
+        opsTick += 1;
+
         const next = Math.max(0, tabs.findIndex((item) => item.id === id));
 
         if (next === tabIndex) return;
@@ -798,6 +849,18 @@
             <div class="slide center {tabIndex === 2 ? "active" : ""}">
                 <canvas class="editor-canvas" bind:this={eventsCanvas}></canvas>
             </div>
+
+            <div class="slide {tabIndex === 3 ? "active" : ""}">
+                <div class="ops">
+                    {#for row of opsRows with key = row.key}
+                        {#if row.kind === "sep"}
+                            <div class="op-sep"></div>
+                        {:else}
+                            <div class="op {row.undone ? "undone" : ""}">{row.text}</div>
+                        {/if}
+                    {/for}
+                </div>
+            </div>
         </div>
     </section>
 </main>
@@ -920,6 +983,30 @@
     height: 4px;
     accent-color: var(--accent);
     min-width: 0;
+}
+
+.ops {
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 10px 14px;
+}
+
+.op {
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.op.undone {
+    color: var(--text-dim);
+    text-decoration: line-through;
+}
+
+/* 已撤销 / 已做 之间的分界 */
+.op-sep {
+    margin: 8px 0;
+    border-top: 1px dashed var(--border);
 }
 
 .top-controls {

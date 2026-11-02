@@ -19,5 +19,8 @@
         "build:electron": "cd apps/desktop && bun run build:electron",
         "fix:bom": "bun scripts/fix-bom.ts"
     },
-    "license": "MIT"
+    "license": "MIT",
+    "dependencies": {
+        "lucide": "^1.66.0"
+    }
 }
