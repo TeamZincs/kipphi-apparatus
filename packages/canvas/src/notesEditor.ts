@@ -436,6 +436,29 @@ export class NotesEditor extends EventTarget {
         this.context.restore();
     }
 
+    /**
+     * 事件坐标 -> **位图像素**坐标。
+     *
+     * 按钮是 setTransform(1,0,0,1,0,0) 之后画的，也就是位图像素空间；
+     * 而 `downHandler` 里的 `canvasCoord` 是模型坐标（过了相机矩阵），
+     * 两者不是一回事 —— 之前拿模型坐标去判命中，永远打不中。
+     */
+    private pointerInBitmap(event: TouchEvent | MouseEvent): { x: number; y: number } {
+        const rect = this.canvas.getBoundingClientRect();
+        const source =
+            "touches" in event
+                ? (event.touches[0] ?? event.changedTouches[0])
+                : (event as MouseEvent);
+
+        const scaleX = rect.width ? this.canvas.width / rect.width : 1;
+        const scaleY = rect.height ? this.canvas.height / rect.height : 1;
+
+        return {
+            x: (source.clientX - rect.left) * scaleX,
+            y: (source.clientY - rect.top) * scaleY,
+        };
+    }
+
     /** 点到了按钮就切模式，返回 true 表示这次事件已被消费 */
     private handleToolbarDown(x: number, y: number): boolean {
         const hit = this.toolbar.hit(x, y);
@@ -462,8 +485,12 @@ export class NotesEditor extends EventTarget {
         const canvasCoord = (this.canvasPoint = new Coordinate(offsetX, offsetY)
             .mul(this.elementMatrixInverted)
             .mul(this.canvasMatrixInverted));
-        // 按钮优先于画布：命中就直接吃掉这次事件
-        if (this.handleToolbarDown(canvasCoord.x, canvasCoord.y)) return;
+        // 按钮优先于画布：命中就直接吃掉这次事件（按钮在位图像素空间）
+        {
+            const point = this.pointerInBitmap(event);
+
+            if (this.handleToolbarDown(point.x, point.y)) return;
+        }
 
         const coord = canvasCoord.mul(this.matrixInverted);
         const { x, y } = coord;
