@@ -134,6 +134,34 @@ export class NotesEditor extends EventTarget {
     wheelReversed = false;
 
     /**
+     * 轴向拖动（select 模式下点空白处按住拖）。
+     *
+     * 拖什么由 `panAxis` 决定：
+     *   · `"time"` —— 竖向拖 = 时间前后（派发 `timescroll`，页面去 seek）
+     *   · `"x"`    —— 横向拖 = 左右平移（改 `positionBasis`）
+     */
+    private pan: { startX: number; lastY: number; basis: number } | null = null;
+
+    private panBy(x: number, y: number): void {
+        const pan = this.pan;
+
+        if (!pan) return;
+
+        if (this.panAxis === "time") {
+            const deltaBeats = -(y - pan.lastY) / this.timeRatio;
+
+            pan.lastY = y;
+
+            if (Math.abs(deltaBeats) > 1e-6) this.scrollTimeBy(deltaBeats);
+
+            return;
+        }
+
+        this.positionBasis = pan.basis + (x - pan.startX);
+        this.draw(this.lastBeats);
+    }
+
+    /**
      * 按住音符类型按钮时记下类型：松手若已滑到画布上，就在那里放一个 note
      * （松手仍在按钮上则只是普通点击，见 `toolbarButtons()` 的 `onRelease`）。
      */
@@ -387,6 +415,14 @@ export class NotesEditor extends EventTarget {
             .mul(this.canvasMatrixInverted));
 
         const { x, y } = canvasCoord.mul(this.matrixInverted);
+
+        // 正在轴向拖动：只做平移，不做吸附/选中
+        if (this.pan) {
+            this.panBy(x, y);
+
+            return;
+        }
+
         // const {width, height} = this.canvas
         // const {padding} = this;
         this.pointedPositionX =
@@ -930,7 +966,15 @@ export class NotesEditor extends EventTarget {
                         new KPANoteSelectedEvent(this.selectedNote),
                     );
                 }
-                console.log(NotesEditorState[this.state]);
+                // 点空白处 = 开始轴向拖动（拖什么看 panAxis）
+                if (!snote) {
+                    this.pan = {
+                        startX: x,
+                        lastY: y,
+                        basis: this.positionBasis,
+                    };
+                }
+
                 this.wasEditing = false;
                 break;
             case NotesEditorState.edit:
@@ -974,6 +1018,9 @@ export class NotesEditor extends EventTarget {
 
             return;
         }
+
+        // 轴向拖动结束
+        this.pan = null;
 
         const canvasCoord = getCanvasCoordFromEvent(
             event,
