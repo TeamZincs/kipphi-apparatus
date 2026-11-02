@@ -156,7 +156,13 @@ export class NotesEditor extends EventTarget {
 
     state: NotesEditorState;
     lastSelectState: SelectState = SelectState.extend;
-    selectState: SelectState;
+    /**
+     * 范围选择的合并方式。
+     *
+     * 原来只有"按住 Shift"这条入口会设它，按钮入口没设 → `undefined`，
+     * 松手时 `switch (selectState)` 一个分支都不命中，"范围选择一直用不了"。
+     */
+    selectState: SelectState = SelectState.extend;
 
     noteType: NoteType;
     noteAbove: boolean = true;
@@ -504,7 +510,30 @@ export class NotesEditor extends EventTarget {
                 active: this.panAxis === "x",
                 onClick: () => this.togglePanAxis(),
             },
+            // 三种范围选择方式：替换 / 并集 / 补集（点一下就进 selectScope）
+            ...(
+                [
+                    ["scope-replace", SelectState.replace, "RPL"],
+                    ["scope-add", SelectState.extend, "ADD"],
+                    ["scope-sub", SelectState.exclude, "SUB"],
+                ] as const
+            ).map(([id, state, label]) => ({
+                id,
+                label,
+                active:
+                    this.state === NotesEditorState.selectScope &&
+                    this.selectState === state,
+                onClick: () => this.setSelectState(state),
+            })),
         ];
+    }
+
+    /** 切范围选择的合并方式，并进入 selectScope 模式 */
+    private setSelectState(state: SelectState): void {
+        this.lastSelectState = state;
+        this.selectState = state;
+        this.state = NotesEditorState.selectScope;
+        this.draw(this.lastBeats);
     }
 
     /** 把当前模式映射成按钮表（监听器挂在按钮上，管理器不认业务） */
@@ -622,6 +651,9 @@ export class NotesEditor extends EventTarget {
                 : mode === "scope"
                   ? NotesEditorState.selectScope
                   : NotesEditorState.select;
+
+        // 进范围选择必须带上合并方式，否则松手时不会选中任何东西
+        if (mode === "scope") this.selectState = this.lastSelectState;
 
         this.draw();
     }

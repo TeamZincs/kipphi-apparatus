@@ -518,13 +518,28 @@ export class EventSequenceEditors extends EventTarget {
 
     /** 一律落在基础态（不是 selecting / selectingScope） */
     private setMode(mode: "select" | "scope" | "edit"): void {
-        this.activatedEditor.state =
+        const editor = this.activatedEditor;
+
+        editor.state =
             mode === "edit"
                 ? EventCurveEditorState.edit
                 : mode === "scope"
                   ? EventCurveEditorState.selectScope
                   : EventCurveEditorState.select;
 
+        // 进范围选择必须带上合并方式，否则松手时 `switch (selectState)` 一个都不命中
+        if (mode === "scope") editor.selectState = editor.lastSelectState;
+
+        this.draw();
+    }
+
+    /** 切范围选择的合并方式，并进入 selectScope */
+    private setSelectState(state: SelectState): void {
+        const editor = this.activatedEditor;
+
+        editor.lastSelectState = state;
+        editor.selectState = state;
+        editor.state = EventCurveEditorState.selectScope;
         this.draw();
     }
 
@@ -541,7 +556,23 @@ export class EventSequenceEditors extends EventTarget {
                     this.panAxis = this.panAxis === "time" ? "x" : "time";
                     this.draw();
                 }
-            }
+            },
+            // 三种范围选择方式：替换 / 并集 / 补集（点一下就进 selectScope）
+            ...(
+                [
+                    ["scope-replace", SelectState.replace, "RPL"],
+                    ["scope-add", SelectState.extend, "ADD"],
+                    ["scope-sub", SelectState.exclude, "SUB"],
+                ] as const
+            ).map(([id, state, label]) => ({
+                id,
+                label,
+                active:
+                    this.activatedEditor.state ===
+                        EventCurveEditorState.selectScope &&
+                    this.activatedEditor.selectState === state,
+                onClick: () => this.setSelectState(state)
+            }))
         ];
     }
 
@@ -1861,7 +1892,8 @@ export abstract class EventSequenceEditor<
     _selectedNode: WeakRef<EventStartNode | EventEndNode>;
 
     newNodeState: NewNodeState = NewNodeState.controlsBoth;
-    selectState: SelectState;
+    /** 范围选择方式：默认并集（原来只有 Shift 入口会设，按钮入口会是 undefined） */
+    selectState: SelectState = SelectState.extend;
     lastSelectState: SelectState = SelectState.extend;
 
     selectedNode: EventStartNode<VT> | EventEndNode<VT> = null;
