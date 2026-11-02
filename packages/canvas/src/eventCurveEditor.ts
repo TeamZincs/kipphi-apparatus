@@ -350,10 +350,28 @@ export class EventSequenceEditors extends EventTarget {
             this.draw();
         });
         on(["mousedown", "touchstart"], this.canvas, (event) => {
+            // 按钮优先：命中就吃掉这次事件，不走编辑器的选中逻辑
+            const point = this.pointerInBitmap(event);
+
+            if (
+                this.modeButtons.press(point.x, point.y) ||
+                this.navButtons.press(point.x, point.y)
+            ) {
+                this.draw();
+
+                return;
+            }
+
             this.activatedEditor.downHandler(event);
             this.draw();
         });
         on(["mouseup", "touchend"], this.canvas, (event) => {
+            // onClick 是在 release 里触发的，必须先交给按钮
+            const point = this.pointerInBitmap(event);
+
+            this.modeButtons.release(point.x, point.y);
+            this.navButtons.release(point.x, point.y);
+
             this.activatedEditor.upHandler(event);
             this.draw();
         });
@@ -386,6 +404,133 @@ export class EventSequenceEditors extends EventTarget {
      */
     wheelReversed = false;
 
+    /** 轴向锁定（时间 / 横轴），和音符编辑器同一套语义 */
+    panAxis: "time" | "x" = "time";
+
+    /** 第一排：三个状态按钮（和音符编辑器同尺寸） */
+    readonly modeButtons = new ButtonManager("screen", {
+        kind: "toolbar",
+        size: 40,
+        margin: 14,
+        gap: 6
+    });
+
+    /** 第二排：判定线切换 + 轴向锁定 */
+    readonly navButtons = new ButtonManager("screen", {
+        kind: "toolbar",
+        size: 40,
+        margin: 14,
+        y: 14 + 40 + 6,
+        gap: 6
+    });
+
+    /** 当前激活的编辑器自己的状态 */
+    private modeButtonList(): CanvasButton[] {
+        const state = this.activatedEditor.state;
+        const selecting = state === EventCurveEditorState.selecting;
+        const scoping =
+            state === EventCurveEditorState.selectScope ||
+            state === EventCurveEditorState.selectingScope;
+
+        return [
+            {
+                id: "select",
+                icon: (selecting ? "selecting" : "select") as IconName,
+                active: state === EventCurveEditorState.select || selecting,
+                onClick: () => this.setMode("select")
+            },
+            {
+                id: "scope",
+                icon: (state === EventCurveEditorState.selectingScope
+                    ? "selectingScope"
+                    : "selectScope") as IconName,
+                active: scoping,
+                onClick: () => this.setMode("scope")
+            },
+            {
+                id: "edit",
+                icon: "edit" as IconName,
+                active: state === EventCurveEditorState.edit,
+                onClick: () => this.setMode("edit")
+            }
+        ];
+    }
+
+    /** 一律落在基础态（不是 selecting / selectingScope） */
+    private setMode(mode: "select" | "scope" | "edit"): void {
+        this.activatedEditor.state =
+            mode === "edit"
+                ? EventCurveEditorState.edit
+                : mode === "scope"
+                  ? EventCurveEditorState.selectScope
+                  : EventCurveEditorState.select;
+
+        this.draw();
+    }
+
+    private navButtonList(): CanvasButton[] {
+        return [
+            { id: "prev-line", icon: "previousLine", onClick: () => this.stepLine(-1) },
+            { id: "current-line", label: `#${this.targetLine?.id ?? "-"}` },
+            { id: "next-line", icon: "nextLine", onClick: () => this.stepLine(1) },
+            {
+                id: "axis-lock",
+                icon: this.panAxis === "x" ? "lock" : "unlock",
+                active: this.panAxis === "x",
+                onClick: () => {
+                    this.panAxis = this.panAxis === "time" ? "x" : "time";
+                    this.draw();
+                }
+            }
+        ];
+    }
+
+    /** 换判定线：改自己的 target，再发事件让页面回灌 `selectedLineId` */
+    private stepLine(delta: number): void {
+        const chart = this.operationList?.chart;
+
+        if (!chart) return;
+
+        const lines = [...chart.judgeLines].sort((a, b) => a.id - b.id);
+        const index = lines.findIndex((line) => line === this.targetLine);
+
+        if (index < 0) return;
+
+        const next = lines[(index + delta + lines.length) % lines.length];
+
+        if (!next || next === this.targetLine) return;
+
+        this.changeTarget({ judgeLine: next });
+        this.dispatchEvent(
+            Object.assign(new Event("targetchange"), { judgeLine: next })
+        );
+        this.draw();
+    }
+
+    private drawToolbars(): void {
+        this.context.save();
+        this.context.setTransform(1, 0, 0, 1, 0, 0);
+        this.modeButtons.draw(this.context, this.modeButtonList());
+        this.navButtons.draw(this.context, this.navButtonList());
+        this.context.restore();
+    }
+
+    /** 事件坐标 -> 位图像素坐标（按钮是屏幕空间画的） */
+    private pointerInBitmap(event: MouseEvent | TouchEvent): { x: number; y: number } {
+        const rect = this.canvas.getBoundingClientRect();
+        const source =
+            "touches" in event
+                ? (event.touches[0] ?? event.changedTouches[0])
+                : (event as MouseEvent);
+        const scaleX = rect.width ? this.canvas.width / rect.width : 1;
+        const scaleY = rect.height ? this.canvas.height / rect.height : 1;
+
+        return {
+            x: (source.clientX - rect.left) * scaleX,
+            y: (source.clientY - rect.top) * scaleY
+        };
+    }
+
     /**
      * 滚轮滑时间。
      *
@@ -400,7 +545,7 @@ export class EventSequenceEditors extends EventTarget {
 
         const editor = this.activatedEditor;
 
-        if (editor.panAxis === "x") return true;
+        if (this.panAxis === "x") return true;
 
         const sign = this.wheelReversed ? -1 : 1;
         const deltaBeats = (event.deltaY / 100) * (editor.timeSpan / 10) * sign;
@@ -432,6 +577,9 @@ export class EventSequenceEditors extends EventTarget {
         } else {
             this.activatedEditor.draw(beats);
         }
+
+        // 按钮画在**屏幕坐标**上（子编辑器的 draw 里是相机变换），所以放在最后、单独复位
+        this.drawToolbars();
     }
     targetLine: JudgeLine;
     changeTarget(options: ChangeTargetOptions) {
@@ -907,7 +1055,14 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     // end
 }
 
-import { DEFAULT_PALETTE, drawButton, scaleFont, type ButtonPalette } from "./ui";
+import {
+    DEFAULT_PALETTE,
+    drawButton,
+    scaleFont,
+    type ButtonPalette,
+    type IconName,
+} from "./ui";
+import { ButtonManager, type CanvasButton } from "./buttonManager";
 
 /** 总览里的层级 / line 按钮：沿用新样式，但选中态用**白底深字**而不是蓝底 */
 const OVERVIEW_PALETTE: ButtonPalette = {
