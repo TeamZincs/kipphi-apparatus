@@ -364,7 +364,8 @@ export class EventSequenceEditors extends EventTarget {
          * wheel，一次滚动会触发 3 次（`stopPropagation` 挡不住同元素上的其它监听器），
          * 于是时间跳三倍，还会让没激活的那个也去绘制、报「序列不存在」。
          */
-        this.canvas.addEventListener(
+        // 同理挂在父容器上：canvas 被浮层盖住时收不到 wheel
+        (this.canvas.parentElement ?? this.canvas).addEventListener(
             "wheel",
             (event) => this.wheelHandler(event),
             { passive: false },

@@ -235,7 +235,9 @@ export class NotesEditor extends EventTarget {
 
         // 滚轮缩放时间轴：**编辑器自己处理**，页面不用再管（播放器的滚轮除外）。
         // `ctrlKey` 留给页面切换判定线，这里直接放行。
-        this.canvas.addEventListener(
+        // 挂在父容器上而不是 canvas 本身：画布可能被同层的浮层盖住（播放器画布、
+        // 视频层…），那样 canvas 永远收不到 wheel。挂在容器上，事件照旧冒泡上来。
+        (this.canvas.parentElement ?? this.canvas).addEventListener(
             "wheel",
             (event) => this.wheelHandler(event),
             { passive: false },
