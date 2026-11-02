@@ -126,6 +126,12 @@ export class NotesEditor extends EventTarget {
      *   · `"x"`    —— 时间锁住，只允许横向平移。
      */
     panAxis: "time" | "x" = "time";
+
+    /**
+     * 滚轮方向是否反过来（桌面端全局设置 `KPASettings.useRpeWheel`）。
+     * 由页面透传，编辑器不自己读设置。
+     */
+    wheelReversed = false;
     padding: number;
     // end
 
@@ -543,7 +549,9 @@ export class NotesEditor extends EventTarget {
         // 锁定的是"时间轴"时，滚轮不滑时间（改由轴向锁定按钮切到横轴）
         if (this.panAxis === "x") return true;
 
-        const deltaBeats = (event.deltaY / 100) * (this.timeSpan / 10);
+        // 桌面端有个全局设置 `useRpeWheel`（滚轮方向反过来），由页面透传进来
+        const sign = this.wheelReversed ? -1 : 1;
+        const deltaBeats = (event.deltaY / 100) * (this.timeSpan / 10) * sign;
 
         this.scrollTimeBy(deltaBeats);
 

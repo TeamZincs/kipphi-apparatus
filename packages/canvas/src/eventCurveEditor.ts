@@ -366,9 +366,7 @@ export class EventSequenceEditors extends EventTarget {
          */
         this.canvas.addEventListener(
             "wheel",
-            (event) => {
-                this.activatedEditor.wheelHandler(event);
-            },
+            (event) => this.wheelHandler(event),
             { passive: false },
         );
         /*
@@ -381,6 +379,38 @@ export class EventSequenceEditors extends EventTarget {
         this.general.active = true;
     }
     _selectedEditor: EventSequenceEditorBase;
+    /**
+     * 桌面端有个全局设置 `KPASettings.useRpeWheel`（滚轮方向反过来）。
+     * 由页面把它透传到这里，编辑器自己不去读设置。
+     */
+    wheelReversed = false;
+
+    /**
+     * 滚轮滑时间。
+     *
+     * delta 从**外层**派发：三个子编辑器是各自独立的 `EventTarget`，
+     * 它们派的事件到不了页面（页面监听的是外层这个实例）。
+     */
+    wheelHandler(event: WheelEvent): boolean {
+        if (event.ctrlKey) return false;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const editor = this.activatedEditor;
+
+        if (editor.panAxis === "x") return true;
+
+        const sign = this.wheelReversed ? -1 : 1;
+        const deltaBeats = (event.deltaY / 100) * (editor.timeSpan / 10) * sign;
+
+        this.dispatchEvent(
+            Object.assign(new Event("timescroll"), { deltaBeats }),
+        );
+
+        return true;
+    }
+
     get activatedEditor() {
         return this._selectedEditor;
     }
@@ -738,16 +768,15 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     }
     /**
      * 滚轮 = 滑动时间（不是缩放）。一格约走可视范围的 1/10。
+     *
+     * 实际由外层 `EventSequenceEditors` 调用 —— 事件也从外层派发，
+     * 否则子编辑器派的事件到不了页面（它们是各自独立的 EventTarget）。
      */
     wheelHandler(event: WheelEvent): boolean {
         if (event.ctrlKey) return false;
 
         event.preventDefault();
         event.stopPropagation();
-
-        if (this.panAxis === "x") return true;
-
-        this.scrollTimeBy((event.deltaY / 100) * (this.timeSpan / 10));
 
         return true;
     }

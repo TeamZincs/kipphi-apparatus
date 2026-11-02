@@ -416,6 +416,8 @@ async function boot() {
     );
     notesEditor.target = chart.judgeLines[0];
     notesEditor.showsNNNListAttachable = false;
+    // 滚轮方向跟着全局设置（编辑器自己不读设置，由这里透传）
+    notesEditor.wheelReversed = KPASettings.useRpeWheel;
     notesEditorCanvas.addEventListener("click", () => {
         activeSidebar.set(Sidebar.NOTES);
     });
@@ -432,6 +434,18 @@ async function boot() {
         0.5
     );
     eventSequenceEditors.changeTarget({ judgeLine: chart.judgeLines[0] });
+    eventSequenceEditors.wheelReversed = KPASettings.useRpeWheel;
+    // 编辑器滑时间 → 播放器 seek（和移动端同一套）
+    const onTimeScroll = (event: Event) => {
+        const delta = (event as Event & { deltaBeats?: number }).deltaBeats ?? 0;
+
+        if (!delta) return;
+
+        player.renderingBeats = Math.max(0, player.renderingBeats + delta);
+    };
+
+    notesEditor.addEventListener("timescroll", onTimeScroll);
+    eventSequenceEditors.addEventListener("timescroll", onTimeScroll);
     player.addEventListener("drawn", () => {
         if (showingGrid && pre0 === 0) {
             notesEditor.draw(player.renderingBeats);
