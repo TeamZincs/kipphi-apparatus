@@ -357,6 +357,20 @@ export class EventSequenceEditors extends EventTarget {
             this.activatedEditor.upHandler(event);
             this.draw();
         });
+        /**
+         * 滚轮只转发给**当前激活**的编辑器。
+         *
+         * 三个子编辑器（总览 / 曲线 / 特效）共用同一张画布，如果各自在构造函数里挂
+         * wheel，一次滚动会触发 3 次（`stopPropagation` 挡不住同元素上的其它监听器），
+         * 于是时间跳三倍，还会让没激活的那个也去绘制、报「序列不存在」。
+         */
+        this.canvas.addEventListener(
+            "wheel",
+            (event) => {
+                this.activatedEditor.wheelHandler(event);
+            },
+            { passive: false },
+        );
         /*
         this.text = new TextEventSequenceEditor(this.parent.clientHeight - barHeight, this.parent.clientWidth, this);
         this.text.active = false;
@@ -680,12 +694,9 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         this.timeGridInterval = 1;
         this.initContext();
 
-        // 滚轮 = 滑动时间（和音符编辑器一致）；ctrl+滚轮留给页面切判定线
-        this.canvas.addEventListener(
-            "wheel",
-            (event) => this.wheelHandler(event),
-            { passive: false },
-        );
+        // 滚轮监听**不在这里**：三个子编辑器共用同一张画布，各自挂一个会同时响应
+        // （`stopPropagation` 拦不住同一元素上的其它监听器），于是滚一下跳好几倍、
+        // 还会让没激活的那个也去 draw，报「序列不存在」。统一挂在外层，转发给激活的。
 
         // 下面有一堆监听器
         // #region
@@ -741,13 +752,14 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         return true;
     }
 
-    /** 把视图时间推一段（负数 = 往前），并通知页面去 seek */
+    /**
+     * 把视图时间推一段（负数 = 往前），并通知页面去 seek。
+     *
+     * 这里**不自己 draw**：外层 `EventSequenceEditors` 只画激活的那个编辑器，
+     * 自己画会让没激活的分支也跑一遍（它可能还没有 target / sequence）。
+     */
     scrollTimeBy(deltaBeats: number): void {
-        this.lastBeats = (this.lastBeats ?? 0) + deltaBeats;
-
         this.dispatchEvent(Object.assign(new Event("timescroll"), { deltaBeats }));
-
-        this.draw(this.lastBeats);
     }
 
     drawCoordination(beats: number) {
