@@ -348,6 +348,14 @@ export class EventSequenceEditors extends EventTarget {
         on(["mousemove", "touchmove"], this.canvas, (event) => {
             const editor = this.activatedEditor;
 
+            // 正在轴向拖动：只平移，不转发给编辑器的 moveHandler
+            if (this.pan) {
+                this.panBy(event);
+                this.draw();
+
+                return;
+            }
+
             editor.moveHandler(event);
 
             // 从"编辑"按钮拖出来的：指针第一次进画布才起预览
@@ -374,6 +382,22 @@ export class EventSequenceEditors extends EventTarget {
 
             this.buttonPressed = false;
             this.activatedEditor.downHandler(event);
+
+            // 点空白处（选完之后仍是 select）= 开始轴向拖动
+            if (this.activatedEditor.state === EventCurveEditorState.select) {
+                const anyEditor = this.activatedEditor as unknown as {
+                    valueRange?: [number, number];
+                };
+
+                this.pan = {
+                    x: point.x,
+                    y: point.y,
+                    range: anyEditor.valueRange
+                        ? [...anyEditor.valueRange]
+                        : [0, 0],
+                };
+            }
+
             this.draw();
         });
         on(["mouseup", "touchend"], this.canvas, (event) => {
@@ -389,6 +413,9 @@ export class EventSequenceEditors extends EventTarget {
 
                 return;
             }
+
+            // 轴向拖动结束
+            this.pan = null;
 
             // 画布上按下起的预览：松手就在这里落子
             if (this.activatedEditor.previewPoint) {
@@ -464,6 +491,52 @@ export class EventSequenceEditors extends EventTarget {
 
     /** 按住"编辑"按钮拖到画布上放节点 */
     private dragPlaceMode = false;
+
+    /**
+     * 轴向拖动（select 模式下点空白处按住拖）。
+     *
+     * 拖什么看 `panAxis`：`"time"` 竖向拖时间（走 `timescroll` → 页面 seek），
+     * `"x"` 横向平移值的窗口（改子编辑器的 `valueRange`，只是视图，不写谱面）。
+     */
+    private pan: { x: number; y: number; range: [number, number] } | null = null;
+
+    private panBy(event: MouseEvent | TouchEvent): void {
+        const pan = this.pan;
+
+        if (!pan) return;
+
+        const point = this.pointerInBitmap(event);
+        const dx = point.x - pan.x;
+        const dy = point.y - pan.y;
+
+        if (this.panAxis === "time") {
+            const timeRatio = this.activatedEditor.timeRatio;
+
+            if (!timeRatio) return;
+
+            const deltaBeats = -dy / timeRatio;
+
+            pan.y = point.y;
+
+            if (Math.abs(deltaBeats) > 1e-6) this.scrollTimeBy(deltaBeats);
+
+            return;
+        }
+
+        const anyEditor = this.activatedEditor as unknown as {
+            valueRange?: [number, number];
+            valueRatio?: number;
+        };
+
+        if (!anyEditor.valueRange || !anyEditor.valueRatio) return;
+
+        const deltaValue = -dx / anyEditor.valueRatio;
+
+        anyEditor.valueRange = [
+            pan.range[0] + deltaValue,
+            pan.range[1] + deltaValue,
+        ];
+    }
 
     /** 当前激活的编辑器自己的状态 */
     private modeButtonList(): CanvasButton[] {

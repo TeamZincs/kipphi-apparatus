@@ -147,8 +147,10 @@ export class NotesEditor extends EventTarget {
 
         if (!pan) return;
 
+        // 注意：`x` / `y` 已经是**模型单位**（x 是 position、y 是拍数），
+        // 不能再除一次 timeRatio —— 那会慢得像蜗牛。
         if (this.panAxis === "time") {
-            const deltaBeats = -(y - pan.lastY) / this.timeRatio;
+            const deltaBeats = -(y - pan.lastY);
 
             pan.lastY = y;
 
@@ -157,7 +159,8 @@ export class NotesEditor extends EventTarget {
             return;
         }
 
-        this.positionBasis = pan.basis + (x - pan.startX);
+        // 横轴：`x` 是 position 单位，换算成屏幕像素要乘 `positionRatio`
+        this.positionBasis = pan.basis + (x - pan.startX) * this.positionRatio;
         this.draw(this.lastBeats);
     }
 
