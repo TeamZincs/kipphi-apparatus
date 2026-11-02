@@ -1979,24 +1979,32 @@ export abstract class EventSequenceEditor<
         this.syncPreviewPoint();
     }
 
-    /** 预览就画一个**半透明的节点方块**（和真节点同尺寸同位置） */
+    /**
+     * 预览画**真节点的贴图**（North / South 那两张），半透明。
+     *
+     * 位置和 `drawSequence` 里一致：start 节点在曲线点**上方**、
+     * end 节点在**下方**，这样预览一看就知道落点长什么样。
+     */
     override drawPreviewMarker(): void {
         if (!this.previewPoint) return;
 
         const { context } = this;
-        const size = 10;
-        const left = this.previewPoint.x - size / 2;
-        const top = this.previewPoint.y - size / 2;
+        const width = this.nodeWidth;
+        const height = this.nodeHeight;
+        const { x, y } = this.previewPoint;
 
         context.save();
-        context.globalAlpha = 0.55;
-        context.fillStyle = "#6CF";
-        context.fillRect(left, top, size, size);
+        context.globalAlpha = 0.6;
 
-        context.globalAlpha = 0.95;
-        context.strokeStyle = "#6CF";
-        context.lineWidth = 1.5;
-        context.strokeRect(left, top, size, size);
+        context.drawImage(
+            Images.START_NODE,
+            x - width / 2,
+            y - height,
+            width,
+            height,
+        );
+        context.drawImage(Images.END_NODE, x - width / 2, y, width, height);
+
         context.restore();
     }
 
