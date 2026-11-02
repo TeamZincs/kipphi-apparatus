@@ -424,6 +424,23 @@ export class NotesEditor extends EventTarget {
                 active: state === NotesEditorState.edit,
                 onClick: () => this.setMode("edit"),
             },
+            // 四种音符：按下 = 进 edit 模式 + 把待放音符设成这个类型
+            ...(
+                [
+                    ["tap", NoteType.tap, "TAP"],
+                    ["drag", NoteType.drag, "DRG"],
+                    ["flick", NoteType.flick, "FLK"],
+                    ["hold", NoteType.hold, "HLD"],
+                ] as const
+            ).map(([id, type, label]) => ({
+                id: `type-${id}`,
+                label,
+                active: state === NotesEditorState.edit && this.noteType === type,
+                onClick: () => {
+                    this.noteType = type;
+                    this.setMode("edit");
+                },
+            })),
         ];
     }
 
