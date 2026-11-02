@@ -230,6 +230,8 @@ export class NotesEditor extends EventTarget {
         );
         on(["mousemove", "touchmove"], this.canvas, (event) => {
             this.moveHandler(event);
+            // 放置预览跟着指针走（下一行的 draw 监听器会把它画出来）
+            this.movePreview();
         });
         on(
             ["mousedown", "mousemove", "touchstart", "touchmove"],
@@ -555,10 +557,16 @@ export class NotesEditor extends EventTarget {
 
                     this.dragPlaceType = null;
 
-                    // 松手还在按钮上 = 普通点击（只切类型）；滑到画布上才放
-                    if (inside || placing === null) return;
+                    // 松手还在按钮上 = 普通点击（只切类型，预览丢掉）；
+                    // 滑到画布上才真正落子
+                    if (inside || placing === null) {
+                        this.preview = null;
+                        this.draw(this.lastBeats);
 
-                    this.placeNoteAtPointer(placing);
+                        return;
+                    }
+
+                    this.commitPreview();
                 },
             })),
         ];
@@ -573,6 +581,9 @@ export class NotesEditor extends EventTarget {
         this.buttons.draw(this.context, this.toolbarButtons());
         this.navButtons.draw(this.context, this.navButtonList());
         this.context.restore();
+
+        // 放置预览画在音符之上、按钮之下（按钮在屏幕坐标里单独复位再画）
+        this.drawPreview(beats);
     }
 
     /**
@@ -714,23 +725,102 @@ export class NotesEditor extends EventTarget {
         this.dispatchEvent(new KPANoteSelectedEvent(note));
     }
 
-    /** 拖出即放：在指针最后指向的位置放一个音符并选中 */
-    private placeNoteAtPointer(type: NoteType): void {
-        if (!this.pointerInsideCanvas) return;
+    /**
+     * 放置预览：**对象还不存在**，只在画布上画一个半透明的样子跟着指针。
+     *
+     * 两条路都走它：
+     *   · 编辑模式在画布上按下（拖到合适位置再松手）；
+     *   · 按住音符类型按钮拖出（拖到画布上松手）。
+     * 松手时才 `commitPreview()` 真正 `createNote()`。
+     */
+    private preview: { type: NoteType; time: TimeT; positionX: number } | null =
+        null;
+
+    /** 开始预览（拿不到指针时间就算了） */
+    private beginPreview(type: NoteType): void {
+        if (!this.pointedTime || this.pointedPositionX === undefined) return;
+
+        this.preview = {
+            type,
+            time: this.pointedTime,
+            positionX: this.pointedPositionX,
+        };
+        this.draw(this.lastBeats);
+    }
+
+    /** 指针移动时把预览挪过去 */
+    private movePreview(): void {
+        // 从按钮拖出来的：指针第一次进画布才建预览（按下那一刻还没有坐标）
+        if (!this.preview) {
+            if (this.dragPlaceType) this.beginPreview(this.dragPlaceType);
+
+            return;
+        }
+
+        if (!this.pointedTime) return;
+
+        this.preview = {
+            ...this.preview,
+            time: this.pointedTime,
+            positionX: this.pointedPositionX ?? this.preview.positionX,
+        };
+    }
+
+    /** 松手：真的建出来并选中 */
+    private commitPreview(): void {
+        const preview = this.preview;
+
+        this.preview = null;
+
+        if (!preview) return;
+
+        // 滑出画布就不落子（拖出去又拖回来时 pointerInsideCanvas 会是 true）
+        if (!this.pointerInsideCanvas) {
+            this.draw(this.lastBeats);
+
+            return;
+        }
 
         const note = this.createNote(
-            type,
-            this.pointedTime,
-            this.pointedPositionX,
+            preview.type,
+            preview.time,
+            preview.positionX,
         );
 
-        if (!note) return;
+        if (note) {
+            this.selectNote(note);
+            // 放完留在 edit 模式：可以接着放 / 接着拖
+            this.wasEditing = true;
+            this.state = NotesEditorState.selecting;
+        }
 
-        this.selectNote(note);
-        // 放完留在 edit 模式：可以接着放 / 接着拖
-        this.wasEditing = true;
-        this.state = NotesEditorState.selecting;
         this.draw(this.lastBeats);
+    }
+
+    /** 画预览（半透明的音符贴图，跟着指针走） */
+    private drawPreview(beats: number): void {
+        const preview = this.preview;
+
+        if (!preview) return;
+
+        const start = TC.toBeats(preview.time) - beats;
+        const { x, y } = new Coordinate(preview.positionX, start).mul(
+            this.matrix,
+        );
+
+        const width = this.noteWidth;
+        const height = this.noteHeight;
+
+        this.context.save();
+        this.context.globalAlpha = 0.55;
+        this.context.drawImage(
+            this.respack.getNoteFromType(preview.type),
+            x - width / 2,
+            y - height / 2,
+            width,
+            height,
+        );
+        this.context.restore();
     }
 
     /**
@@ -809,25 +899,14 @@ export class NotesEditor extends EventTarget {
                 this.wasEditing = false;
                 break;
             case NotesEditorState.edit:
-            case NotesEditorState.placingHold: {
-                const type =
+            case NotesEditorState.placingHold:
+                // 按下只**起预览**：拖到合适位置松手才落子（和拖出即放同一条路）
+                this.beginPreview(
                     this.state === NotesEditorState.placingHold
                         ? NoteType.hold
-                        : this.noteType;
-                const note = this.createNote(
-                    type,
-                    this.pointedTime,
-                    this.pointedPositionX,
+                        : this.noteType,
                 );
-
-                if (note) {
-                    this.selectNote(note);
-                    this.wasEditing = this.state === NotesEditorState.edit;
-                    this.state = NotesEditorState.selecting;
-                }
-
                 break;
-            }
             case NotesEditorState.selectScope:
                 this.startingPoint = coord;
                 this.startingCanvasPoint = canvasCoord;
@@ -845,6 +924,19 @@ export class NotesEditor extends EventTarget {
 
             this.buttons.release(point.x, point.y);
             this.navButtons.release(point.x, point.y);
+        }
+
+        // 在画布上按下起的预览：松手就在这里落子
+        if (this.preview) {
+            this.commitPreview();
+
+            // 和原来的 up 流程一致：松手回到 edit（可以接着放）或 select
+            this.state = this.wasEditing
+                ? NotesEditorState.edit
+                : NotesEditorState.select;
+            this.draw(this.lastBeats);
+
+            return;
         }
 
         const canvasCoord = getCanvasCoordFromEvent(
