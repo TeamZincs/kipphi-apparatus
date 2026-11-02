@@ -379,6 +379,22 @@
         else if (activeTab === "events") eventEditors?.draw(beats);
     }
 
+    /**
+     * 编辑器里滚轮/拖动滑时间 → 播放器跟着 seek。
+     *
+     * 编辑器只负责算出"要跳多少拍"，真正的跳转在这里做：
+     * `player.renderingBeats` 的 setter 会把拍数换算成秒并写 `audio.currentTime`。
+     */
+    function onTimeScroll(event: Event): void {
+        if (!player) return;
+
+        const delta = (event as Event & { deltaBeats?: number }).deltaBeats ?? 0;
+
+        if (!delta) return;
+
+        player.renderingBeats = Math.max(0, player.renderingBeats + delta);
+    }
+
     /** 切页之后补一次（那一页在后台期间不跟着重绘） */
     function drawActiveEditor(): void {
         if (!player) return;
@@ -403,6 +419,10 @@
 
         notesEditor = new NotesEditor(notesCanvas, fitEditorCanvas(notesCanvas), ops, respack as never);
         eventEditors = new EventSequenceEditors(eventsCanvas, fitEditorCanvas(eventsCanvas), ops, 0.5);
+
+        // 编辑器滚轮滑时间 → 播放器 seek
+        notesEditor.addEventListener("timescroll", onTimeScroll);
+        eventEditors.addEventListener("timescroll", onTimeScroll);
 
         syncEditorTargets();
     }
