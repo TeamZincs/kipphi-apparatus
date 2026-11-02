@@ -357,11 +357,15 @@ export class EventSequenceEditors extends EventTarget {
                 (this.modesVisible && this.modeButtons.press(point.x, point.y)) ||
                 this.navButtons.press(point.x, point.y)
             ) {
+                // 记住这次按下属于按钮：松手时**不能**再交给编辑器，
+                // 否则它的 upHandler 会把刚切好的模式又改回去（表现为"切了没用"）
+                this.buttonPressed = true;
                 this.draw();
 
                 return;
             }
 
+            this.buttonPressed = false;
             this.activatedEditor.downHandler(event);
             this.draw();
         });
@@ -371,6 +375,13 @@ export class EventSequenceEditors extends EventTarget {
 
             this.modeButtons.release(point.x, point.y);
             this.navButtons.release(point.x, point.y);
+
+            if (this.buttonPressed) {
+                this.buttonPressed = false;
+                this.draw();
+
+                return;
+            }
 
             this.activatedEditor.upHandler(event);
             this.draw();
@@ -432,6 +443,9 @@ export class EventSequenceEditors extends EventTarget {
 
     /** 模式按钮当前是否可见（总览里不显示） */
     private modesVisible = false;
+
+    /** 这次按下落在按钮上（松手时不要转发给子编辑器） */
+    private buttonPressed = false;
 
     /** 当前激活的编辑器自己的状态 */
     private modeButtonList(): CanvasButton[] {

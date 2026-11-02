@@ -141,6 +141,9 @@ export class NotesEditor extends EventTarget {
 
     /** 松手时指针是否落在画布内（拖出即放只有在画布内才真的放） */
     private pointerInsideCanvas = false;
+
+    /** 这次按下落在工具栏按钮上（松手时不再走画布逻辑） */
+    private toolbarPressed = false;
     padding: number;
     // end
 
@@ -581,9 +584,6 @@ export class NotesEditor extends EventTarget {
         this.buttons.draw(this.context, this.toolbarButtons());
         this.navButtons.draw(this.context, this.navButtonList());
         this.context.restore();
-
-        // 放置预览画在音符之上、按钮之下（按钮在屏幕坐标里单独复位再画）
-        this.drawPreview(beats);
     }
 
     /**
@@ -628,10 +628,13 @@ export class NotesEditor extends EventTarget {
 
     /** 点到了按钮就吃掉这次事件 */
     private handleToolbarDown(x: number, y: number): boolean {
-        return (
+        const hit =
             this.buttons.press(x, y) !== null ||
-            this.navButtons.press(x, y) !== null
-        );
+            this.navButtons.press(x, y) !== null;
+
+        this.toolbarPressed = hit;
+
+        return hit;
     }
 
     /**
@@ -789,9 +792,9 @@ export class NotesEditor extends EventTarget {
 
         if (note) {
             this.selectNote(note);
-            // 放完留在 edit 模式：可以接着放 / 接着拖
+            // 放完**留在 edit 模式**（不是 selecting）：可以接着放 / 接着拖
             this.wasEditing = true;
-            this.state = NotesEditorState.selecting;
+            this.state = NotesEditorState.edit;
         }
 
         this.draw(this.lastBeats);
@@ -926,15 +929,16 @@ export class NotesEditor extends EventTarget {
             this.navButtons.release(point.x, point.y);
         }
 
-        // 在画布上按下起的预览：松手就在这里落子
+        // 这次手势属于按钮（onRelease 已在上面处理过），别再走画布那套
+        if (this.toolbarPressed) {
+            this.toolbarPressed = false;
+
+            return;
+        }
+
+        // 在画布上按下起的预览：松手就在这里落子（状态由 commitPreview 决定）
         if (this.preview) {
             this.commitPreview();
-
-            // 和原来的 up 流程一致：松手回到 edit（可以接着放）或 select
-            this.state = this.wasEditing
-                ? NotesEditorState.edit
-                : NotesEditorState.select;
-            this.draw(this.lastBeats);
 
             return;
         }
@@ -1381,6 +1385,9 @@ export class NotesEditor extends EventTarget {
 
         this.drawn = false;
         this.lastBeats = beats;
+        // 预览画在音符之上、按钮之下（这里还带着相机变换，和 drawNote 同一个空间）
+        this.drawPreview(beats);
+
         // 画在最后：编辑器自己的背景填充会把前面画的盖住
         this.drawToolbar();
     }
