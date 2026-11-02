@@ -968,6 +968,7 @@
                 min="0"
                 max={total || 30}
                 step="0.01"
+                value="0"
                 oninput={onProgressInput}
                 onpointerdown={beginProgressDrag}
                 onpointerup={endProgressDrag}
