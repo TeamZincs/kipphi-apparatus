@@ -851,8 +851,13 @@
                     （只有按钮 class 变化时才顺带刷新一次），表现就是"点一下锁住了但图标没变"。
                     改成单个 SVG + `d` 属性绑定，走属性刷新那条路。
                 -->
+                <!--
+                    两个图标都常驻，靠按钮的 `.locked` 类切换显隐。
+                    不用 `{#if locked}`（内层分支不刷新），也不用 `d={…}` 属性绑定
+                    （SVG 的 `d` 在这个运行时里没被刷新）—— class 绑定是确定可靠的。
+                -->
                 <svg
-                    class="lock-icon"
+                    class="lock-icon lock-open"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -861,9 +866,19 @@
                     stroke-linejoin="round"
                 >
                     <rect x="3" y="11" width="18" height="11" rx="2"></rect>
-                    <path
-                        d={locked ? "M7 11V7a5 5 0 0 1 10 0v4" : "M7 11V7a5 5 0 0 1 9.9-1"}
-                    ></path>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                </svg>
+                <svg
+                    class="lock-icon lock-closed"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                 </svg>
 
                 <!-- 按住解锁时绕一圈的进度环（`.holding` 只在按住时加，锁定时才可能按住） -->
@@ -1143,6 +1158,19 @@
 .lock-icon {
     width: 20px;
     height: 20px;
+}
+
+/* 两个图标叠在同一格，按 `.locked` 切换显隐（只依赖 class，不依赖属性刷新） */
+.lock-closed {
+    display: none;
+}
+
+.lock.locked .lock-open {
+    display: none;
+}
+
+.lock.locked .lock-closed {
+    display: block;
 }
 
 /*
