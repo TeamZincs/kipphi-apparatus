@@ -118,6 +118,13 @@ export class NotesEditor extends EventTarget {
     timeRatio: number;
     timeGridSpan: number;
     timeSpan: number = 4;
+
+    /**
+     * 轴向锁定：
+     *   · `"time"` —— 允许滑动时间（滚轮/拖动改时间），横向锁住；
+     *   · `"x"`    —— 时间锁住，只允许横向平移。
+     */
+    panAxis: "time" | "x" = "time";
     padding: number;
     // end
 
@@ -519,25 +526,43 @@ export class NotesEditor extends EventTarget {
     }
 
     /**
-     * 滚轮缩放时间轴。
+     * 滚轮 = **滑动时间**（不是缩放）。
      *
-     * 之所以放在编辑器里：缩放要跟着指针位置走、还要受轴向锁定约束，
-     * 这些只有编辑器知道。页面那边只保留播放器的滚轮（seek）。
+     * 一格大约走可视范围的 1/10，和桌面端"滚轮 seek 时间"的语义一致。
+     * 之所以放在编辑器里：滑动方向要受轴向锁定约束，而且不该和播放器的滚轮打架。
      */
     wheelHandler(event: WheelEvent): boolean {
         // ctrl + 滚轮是页面在切判定线，别抢
         if (event.ctrlKey) return false;
 
         event.preventDefault();
-        // 桌面端的 `#inner` 上还挂着播放器的滚轮（seek），不拦住的话缩放的同时还会跳进度
+        // 桌面端的 `#inner` 上还挂着播放器的滚轮（seek），不拦住的话会跳两次进度
         event.stopPropagation();
 
-        const factor = event.deltaY > 0 ? 1.15 : 1 / 1.15;
+        // 锁定的是"时间轴"时，滚轮不滑时间（改由轴向锁定按钮切到横轴）
+        if (this.panAxis === "x") return true;
 
-        this.timeSpan = Math.min(64, Math.max(0.25, this.timeSpan * factor));
-        this.draw(this.lastBeats);
+        const deltaBeats = (event.deltaY / 100) * (this.timeSpan / 10);
+
+        this.scrollTimeBy(deltaBeats);
 
         return true;
+    }
+
+    /**
+     * 把视图时间往前/后推一段（负数 = 往前）。
+     *
+     * 播放器在放的时候它自己会覆盖 `lastBeats`，所以真正生效要靠页面接
+     * `timescroll` 事件去 seek；编辑器自己只负责在暂停时立刻反映出来。
+     */
+    scrollTimeBy(deltaBeats: number): void {
+        this.lastBeats = (this.lastBeats ?? 0) + deltaBeats;
+
+        this.dispatchEvent(
+            Object.assign(new Event("timescroll"), { deltaBeats }),
+        );
+
+        this.draw(this.lastBeats);
     }
 
     downHandler(event: TouchEvent | MouseEvent) {
