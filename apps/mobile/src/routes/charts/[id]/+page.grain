@@ -666,6 +666,8 @@
     let locked = $state(false);
     let fullscreen = $state(false);
     let unlockTimer: ReturnType<typeof setTimeout> | null = null;
+    /** 正在按住解锁（用来跑进度环） */
+    let unlocking = $state(false);
 
     function cycleRate(): void {
         const index = PLAYBACK_RATES.indexOf(playbackRate);
@@ -694,13 +696,19 @@
             return;
         }
 
+        // 已锁定：按住开始走"解锁进度环"，600ms 走满才解开
+        unlocking = true;
         unlockTimer = setTimeout(() => {
             locked = false;
+            unlocking = false;
             unlockTimer = null;
         }, 600);
     }
 
     function onLockUp(): void {
+        // 中途松手：进度环收回，保持锁定
+        unlocking = false;
+
         if (unlockTimer) {
             clearTimeout(unlockTimer);
             unlockTimer = null;
@@ -830,12 +838,47 @@
         <!-- 全屏锁定：锁定时除了它自己什么都不显示，长按解锁 -->
         {#if fullscreen}
             <button
-                class="lock {locked ? "locked" : ""}"
+                class="lock {locked ? "locked" : ""} {unlocking ? "holding" : ""}"
                 onpointerdown={onLockDown}
                 onpointerup={onLockUp}
                 onpointercancel={onLockUp}
                 onpointerleave={onLockUp}
-            >{locked ? "🔒" : "🔓"}</button>
+                aria-label={locked ? "解锁" : "锁定"}
+            >
+                {#if locked}
+                    <!-- 锁上：闭合的锁 -->
+                    <svg
+                        class="lock-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <!-- 按住解锁时绕一圈的进度环 -->
+                    <svg class="lock-ring" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="16"></circle>
+                    </svg>
+                {:else}
+                    <!-- 未锁：开着的锁 -->
+                    <svg
+                        class="lock-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                    </svg>
+                {/if}
+            </button>
         {/if}
 
         <div class="controls {controlsVisible && !locked ? "visible" : ""}">
@@ -1095,6 +1138,53 @@
 
 .lock.locked {
     opacity: 0.28;
+}
+
+/* 图标本体：锁 / 开锁 */
+.lock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.lock-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/*
+ * 解锁进度环：按住 600ms 走满一圈（时钟感），边框本身是圆的，
+ * 环从 12 点方向顺时针推进。
+ */
+.lock-ring {
+    position: absolute;
+    inset: 3px;
+    width: calc(100% - 6px);
+    height: calc(100% - 6px);
+    transform: rotate(-90deg);
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.lock.holding .lock-ring {
+    opacity: 1;
+    animation: lock-ring 600ms linear forwards;
+}
+
+.lock.holding {
+    opacity: 0.85;
+}
+
+@keyframes lock-ring {
+    to {
+        stroke-dashoffset: 0;
+    }
 }
 
 .time {
