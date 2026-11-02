@@ -582,11 +582,24 @@ export class EventSequenceEditors extends EventTarget {
         const sign = this.wheelReversed ? -1 : 1;
         const deltaBeats = (event.deltaY / 100) * (editor.timeSpan / 10) * sign;
 
-        this.dispatchEvent(
-            Object.assign(new Event("timescroll"), { deltaBeats }),
-        );
+        this.scrollTimeBy(deltaBeats);
 
         return true;
+    }
+
+    /**
+     * 滑时间：**自己先重画**，再把事件抛给页面去 seek。
+     *
+     * 只派事件是不够的 —— 页面 seek 之后要靠播放器的 `drawn` 回来重绘，
+     * 而 `drawn` 在暂停时不一定触发（还有 `showingGrid` 之类的开关），
+     * 结果就是"进度动了、画布没动"。
+     */
+    scrollTimeBy(deltaBeats: number): void {
+        this.lastBeats = (this.lastBeats ?? 0) + deltaBeats;
+
+        this.dispatchEvent(Object.assign(new Event("timescroll"), { deltaBeats }));
+
+        this.draw(this.lastBeats);
     }
 
     get activatedEditor() {
