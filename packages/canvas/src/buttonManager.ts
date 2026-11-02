@@ -46,7 +46,7 @@ export interface CanvasButton {
 
 export type ButtonLayout =
     /** 左上角一排（工具栏） */
-    | { kind: "toolbar"; margin?: number; size?: number; gap?: number; radius?: number }
+    | { kind: "toolbar"; margin?: number; size?: number; gap?: number; radius?: number; y?: number }
     /** 竖排一列（事件总览的层级） */
     | { kind: "column"; x: number; y: number; size: number; step: number; radius?: number }
     /** 排形按钮组：组内密接、只有整组圆角（放大镜 2x/4x/8x） */
@@ -166,7 +166,7 @@ export class ButtonManager {
         const layout = this.layout;
 
         if (layout.kind === "toolbar") {
-            const { margin = 8, size = 30, gap = 6 } = layout;
+            const { margin = 8, size = 30, gap = 6, y = margin } = layout;
             let cursor = margin;
 
             return buttons.map((button) => {
@@ -174,7 +174,7 @@ export class ButtonManager {
                     id: button.id,
                     spec: this.specOf(button),
                     x: cursor,
-                    y: margin,
+                    y,
                     width: size,
                     height: size
                 };

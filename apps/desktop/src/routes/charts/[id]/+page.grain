@@ -450,6 +450,13 @@ async function boot() {
 
     notesEditor.addEventListener("timescroll", onTimeScroll);
     eventSequenceEditors.addEventListener("timescroll", onTimeScroll);
+
+    // 画布里的判定线切换按钮 → 页面（`selectedLineNumber` 的单一数据源在这里）
+    notesEditor.addEventListener("targetchange", (event) => {
+        const line = (event as Event & { judgeLine?: { id: number } }).judgeLine;
+
+        if (line) selectedLineNumber.set(line.id);
+    });
     player.addEventListener("drawn", () => {
         if (showingGrid && pre0 === 0) {
             notesEditor.draw(player.renderingBeats);

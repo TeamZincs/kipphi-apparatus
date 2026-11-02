@@ -429,6 +429,70 @@ export class NotesEditor extends EventTarget {
         gap: 6
     });
 
+    /** 第二排：判定线切换（‹ #id ›）+ 轴向锁定 */
+    readonly navButtons = new ButtonManager("screen", {
+        kind: "toolbar",
+        size: 40,
+        margin: 14,
+        y: 14 + 40 + 6,
+        gap: 6
+    });
+
+    /** 切到上一条 / 下一条判定线，并通知页面（它才是 `selectedLineId` 的拥有者） */
+    private stepLine(delta: number): void {
+        const chart = this.operationList?.chart;
+
+        if (!chart) return;
+
+        const lines = [...chart.judgeLines].sort((a, b) => a.id - b.id);
+        const index = lines.findIndex((line) => line === this.target);
+
+        if (index < 0) return;
+
+        const next = lines[(index + delta + lines.length) % lines.length];
+
+        if (!next || next === this.target) return;
+
+        this.target = next;
+        this.dispatchEvent(
+            Object.assign(new Event("targetchange"), { judgeLine: next }),
+        );
+        this.draw(this.lastBeats);
+    }
+
+    /** 轴向锁定：时间 ↔ 横轴 */
+    private togglePanAxis(): void {
+        this.panAxis = this.panAxis === "time" ? "x" : "time";
+        this.draw(this.lastBeats);
+    }
+
+    /** 第二排按钮表 */
+    private navButtonList(): CanvasButton[] {
+        return [
+            {
+                id: "prev-line",
+                icon: "previousLine" as const,
+                onClick: () => this.stepLine(-1),
+            },
+            {
+                id: "current-line",
+                label: `#${this.target?.id ?? "-"}`,
+                onClick: () => undefined,
+            },
+            {
+                id: "next-line",
+                icon: "nextLine" as const,
+                onClick: () => this.stepLine(1),
+            },
+            {
+                id: "axis-lock",
+                icon: this.panAxis === "x" ? ("lock" as const) : ("unlock" as const),
+                active: this.panAxis === "x",
+                onClick: () => this.togglePanAxis(),
+            },
+        ];
+    }
+
     /** 把当前模式映射成按钮表（监听器挂在按钮上，管理器不认业务） */
     private toolbarButtons(): CanvasButton[] {
         const state = this.state;
@@ -486,6 +550,7 @@ export class NotesEditor extends EventTarget {
         this.context.save();
         this.context.setTransform(1, 0, 0, 1, 0, 0);
         this.buttons.draw(this.context, this.toolbarButtons());
+        this.navButtons.draw(this.context, this.navButtonList());
         this.context.restore();
     }
 
@@ -531,7 +596,10 @@ export class NotesEditor extends EventTarget {
 
     /** 点到了按钮就吃掉这次事件 */
     private handleToolbarDown(x: number, y: number): boolean {
-        return this.buttons.press(x, y) !== null;
+        return (
+            this.buttons.press(x, y) !== null ||
+            this.navButtons.press(x, y) !== null
+        );
     }
 
     /**
@@ -674,6 +742,7 @@ export class NotesEditor extends EventTarget {
             const point = this.pointerInBitmap(event);
 
             this.buttons.release(point.x, point.y);
+            this.navButtons.release(point.x, point.y);
         }
 
         const canvasCoord = getCanvasCoordFromEvent(

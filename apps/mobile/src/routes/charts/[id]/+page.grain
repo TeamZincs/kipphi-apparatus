@@ -428,6 +428,13 @@
         notesEditor.addEventListener("timescroll", onTimeScroll);
         eventEditors.addEventListener("timescroll", onTimeScroll);
 
+        // 画布里的判定线切换按钮 → 页面（`selectedLineId` 的单一数据源在这里）
+        notesEditor.addEventListener("targetchange", (event) => {
+            const line = (event as Event & { judgeLine?: { id: number } }).judgeLine;
+
+            if (line) selectedLineId.set(line.id);
+        });
+
         syncEditorTargets();
     }
 

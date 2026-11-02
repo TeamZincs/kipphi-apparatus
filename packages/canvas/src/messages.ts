@@ -28,7 +28,12 @@ export const messages = new Proxy(zhHans, {
         return locales[locale][p] || target[p];
     },
 });
-let locale = "en";
-export function setLocale(newLocale: keyof typeof locales | string) {
-    if (newLocale in locales) locale = newLocale;
+
+type LocaleKey = keyof typeof locales;
+
+/** 当前语言。收窄成 `LocaleKey`，这样 `locales[locale]` 不必加索引签名 */
+let locale: LocaleKey = "en";
+
+export function setLocale(newLocale: LocaleKey | string): void {
+    if (newLocale in locales) locale = newLocale as LocaleKey;
 }
