@@ -12,6 +12,8 @@
 // 只按需导入用到的图标（不要 `import { icons }` 整表：包体大，而且新增依赖
 // 期间 dev server 没预打包时容易连带整条 import 链失败）
 import {
+    ArrowLeftRight,
+    ArrowUpDown,
     ChevronLeft,
     ChevronRight,
     Grab,
@@ -53,7 +55,10 @@ const ICON_NODES: Record<string, IconNode> = {
     // 集合运算：替换 / 并集 / 补充
     Replace,
     SquaresUnite,
-    SquaresSubtract
+    SquaresSubtract,
+    // 轴向：上下（时间）/ 左右（横轴）
+    ArrowUpDown,
+    ArrowLeftRight
 } as unknown as Record<string, IconNode>;
 
 /** 语义名字 -> lucide 图标名。换图标只改这里。 */
@@ -75,7 +80,10 @@ export const ICONS = {
     /** 范围选择：替换 / 并集 / 补集 */
     scopeReplace: "Replace",
     scopeAdd: "SquaresUnite",
-    scopeSub: "SquaresSubtract"
+    scopeSub: "SquaresSubtract",
+    /** 轴向：当前允许滑动的方向（上下 = 时间，左右 = 横轴） */
+    axisTime: "ArrowUpDown",
+    axisX: "ArrowLeftRight"
 } as const;
 
 export type IconName = keyof typeof ICONS;

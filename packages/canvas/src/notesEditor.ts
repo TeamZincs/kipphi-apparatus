@@ -544,9 +544,13 @@ export class NotesEditor extends EventTarget {
                 onClick: () => this.stepLine(1),
             },
             {
+                // 用方向箭头直接表示"现在能往哪边拖"：
+                // 上下箭头 = 滑时间（横向锁），左右箭头 = 滑横轴（时间锁）
                 id: "axis-lock",
-                icon: this.panAxis === "x" ? ("lock" as const) : ("unlock" as const),
-                active: this.panAxis === "x",
+                icon:
+                    this.panAxis === "x"
+                        ? ("axisX" as const)
+                        : ("axisTime" as const),
                 onClick: () => this.togglePanAxis(),
             },
             // 三种范围选择方式：替换 / 并集 / 补集（点一下就进 selectScope）

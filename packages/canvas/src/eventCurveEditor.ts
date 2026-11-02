@@ -622,9 +622,11 @@ export class EventSequenceEditors extends EventTarget {
             { id: "current-line", label: `#${this.targetLine?.id ?? "-"}` },
             { id: "next-line", icon: "nextLine", onClick: () => this.stepLine(1) },
             {
+                // 方向箭头直白表示"现在能往哪边拖"
                 id: "axis-lock",
-                icon: this.panAxis === "x" ? "lock" : "unlock",
-                active: this.panAxis === "x",
+                icon: (this.panAxis === "x"
+                    ? "axisX"
+                    : "axisTime") as IconName,
                 onClick: () => {
                     this.panAxis = this.panAxis === "time" ? "x" : "time";
                     this.draw();
