@@ -14,8 +14,6 @@
 import {
     ChevronLeft,
     ChevronRight,
-    Combine,
-    Diff,
     Grab,
     Hand,
     Info,
@@ -26,6 +24,8 @@ import {
     Replace,
     Scan,
     SquareDashed,
+    SquaresSubtract,
+    SquaresUnite,
     Undo2,
     ZoomIn,
     ZoomOut
@@ -50,10 +50,10 @@ const ICON_NODES: Record<string, IconNode> = {
     ZoomOut,
     ChevronLeft,
     ChevronRight,
-    // 集合运算：替换 / 并集 / 补集
+    // 集合运算：替换 / 并集 / 补充
     Replace,
-    Combine,
-    Diff
+    SquaresUnite,
+    SquaresSubtract
 } as unknown as Record<string, IconNode>;
 
 /** 语义名字 -> lucide 图标名。换图标只改这里。 */
@@ -74,8 +74,8 @@ export const ICONS = {
     nextLine: "ChevronRight",
     /** 范围选择：替换 / 并集 / 补集 */
     scopeReplace: "Replace",
-    scopeAdd: "Combine",
-    scopeSub: "Diff"
+    scopeAdd: "SquaresUnite",
+    scopeSub: "SquaresSubtract"
 } as const;
 
 export type IconName = keyof typeof ICONS;
