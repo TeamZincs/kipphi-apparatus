@@ -529,6 +529,8 @@ export class NotesEditor extends EventTarget {
         if (event.ctrlKey) return false;
 
         event.preventDefault();
+        // 桌面端的 `#inner` 上还挂着播放器的滚轮（seek），不拦住的话缩放的同时还会跳进度
+        event.stopPropagation();
 
         const factor = event.deltaY > 0 ? 1.15 : 1 / 1.15;
 
