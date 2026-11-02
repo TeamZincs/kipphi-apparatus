@@ -256,6 +256,9 @@
 
             if (!musicUrl) player.offlineTime = 0;
 
+            // 倍速：有音源改 playbackRate；无音源时 ticker 里按倍速推进 offlineTime
+            player.audio.playbackRate = playbackRate;
+
             total = target.duration ?? 0;
             playerReady = true;
             ready = true;
@@ -284,7 +287,7 @@
             if (player && playing) {
                 const delta = last ? (now - last) / 1000 : 0;
 
-                player.offlineTime = (player.offlineTime ?? 0) + delta;
+                player.offlineTime = (player.offlineTime ?? 0) + delta * playbackRate;
                 player.render();
             }
 
@@ -531,14 +534,18 @@
     }
 
     function onFullscreenChange(): void {
-        const fullscreen = !!document.fullscreenElement;
+        const isFullscreen = !!document.fullscreenElement;
 
-        aspect = fullscreen ? 16 / 9 : 3 / 2;
+        fullscreen = isFullscreen;
+        aspect = isFullscreen ? 16 / 9 : 3 / 2;
+
+        // 退出全屏时解除锁定，免得回来还是"什么都没了"
+        if (!isFullscreen) locked = false;
 
         requestAnimationFrame(() => player?.useNewAspect());
 
         try {
-            if (fullscreen) void screen.orientation?.lock?.("landscape");
+            if (isFullscreen) void screen.orientation?.lock?.("landscape");
             else screen.orientation?.unlock?.();
         } catch {
             // 桌面浏览器 / 部分 WebView 不支持锁方向
@@ -558,6 +565,57 @@
 
         if (progressEl) progressEl.value = String(now);
     }
+
+    //#region 播放速率 / 撤销重做 / 全屏锁定
+    /** 固定档位，不做连续可调（连续微调在手机上很难点准） */
+    const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5];
+    let playbackRate = $state(1);
+
+    /** 全屏锁定（类 B 站）：点一下锁定，长按解锁 */
+    let locked = $state(false);
+    let fullscreen = $state(false);
+    let unlockTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function cycleRate(): void {
+        const index = PLAYBACK_RATES.indexOf(playbackRate);
+        const next = PLAYBACK_RATES[(index + 1) % PLAYBACK_RATES.length];
+
+        playbackRate = next;
+
+        if (player) player.audio.playbackRate = next;
+    }
+
+    function undo(): void {
+        operationList?.undo();
+    }
+
+    function redo(): void {
+        operationList?.redo();
+    }
+
+    /** 点一下锁定；长按（600ms）解锁 —— 避免跟打时误触解锁 */
+    function onLockDown(): void {
+        if (unlockTimer) clearTimeout(unlockTimer);
+
+        if (!locked) {
+            locked = true;
+
+            return;
+        }
+
+        unlockTimer = setTimeout(() => {
+            locked = false;
+            unlockTimer = null;
+        }, 600);
+    }
+
+    function onLockUp(): void {
+        if (unlockTimer) {
+            clearTimeout(unlockTimer);
+            unlockTimer = null;
+        }
+    }
+    //#endregion
 
     function format(seconds: number): string {
         const value = Math.max(0, seconds || 0);
@@ -666,7 +724,27 @@
             <div class="seek-hint">{seekHint}</div>
         {/if}
 
-        <div class="controls {controlsVisible ? "visible" : ""}">
+        <!-- 速率 / 撤销重做：右上角，和控制条同一显现周期（不常驻，防误触）；全屏时隐藏 -->
+        {#if !fullscreen}
+            <div class="top-controls {controlsVisible && !locked ? "visible" : ""}">
+                <button class="ctrl small" onclick={cycleRate}>{playbackRate}x</button>
+                <button class="ctrl small" onclick={undo} aria-label="撤销">↶</button>
+                <button class="ctrl small" onclick={redo} aria-label="重做">↷</button>
+            </div>
+        {/if}
+
+        <!-- 全屏锁定：锁定时除了它自己什么都不显示，长按解锁 -->
+        {#if fullscreen}
+            <button
+                class="lock {locked ? "locked" : ""}"
+                onpointerdown={onLockDown}
+                onpointerup={onLockUp}
+                onpointercancel={onLockUp}
+                onpointerleave={onLockUp}
+            >{locked ? "🔒" : "🔓"}</button>
+        {/if}
+
+        <div class="controls {controlsVisible && !locked ? "visible" : ""}">
             <button class="ctrl" onclick={onTogglePlay}>{playing ? "❚❚" : "▶"}</button>
 
             <!-- 进度与时间由 `drawn` 回调直接写 DOM -->
@@ -842,6 +920,51 @@
     height: 4px;
     accent-color: var(--accent);
     min-width: 0;
+}
+
+.top-controls {
+    position: absolute;
+    right: 8px;
+    top: calc(8px + env(safe-area-inset-top));
+    display: flex;
+    gap: 6px;
+    z-index: 11;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+
+.top-controls.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ctrl.small {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+}
+
+/* 全屏锁定：锁上之后只剩它自己 */
+.lock {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.42);
+    color: #fff;
+    font-size: 18px;
+    z-index: 12;
+    opacity: 0.45;
+    transition: opacity 0.18s ease;
+}
+
+.lock.locked {
+    opacity: 0.28;
 }
 
 .time {
