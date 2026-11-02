@@ -826,6 +826,15 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     // end
 }
 
+import { DEFAULT_PALETTE, drawButton, type ButtonPalette } from "./ui";
+
+/** 总览里的层级 / line 按钮：沿用新样式，但选中态用**白底深字**而不是蓝底 */
+const OVERVIEW_PALETTE: ButtonPalette = {
+    ...DEFAULT_PALETTE,
+    activeBackground: "#FFFFFF",
+    activeForeground: "#111318",
+};
+
 export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
     layer: "0" | "1" | "2" | "3" | "ex" | "glb" | "eff" = "0";
     layerButtons: Path2D[] = [];
@@ -1000,17 +1009,22 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
         }
 
         const createButton = (i: number, text: string) => {
-            const path = this.layerButtons[i];
-            context.fillStyle = text === this.layer ? "#DDD" : "#DDD7";
-            context.fill(path);
-            context.fillStyle = "#222";
-            // 基线必须显式给：上面画序列时留下的基线各不相同，
-            // 漏了就会整排文字上下错位（eff 层没画序列时就会浮起来）
-            context.textBaseline = "top";
-            context.fillText(
-                text,
-                -0.475 * this.innerWidth + 20,
-                -0.475 * this.innerHeight + 45 * i + 10,
+            // 命中仍走原来的 Path2D（isPointInPath），这里只换外观
+            const x = -0.475 * this.innerWidth;
+            const y = -0.475 * this.innerHeight + 45 * i;
+
+            drawButton(
+                context,
+                {
+                    id: text,
+                    spec: { id: text, label: text, active: text === this.layer },
+                    x,
+                    y,
+                    width: 40,
+                    height: 40,
+                },
+                OVERVIEW_PALETTE,
+                { radius: 6, fontSize: 16 },
             );
         };
         createButton(0, "0");
@@ -1058,28 +1072,36 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
         for (let i = 0; i < size; i++) {
             const path = this.effectLineButtons[i];
             if (!path) continue;
-            context.fillStyle =
-                first + i === this.effectLine ? "#DDD" : "#DDD7";
-            context.fill(path);
-            context.fillStyle = "#222";
-            context.textAlign = "center";
-            context.font = "20px Phigros";
-            context.fillText(
-                `${first + i}`,
-                0.475 * innerWidth - 20,
-                -0.475 * innerHeight + 45 * i + 10,
+
+            const label = `${first + i}`;
+
+            drawButton(
+                context,
+                {
+                    id: label,
+                    spec: { id: label, label, active: first + i === this.effectLine },
+                    x: 0.475 * innerWidth - 40,
+                    y: -0.475 * innerHeight + 45 * i,
+                    width: 40,
+                    height: 40,
+                },
+                OVERVIEW_PALETTE,
+                { radius: 6, fontSize: 16 },
             );
         }
         if (this.effectAddButton) {
-            context.fillStyle = "#DDD7";
-            context.fill(this.effectAddButton);
-            context.fillStyle = "#222";
-            context.textAlign = "center";
-            context.font = "20px Phigros";
-            context.fillText(
-                "+",
-                0.475 * innerWidth - 20,
-                -0.475 * innerHeight + 45 * size + 10,
+            drawButton(
+                context,
+                {
+                    id: "add",
+                    spec: { id: "add", label: "+" },
+                    x: 0.475 * innerWidth - 40,
+                    y: -0.475 * innerHeight + 45 * size,
+                    width: 40,
+                    height: 40,
+                },
+                OVERVIEW_PALETTE,
+                { radius: 6, fontSize: 16 },
             );
         }
 
