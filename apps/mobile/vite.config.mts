@@ -12,6 +12,11 @@ const REPO_ROOT = resolve(CONFIG_DIR, '../..');
 
 export default defineConfig(() => ({
     plugins: [grain() as unknown as PluginOption],
+    // lucide 是仓库根新装的依赖，只在 packages/canvas 里用到；显式列进来，
+    // 免得它被"首次加载时才发现"，那一刻模块图是旧的会报误导性的缺导出
+    optimizeDeps: {
+        include: ['lucide']
+    },
     // 与桌面端共用仓库根的 static（默认 respack 在 static/default 里）
     publicDir: resolve(REPO_ROOT, 'static'),
     build: {

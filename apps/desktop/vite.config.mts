@@ -175,6 +175,12 @@ export default defineConfig(() => {
 
     return {
         plugins,
+        // lucide 是在仓库根新装的依赖，且只在 `packages/canvas` 里被用到。
+        // 不显式列进来的话，它是在"编辑器首次被加载"时才被 Vite 发现并预打包的；
+        // 那一刻模块图是旧的，会报出很误导的错误（比如 index.ts 缺某个导出）。
+        optimizeDeps: {
+            include: ['lucide']
+        },
         // 静态目录在仓库根（桌面/移动端共用），不在 apps/desktop 里
         publicDir: resolve(REPO_ROOT, 'static'),
         // Tauri 期望的构建产物目录
