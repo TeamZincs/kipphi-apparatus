@@ -132,6 +132,15 @@ export class NotesEditor extends EventTarget {
      * 由页面透传，编辑器不自己读设置。
      */
     wheelReversed = false;
+
+    /**
+     * 按住音符类型按钮时记下类型：松手若已滑到画布上，就在那里放一个 note
+     * （松手仍在按钮上则只是普通点击，见 `toolbarButtons()` 的 `onRelease`）。
+     */
+    private dragPlaceType: NoteType | null = null;
+
+    /** 松手时指针是否落在画布内（拖出即放只有在画布内才真的放） */
+    private pointerInsideCanvas = false;
     padding: number;
     // end
 
@@ -535,9 +544,21 @@ export class NotesEditor extends EventTarget {
                 id: `type-${id}`,
                 label,
                 active: state === NotesEditorState.edit && this.noteType === type,
-                onClick: () => {
+                // 按下就切到 edit + 记下"可能要拖出去放"
+                onPress: () => {
                     this.noteType = type;
+                    this.dragPlaceType = type;
                     this.setMode("edit");
+                },
+                onRelease: (inside: boolean) => {
+                    const placing = this.dragPlaceType;
+
+                    this.dragPlaceType = null;
+
+                    // 松手还在按钮上 = 普通点击（只切类型）；滑到画布上才放
+                    if (inside || placing === null) return;
+
+                    this.placeNoteAtPointer(placing);
                 },
             })),
         ];
@@ -644,6 +665,111 @@ export class NotesEditor extends EventTarget {
         this.draw(this.lastBeats);
     }
 
+    /**
+     * 在给定时间/横坐标建一个音符并挂到目标判定线上。
+     *
+     * 从 `downHandler` 的 edit 分支抽出来的 —— 现在两条路都用它：
+     *   · 在画布上点一下（edit 模式）；
+     *   · 按住音符类型按钮拖到画布上松手（拖出即放）。
+     */
+    private createNote(
+        type: NoteType,
+        startTime: TimeT | undefined,
+        positionX: number | undefined,
+    ): Note | null {
+        if (!startTime || positionX === undefined) return null;
+
+        const endTime: TimeT =
+            type === NoteType.hold
+                ? TC.validateIp([startTime[0], startTime[1] + 1, startTime[2]])
+                : [...startTime];
+
+        const createOptions: NoteDataKPA = {
+            ...this.defaultNoteConfig,
+            endTime,
+            startTime,
+            positionX,
+            above: this.noteAbove ? 1 : 0,
+            speed: this.targetNNList?.speed || this.defaultNoteConfig.speed,
+            type,
+        } as NoteDataKPA;
+
+        // 这里只能用 visibleBeats 创建，因此不需要 tc
+        const note = Note.fromKPAJSON(
+            createOptions,
+            this.operationList.chart,
+            "",
+        );
+
+        this.operationList.tryDo(
+            () => new O.NoteAddOperation(note, this.target.getNode(note, true)),
+        );
+
+        return note;
+    }
+
+    private selectNote(note: Note): void {
+        this.selectedNote = note;
+        this.selectingTail = note.type === NoteType.hold;
+        this.dispatchEvent(new KPANoteSelectedEvent(note));
+    }
+
+    /** 拖出即放：在指针最后指向的位置放一个音符并选中 */
+    private placeNoteAtPointer(type: NoteType): void {
+        if (!this.pointerInsideCanvas) return;
+
+        const note = this.createNote(
+            type,
+            this.pointedTime,
+            this.pointedPositionX,
+        );
+
+        if (!note) return;
+
+        this.selectNote(note);
+        // 放完留在 edit 模式：可以接着放 / 接着拖
+        this.wasEditing = true;
+        this.state = NotesEditorState.selecting;
+        this.draw(this.lastBeats);
+    }
+
+    /**
+     * 用事件更新"指针指向的时间 / 横坐标"。
+     *
+     * `moveHandler` 里有一份相同的换算，但那段还要算 `timeT` 给拖动改时间用，
+     * 拆出来会把那边搅乱 —— 这里只给"松手"用（拖出即放要按离开的位置落音符）。
+     */
+    private updatePointedFrom(event: TouchEvent | MouseEvent): void {
+        // 松手落在画布外（比如滑回了播放器上）就不更新，也标记为"不在画布内"，
+        // 免得拿上一次的坐标在莫名其妙的地方放音符
+        const point = this.pointerInBitmap(event);
+
+        this.pointerInsideCanvas =
+            point.x >= 0 &&
+            point.y >= 0 &&
+            point.x <= this.canvas.width &&
+            point.y <= this.canvas.height;
+
+        if (!this.pointerInsideCanvas) return;
+
+        const [offsetX, offsetY] = getOffsetCoordFromEvent(event, this.canvas);
+        const canvasCoord = new Coordinate(offsetX, offsetY)
+            .mul(this.elementMatrixInverted)
+            .mul(this.canvasMatrixInverted);
+
+        const { x, y } = canvasCoord.mul(this.matrixInverted);
+
+        this.pointedPositionX =
+            Math.round(x / this.positionGridSpan) * this.positionGridSpan;
+
+        const attached = computeAttach(
+            this.attachableTimes,
+            y + this.lastBeats,
+        );
+
+        this.pointedTime = this.timeMap.get(attached);
+    }
+
     downHandler(event: TouchEvent | MouseEvent) {
         const { width, height } = this.canvas;
         // console.log(width, height)
@@ -683,52 +809,25 @@ export class NotesEditor extends EventTarget {
                 this.wasEditing = false;
                 break;
             case NotesEditorState.edit:
-            case NotesEditorState.placingHold:
-                const startTime: TimeT = this.pointedTime;
-                const endTime: TimeT =
-                    this.noteType === NoteType.hold ||
+            case NotesEditorState.placingHold: {
+                const type =
                     this.state === NotesEditorState.placingHold
-                        ? TC.validateIp([
-                              startTime[0],
-                              startTime[1] + 1,
-                              startTime[2],
-                          ])
-                        : [...startTime];
-                const createOptions: NoteDataKPA = {
-                    ...this.defaultNoteConfig,
-                    endTime: endTime,
-                    startTime: startTime,
-                    positionX: this.pointedPositionX,
-                    above: this.noteAbove ? 1 : 0,
-                    speed:
-                        this.targetNNList?.speed ||
-                        this.defaultNoteConfig.speed,
-                    type:
-                        this.state === NotesEditorState.placingHold
-                            ? NoteType.hold
-                            : this.noteType,
-                } as NoteDataKPA;
-                const note = Note.fromKPAJSON(
-                    createOptions,
-                    this.operationList.chart,
-                    "",
-                ); // 这里只能用visibleBeats创建，因此不需要tc
-                // this.editor.chart.getComboInfoEntity(startTime).add(note)
-                this.operationList.tryDo(
-                    () =>
-                        new O.NoteAddOperation(
-                            note,
-                            this.target.getNode(note, true),
-                        ),
+                        ? NoteType.hold
+                        : this.noteType;
+                const note = this.createNote(
+                    type,
+                    this.pointedTime,
+                    this.pointedPositionX,
                 );
-                this.selectedNote = note;
-                if (note.type === NoteType.hold) {
-                    this.selectingTail = true;
+
+                if (note) {
+                    this.selectNote(note);
+                    this.wasEditing = this.state === NotesEditorState.edit;
+                    this.state = NotesEditorState.selecting;
                 }
-                this.wasEditing = this.state === NotesEditorState.edit;
-                this.state = NotesEditorState.selecting;
-                this.dispatchEvent(new KPANoteSelectedEvent(this.selectedNote));
+
                 break;
+            }
             case NotesEditorState.selectScope:
                 this.startingPoint = coord;
                 this.startingCanvasPoint = canvasCoord;
@@ -738,7 +837,10 @@ export class NotesEditor extends EventTarget {
     }
     upHandler(event: TouchEvent | MouseEvent) {
         {
-            // 松开要交给按钮管理器：onClick 是在 release 里触发的
+            // 先按松手的位置更新指针指向（拖出即放要落在"离开的地方"），
+            // 再把事件交给按钮管理器 —— `onRelease` 是在 release 里触发的
+            this.updatePointedFrom(event);
+
             const point = this.pointerInBitmap(event);
 
             this.buttons.release(point.x, point.y);
