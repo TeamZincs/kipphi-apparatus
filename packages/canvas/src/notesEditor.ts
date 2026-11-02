@@ -392,7 +392,18 @@ export class NotesEditor extends EventTarget {
         }
     }
     /** 左上角的模式按钮（select / selectScope / edit） */
-    readonly buttons = new ButtonManager("screen", { kind: "toolbar" });
+    /**
+     * 左上角的按钮条（模式 + 音符类型）。
+     *
+     * 尺寸对齐事件总览的层级按钮：40×40；边距比默认的 8px 再大一点，
+     * 免得贴着画布上沿、被上面那层工具栏挡住。
+     */
+    readonly buttons = new ButtonManager("screen", {
+        kind: "toolbar",
+        size: 40,
+        margin: 14,
+        gap: 6
+    });
 
     /** 把当前模式映射成按钮表（监听器挂在按钮上，管理器不认业务） */
     private toolbarButtons(): CanvasButton[] {
