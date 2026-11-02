@@ -346,7 +346,14 @@ export class EventSequenceEditors extends EventTarget {
         this.effectVar.timeBasis = timeBasis;
 
         on(["mousemove", "touchmove"], this.canvas, (event) => {
-            this.activatedEditor.moveHandler(event);
+            const editor = this.activatedEditor;
+
+            editor.moveHandler(event);
+
+            // 从"编辑"按钮拖出来的：指针第一次进画布才起预览
+            if (this.dragPlaceMode && !editor.previewPoint) editor.beginPreview();
+            else editor.movePreview();
+
             this.draw();
         });
         on(["mousedown", "touchstart"], this.canvas, (event) => {
@@ -378,6 +385,14 @@ export class EventSequenceEditors extends EventTarget {
 
             if (this.buttonPressed) {
                 this.buttonPressed = false;
+                this.draw();
+
+                return;
+            }
+
+            // 画布上按下起的预览：松手就在这里落子
+            if (this.activatedEditor.previewPoint) {
+                this.activatedEditor.commitPreview();
                 this.draw();
 
                 return;
@@ -447,6 +462,9 @@ export class EventSequenceEditors extends EventTarget {
     /** 这次按下落在按钮上（松手时不要转发给子编辑器） */
     private buttonPressed = false;
 
+    /** 按住"编辑"按钮拖到画布上放节点 */
+    private dragPlaceMode = false;
+
     /** 当前激活的编辑器自己的状态 */
     private modeButtonList(): CanvasButton[] {
         const state = this.activatedEditor.state;
@@ -474,7 +492,26 @@ export class EventSequenceEditors extends EventTarget {
                 id: "edit",
                 icon: "edit" as IconName,
                 active: state === EventCurveEditorState.edit,
-                onClick: () => this.setMode("edit")
+                // 按下"笔"之后可以拖到画布上放节点
+                onPress: () => {
+                    this.setMode("edit");
+                    this.dragPlaceMode = true;
+                },
+                onRelease: (inside: boolean) => {
+                    const placing = this.dragPlaceMode;
+
+                    this.dragPlaceMode = false;
+
+                    // 松手还在按钮上 = 普通点击（只切模式）
+                    if (inside || !placing) {
+                        this.activatedEditor.clearPreview();
+                        this.draw();
+
+                        return;
+                    }
+
+                    this.activatedEditor.commitPreview();
+                }
             }
         ];
     }
@@ -636,6 +673,9 @@ export class EventSequenceEditors extends EventTarget {
         } else {
             this.activatedEditor.draw(beats);
         }
+
+        // 预览准星画在节点之上（子编辑器的 draw 用完自己的变换后会还原）
+        this.activatedEditor.drawPreviewMarker();
 
         // 按钮画在**屏幕坐标**上（子编辑器的 draw 里是相机变换），所以放在最后、单独复位
         this.drawToolbars();
@@ -883,6 +923,67 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      *   · `"x"`    —— 时间锁住，只允许横向平移。
      */
     panAxis: "time" | "x" = "time";
+
+    //#region 放置预览（和音符画布同一套：对象还不存在，只画准星）
+    /**
+     * 预览位置（画布坐标）。松手才真正 `placeNode()`。
+     *
+     * 为什么不是"先建一个再拖"：建完再拖等于每个位置都留下一个节点，
+     * 用户既看不到落点也没法取消。
+     */
+    previewPoint: { x: number; y: number } | null = null;
+
+    beginPreview(): void {
+        if (!this.canvasPoint) return;
+
+        this.previewPoint = { x: this.canvasPoint.x, y: this.canvasPoint.y };
+    }
+
+    movePreview(): void {
+        if (!this.previewPoint || !this.canvasPoint) return;
+
+        this.previewPoint = { x: this.canvasPoint.x, y: this.canvasPoint.y };
+    }
+
+    clearPreview(): void {
+        this.previewPoint = null;
+    }
+
+    /**
+     * 松手落子。基类只清预览（总览里没有"落子"的概念），
+     * 曲线编辑器在 `EventSequenceEditor<VT>` 里覆盖成真的 `placeNode()`。
+     */
+    commitPreview(): void {
+        this.clearPreview();
+    }
+
+    /** 画准星（十字 + 圆圈），提示"节点会落在这里" */
+    drawPreviewMarker(): void {
+        if (!this.previewPoint) return;
+
+        const { context } = this;
+        const { x, y } = this.previewPoint;
+
+        context.save();
+        context.globalAlpha = 0.85;
+        context.strokeStyle = "#6CF";
+        context.lineWidth = 2;
+
+        context.beginPath();
+        context.arc(x, y, 7, 0, Math.PI * 2);
+        context.stroke();
+
+        context.beginPath();
+        context.moveTo(x - 14, y);
+        context.lineTo(x + 14, y);
+        context.moveTo(x, y - 14);
+        context.lineTo(x, y + 14);
+        context.stroke();
+
+        context.restore();
+    }
+    //#endregion
+
     timeGridInterval: number;
     /** [-0.5, 0.5] */
     timeBasis: number = 0;
@@ -1854,6 +1955,18 @@ export abstract class EventSequenceEditor<
         super.addEventListener(type, listener, options);
     }
 
+    /** 松手才真的建节点（预览阶段什么都没建） */
+    override commitPreview(): void {
+        if (!this.previewPoint) return;
+
+        this.clearPreview();
+        this.placeNode(this.pointedValue);
+        // 留在 edit：可以接着放
+        this.wasEditing = true;
+        this.state = EventCurveEditorState.edit;
+        this.draw(this.lastBeats);
+    }
+
     placeNode(value: VT) {
         const time: TimeT = this.pointedTime;
         const prev = this.target.getNodeAt(TC.toBeats(time));
@@ -2589,9 +2702,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 this.wasEditing = false;
                 break;
             case EventCurveEditorState.edit:
-                this.placeNode(this.pointedValue);
-                this.state = EventCurveEditorState.selecting;
-                this.wasEditing = true;
+                // 按下只起预览，松手才落子（和音符画布一致）
+                this.beginPreview();
                 break;
             case EventCurveEditorState.selectScope:
                 this.startingPoint = coord;
