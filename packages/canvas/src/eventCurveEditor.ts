@@ -624,6 +624,13 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     timeRatio: number;
 
     timeSpan: number;
+
+    /**
+     * 轴向锁定（和音符编辑器同一套语义）：
+     *   · `"time"` —— 滚轮/拖动滑时间；
+     *   · `"x"`    —— 时间锁住，只允许横向平移。
+     */
+    panAxis: "time" | "x" = "time";
     timeGridInterval: number;
     /** [-0.5, 0.5] */
     timeBasis: number = 0;
@@ -673,6 +680,13 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         this.timeGridInterval = 1;
         this.initContext();
 
+        // 滚轮 = 滑动时间（和音符编辑器一致）；ctrl+滚轮留给页面切判定线
+        this.canvas.addEventListener(
+            "wheel",
+            (event) => this.wheelHandler(event),
+            { passive: false },
+        );
+
         // 下面有一堆监听器
         // #region
 
@@ -711,6 +725,31 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         this.context.fillStyle = "#333";
         this.context.lineWidth = 2;
     }
+    /**
+     * 滚轮 = 滑动时间（不是缩放）。一格约走可视范围的 1/10。
+     */
+    wheelHandler(event: WheelEvent): boolean {
+        if (event.ctrlKey) return false;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (this.panAxis === "x") return true;
+
+        this.scrollTimeBy((event.deltaY / 100) * (this.timeSpan / 10));
+
+        return true;
+    }
+
+    /** 把视图时间推一段（负数 = 往前），并通知页面去 seek */
+    scrollTimeBy(deltaBeats: number): void {
+        this.lastBeats = (this.lastBeats ?? 0) + deltaBeats;
+
+        this.dispatchEvent(Object.assign(new Event("timescroll"), { deltaBeats }));
+
+        this.draw(this.lastBeats);
+    }
+
     drawCoordination(beats: number) {
         const [boundLeft, boundTop, boundWidth, boundHeight] =
             this.clippingRect;

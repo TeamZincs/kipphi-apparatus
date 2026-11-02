@@ -123,21 +123,25 @@ export function drawIcon(
     context.restore();
 }
 
-/** 字号档位：按画布尺寸取固定几档，不做按比例的连续缩放 */
-export const FONT_TIERS = [12, 14, 16, 20] as const;
+/** 设计基准宽度：原版所有字号都是按 600 宽的画布定的 */
+export const DESIGN_WIDTH = 600;
+
+/** 缩到最小也不低于这个字号（再小就读不清了） */
+const MIN_FONT = 9;
 
 /**
- * 按画布宽度挑字号。
+ * 按画布逻辑宽度等比缩放字号，**取整**。
  *
- * 档位而不是比例：比例会让同一个界面在不同机型上前后的"层级感"变掉，
- * 而且小屏上 0.8 倍的 16px 会落在 12.8px 这种半像素上，发虚。
+ * - 宽 >= 600 时原样返回 `base`（桌面端就是 600，字号固定为设计值）；
+ * - 窄屏按 `width / 600` 缩小，但不会低于 9px。
+ *
+ * 之所以不用"几档"：档位在 360~480 这一段会有明显的跳变，反而更别扭；
+ * 等比缩放读起来连贯，取整则避免半像素发虚。
  */
-export function fontForCanvas(width: number): number {
-    if (width <= 240) return FONT_TIERS[0];
-    if (width <= 360) return FONT_TIERS[1];
-    if (width <= 480) return FONT_TIERS[2];
+export function scaleFont(base: number, width: number): number {
+    if (width >= DESIGN_WIDTH) return Math.round(base);
 
-    return FONT_TIERS[3];
+    return Math.max(MIN_FONT, Math.round((base * width) / DESIGN_WIDTH));
 }
 
 export interface ButtonPalette {
