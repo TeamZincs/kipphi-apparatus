@@ -35,6 +35,7 @@ import {
     on,
 } from "./util";
 import { ButtonManager, type CanvasButton } from "./buttonManager";
+import { scaleFont } from "./ui";
 
 const DRAWS_NN = true;
 const COLOR_1 = "#66ccff";
@@ -772,7 +773,7 @@ export class NotesEditor extends EventTarget {
             viewportHeight,
         );
         context.fillStyle = "#333d";
-        context.font = "30px Phigros";
+        context.font = `${scaleFont(30, this.canvas.width)}px Phigros`;
 
         context.fillRect(
             -viewportWidth / 2,
@@ -945,7 +946,7 @@ export class NotesEditor extends EventTarget {
 
         if (rendersOtherLines) {
             context.save();
-            context.font = "16px Phigros";
+            context.font = `${scaleFont(16, this.canvas.width)}px Phigros`;
             context.globalAlpha = 0.5;
             const len = group.judgeLines.length;
             for (let i = 0; i < len; i++) {
@@ -1167,7 +1168,7 @@ export class NotesEditor extends EventTarget {
             // 超出画布范围，写点字作为提醒
             context.save();
             context.fillStyle = "#ddd";
-            context.font = "50px phigros";
+            context.font = `${scaleFont(50, this.canvas.width)}px phigros`;
             if (tooLeft) {
                 context.fillText("←!!", -OFFSCREEN_HINT_OFFSET, posY);
             } else {

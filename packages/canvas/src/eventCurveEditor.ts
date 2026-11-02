@@ -673,7 +673,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         resizeObserver.observe(this.canvas);
 
         this.context = this.canvas.getContext("2d");
-        this.context.font = "30px Phigros";
+        this.context.font = `${scaleFont(30, this.canvas.width)}px Phigros`;
 
         this.timeSpan = 4;
         this.timeRatio = this.innerHeight / this.timeSpan;
@@ -865,7 +865,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     // end
 }
 
-import { DEFAULT_PALETTE, drawButton, type ButtonPalette } from "./ui";
+import { DEFAULT_PALETTE, drawButton, scaleFont, type ButtonPalette } from "./ui";
 
 /** 总览里的层级 / line 按钮：沿用新样式，但选中态用**白底深字**而不是蓝底 */
 const OVERVIEW_PALETTE: ButtonPalette = {
@@ -926,7 +926,7 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
         this.drawCoordination(beats);
         context.save();
         context.textAlign = "center";
-        context.font = "20px Phigros";
+        context.font = `${scaleFont(20, this.canvas.width)}px Phigros`;
         const startBeats = beats - this.timeSpan * (0.5 + this.timeBasis);
         const endBeats = beats + this.timeSpan * (0.5 + this.timeBasis);
 
@@ -1107,7 +1107,7 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
         // 右侧那一列，坐标和左边那列镜像
         context.textAlign = "center";
         context.textBaseline = "top";
-        context.font = "20px Phigros";
+        context.font = `${scaleFont(20, this.canvas.width)}px Phigros`;
         for (let i = 0; i < size; i++) {
             const path = this.effectLineButtons[i];
             if (!path) continue;
@@ -1768,7 +1768,7 @@ export abstract class EventSequenceEditor<
             const group = line.group;
             const parent = this.parentEditorSet;
             context.save();
-            context.font = "25px Phigros";
+            context.font = `${scaleFont(25, this.canvas.width)}px Phigros`;
             len = group.judgeLines.length;
             for (let i = 0; i < len; i++) {
                 const judgeLine = group.judgeLines[i]!;
@@ -2217,7 +2217,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         const { context, attachableValues } = this;
         context.save();
         context.fillStyle = "#EEE";
-        context.font = "16px phigros";
+        context.font = `${scaleFont(16, this.canvas.width)}px phigros`;
 
         context.textAlign = "center";
         context.strokeStyle = this.valueGridColor;
