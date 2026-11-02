@@ -354,7 +354,7 @@ export class EventSequenceEditors extends EventTarget {
             const point = this.pointerInBitmap(event);
 
             if (
-                this.modeButtons.press(point.x, point.y) ||
+                (this.modesVisible && this.modeButtons.press(point.x, point.y)) ||
                 this.navButtons.press(point.x, point.y)
             ) {
                 this.draw();
@@ -407,22 +407,31 @@ export class EventSequenceEditors extends EventTarget {
     /** 轴向锁定（时间 / 横轴），和音符编辑器同一套语义 */
     panAxis: "time" | "x" = "time";
 
-    /** 第一排：三个状态按钮（和音符编辑器同尺寸） */
+    /**
+     * 第一排：三个状态按钮。
+     *
+     * **靠右排**：左边是总览的层级按钮、曲线视图的"返回总览"，放左边会挡住。
+     */
     readonly modeButtons = new ButtonManager("screen", {
         kind: "toolbar",
         size: 40,
         margin: 14,
-        gap: 6
+        gap: 6,
+        align: "right"
     });
 
-    /** 第二排：判定线切换 + 轴向锁定 */
+    /** 第二排：判定线切换 + 轴向锁定（同样靠右） */
     readonly navButtons = new ButtonManager("screen", {
         kind: "toolbar",
         size: 40,
         margin: 14,
         y: 14 + 40 + 6,
-        gap: 6
+        gap: 6,
+        align: "right"
     });
+
+    /** 模式按钮当前是否可见（总览里不显示） */
+    private modesVisible = false;
 
     /** 当前激活的编辑器自己的状态 */
     private modeButtonList(): CanvasButton[] {
@@ -513,9 +522,27 @@ export class EventSequenceEditors extends EventTarget {
 
         if (!context) return;
 
+        this.modeButtons.setViewportWidth(this.canvas.width);
+        this.navButtons.setViewportWidth(this.canvas.width);
+
+        // 总览里模式没用（只能选层 / 进序列），把换线那排顶到第一行
+        this.modesVisible = this.activatedEditor !== this.general;
+        this.navButtons.setLayout({
+            kind: "toolbar",
+            size: 40,
+            margin: 14,
+            y: this.modesVisible ? 14 + 40 + 6 : 14,
+            gap: 6,
+            align: "right"
+        });
+
         context.save();
         context.setTransform(1, 0, 0, 1, 0, 0);
-        this.modeButtons.draw(context, this.modeButtonList());
+
+        if (this.modesVisible) {
+            this.modeButtons.draw(context, this.modeButtonList());
+        }
+
         this.navButtons.draw(context, this.navButtonList());
         context.restore();
     }

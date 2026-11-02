@@ -46,7 +46,16 @@ export interface CanvasButton {
 
 export type ButtonLayout =
     /** 左上角一排（工具栏） */
-    | { kind: "toolbar"; margin?: number; size?: number; gap?: number; radius?: number; y?: number }
+    | {
+          kind: "toolbar";
+          margin?: number;
+          size?: number;
+          gap?: number;
+          radius?: number;
+          y?: number;
+          /** 靠哪边排（默认左）。靠右需要先 `setViewportWidth()` */
+          align?: "left" | "right";
+      }
     /** 竖排一列（事件总览的层级） */
     | { kind: "column"; x: number; y: number; size: number; step: number; radius?: number }
     /** 排形按钮组：组内密接、只有整组圆角（放大镜 2x/4x/8x） */
@@ -72,6 +81,13 @@ export class ButtonManager {
     setLayout(layout: ButtonLayout): void {
         this.layout = layout;
     }
+
+    /** 靠右排时需要知道画布逻辑宽度（px） */
+    setViewportWidth(width: number): void {
+        this.viewportWidth = width;
+    }
+
+    private viewportWidth = 0;
 
     /** 即时模式：每帧把当前按钮表传进来 */
     draw(
@@ -166,8 +182,14 @@ export class ButtonManager {
         const layout = this.layout;
 
         if (layout.kind === "toolbar") {
-            const { margin = 8, size = 30, gap = 6, y = margin } = layout;
-            let cursor = margin;
+            const { margin = 8, size = 30, gap = 6, y = margin, align = "left" } = layout;
+            const total = buttons.length * size + Math.max(0, buttons.length - 1) * gap;
+
+            // 靠右排：从右边缘往回推
+            let cursor =
+                align === "right"
+                    ? Math.max(margin, this.viewportWidth - margin - total)
+                    : margin;
 
             return buttons.map((button) => {
                 const box: ButtonBox = {
