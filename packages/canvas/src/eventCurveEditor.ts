@@ -508,11 +508,16 @@ export class EventSequenceEditors extends EventTarget {
     }
 
     private drawToolbars(): void {
-        this.context.save();
-        this.context.setTransform(1, 0, 0, 1, 0, 0);
-        this.modeButtons.draw(this.context, this.modeButtonList());
-        this.navButtons.draw(this.context, this.navButtonList());
-        this.context.restore();
+        // 外层自己**没有** `context` 字段（那是子编辑器的），从 canvas 现取
+        const context = this.canvas.getContext("2d");
+
+        if (!context) return;
+
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        this.modeButtons.draw(context, this.modeButtonList());
+        this.navButtons.draw(context, this.navButtonList());
+        context.restore();
     }
 
     /** 事件坐标 -> 位图像素坐标（按钮是屏幕空间画的） */
