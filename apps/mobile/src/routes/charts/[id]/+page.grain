@@ -845,39 +845,31 @@
                 onpointerleave={onLockUp}
                 aria-label={locked ? "解锁" : "锁定"}
             >
-                {#if locked}
-                    <!-- 锁上：闭合的锁 -->
-                    <svg
-                        class="lock-icon"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <rect x="3" y="11" width="18" height="11" rx="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                    <!-- 按住解锁时绕一圈的进度环 -->
-                    <svg class="lock-ring" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="16"></circle>
-                    </svg>
-                {:else}
-                    <!-- 未锁：开着的锁 -->
-                    <svg
-                        class="lock-icon"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <rect x="3" y="11" width="18" height="11" rx="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                    </svg>
-                {/if}
+                <!--
+                    这里**不能**用 `{#if locked}` 切换两个图标：
+                    外层已经有一层 `{#if fullscreen}`，内层分支在 `locked` 变化时不会重算
+                    （只有按钮 class 变化时才顺带刷新一次），表现就是"点一下锁住了但图标没变"。
+                    改成单个 SVG + `d` 属性绑定，走属性刷新那条路。
+                -->
+                <svg
+                    class="lock-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                    <path
+                        d={locked ? "M7 11V7a5 5 0 0 1 10 0v4" : "M7 11V7a5 5 0 0 1 9.9-1"}
+                    ></path>
+                </svg>
+
+                <!-- 按住解锁时绕一圈的进度环（`.holding` 只在按住时加，锁定时才可能按住） -->
+                <svg class="lock-ring" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="16"></circle>
+                </svg>
             </button>
         {/if}
 
