@@ -6,3 +6,4 @@ export { BezierEditor } from "./bezierEditor";
 export * from "./selectionManager";
 export * from "./ui";
 export * from "./toolbar";
+export * from "./buttonManager";

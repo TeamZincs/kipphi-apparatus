@@ -34,7 +34,7 @@ import {
     getOffsetCoordFromEvent,
     on,
 } from "./util";
-import { EditorToolbar } from "./toolbar";
+import { ButtonManager, type CanvasButton } from "./buttonManager";
 
 const DRAWS_NN = true;
 const COLOR_1 = "#66ccff";
@@ -392,10 +392,10 @@ export class NotesEditor extends EventTarget {
         }
     }
     /** 左上角的模式按钮（select / selectScope / edit） */
-    readonly toolbar = new EditorToolbar();
+    readonly buttons = new ButtonManager("screen", { kind: "toolbar" });
 
-    /** 把当前模式映射成按钮状态 */
-    private toolbarButtons() {
+    /** 把当前模式映射成按钮表（监听器挂在按钮上，管理器不认业务） */
+    private toolbarButtons(): CanvasButton[] {
         const state = this.state;
         const selecting = state === NotesEditorState.selecting;
         const scoping =
@@ -407,6 +407,7 @@ export class NotesEditor extends EventTarget {
                 id: "select",
                 icon: selecting ? ("selecting" as const) : ("select" as const),
                 active: state === NotesEditorState.select || selecting,
+                onClick: () => this.setMode("select"),
             },
             {
                 id: "scope",
@@ -415,11 +416,13 @@ export class NotesEditor extends EventTarget {
                         ? ("selectingScope" as const)
                         : ("selectScope" as const),
                 active: scoping,
+                onClick: () => this.setMode("scope"),
             },
             {
                 id: "edit",
                 icon: "edit" as const,
                 active: state === NotesEditorState.edit,
+                onClick: () => this.setMode("edit"),
             },
         ];
     }
@@ -428,11 +431,9 @@ export class NotesEditor extends EventTarget {
     private drawToolbar(): void {
         if (!this.context) return;
 
-        this.toolbar.setButtons(this.toolbarButtons());
-
         this.context.save();
         this.context.setTransform(1, 0, 0, 1, 0, 0);
-        this.toolbar.draw(this.context);
+        this.buttons.draw(this.context, this.toolbarButtons());
         this.context.restore();
     }
 
@@ -459,22 +460,26 @@ export class NotesEditor extends EventTarget {
         };
     }
 
-    /** 点到了按钮就切模式，返回 true 表示这次事件已被消费 */
-    private handleToolbarDown(x: number, y: number): boolean {
-        const hit = this.toolbar.hit(x, y);
-
-        if (!hit) return false;
-
+    /**
+     * 切到基础模式。
+     *
+     * 一律落在 select / selectScope / edit 上 —— 不能停在 selecting /
+     * selectingScope（那是"已选中"的中间态，没有选中物时是非法的）。
+     */
+    private setMode(mode: "select" | "scope" | "edit"): void {
         this.state =
-            hit === "edit"
+            mode === "edit"
                 ? NotesEditorState.edit
-                : hit === "scope"
+                : mode === "scope"
                   ? NotesEditorState.selectScope
                   : NotesEditorState.select;
 
         this.draw();
+    }
 
-        return true;
+    /** 点到了按钮就吃掉这次事件 */
+    private handleToolbarDown(x: number, y: number): boolean {
+        return this.buttons.press(x, y) !== null;
     }
 
     downHandler(event: TouchEvent | MouseEvent) {
@@ -570,6 +575,13 @@ export class NotesEditor extends EventTarget {
         }
     }
     upHandler(event: TouchEvent | MouseEvent) {
+        {
+            // 松开要交给按钮管理器：onClick 是在 release 里触发的
+            const point = this.pointerInBitmap(event);
+
+            this.buttons.release(point.x, point.y);
+        }
+
         const canvasCoord = getCanvasCoordFromEvent(
             event,
             this.canvas,
