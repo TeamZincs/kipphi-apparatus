@@ -1796,23 +1796,23 @@ export abstract class EventSequenceEditor<
     }
     putReturnButton() {
         const { context, selectionManager } = this;
-        context.save();
-        context.fillStyle = "#DDD7";
-        context.fillRect(
-            -this.innerWidth / 2,
-            -this.innerHeight / 2,
-            this.innerWidth / 4,
-            this.innerHeight / 20,
+        const width = this.innerWidth / 4;
+        const height = this.innerHeight / 20;
+
+        // 圆角矩形按钮，和其它按钮同一套样式（不是裸的矩形 + 文字）
+        drawButton(
+            context,
+            {
+                id: "return",
+                spec: { id: "return", label: "← general" },
+                x: -this.innerWidth / 2,
+                y: -this.innerHeight / 2,
+                width,
+                height,
+            },
+            OVERVIEW_PALETTE,
+            { radius: 6, fontSize: Math.max(12, Math.round(height * 0.5)) },
         );
-        context.fillStyle = "#111";
-        context.textAlign = "center";
-        context.textBaseline = "top";
-        context.fillText(
-            "←general",
-            -this.innerWidth * 0.375,
-            -this.innerHeight / 2 + 4,
-        );
-        context.restore();
 
         selectionManager.add({
             left: -this.innerWidth / 2,
