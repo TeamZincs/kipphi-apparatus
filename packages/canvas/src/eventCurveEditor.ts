@@ -1976,6 +1976,9 @@ export abstract class EventSequenceEditor<
     }
 
     override movePreview(): void {
+        // 没有预览就别建 —— 否则任何模式下一移动指针都会冒出个幽灵节点
+        if (!this.previewPoint) return;
+
         this.syncPreviewPoint();
     }
 
