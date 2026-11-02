@@ -513,13 +513,13 @@ export class NotesEditor extends EventTarget {
             // 三种范围选择方式：替换 / 并集 / 补集（点一下就进 selectScope）
             ...(
                 [
-                    ["scope-replace", SelectState.replace, "RPL"],
-                    ["scope-add", SelectState.extend, "ADD"],
-                    ["scope-sub", SelectState.exclude, "SUB"],
+                    ["scope-replace", SelectState.replace, "scopeReplace"],
+                    ["scope-add", SelectState.extend, "scopeAdd"],
+                    ["scope-sub", SelectState.exclude, "scopeSub"],
                 ] as const
-            ).map(([id, state, label]) => ({
+            ).map(([id, state, icon]) => ({
                 id,
-                label,
+                icon,
                 active:
                     this.state === NotesEditorState.selectScope &&
                     this.selectState === state,

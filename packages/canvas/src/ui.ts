@@ -14,6 +14,8 @@
 import {
     ChevronLeft,
     ChevronRight,
+    Combine,
+    Diff,
     Grab,
     Hand,
     Info,
@@ -21,6 +23,7 @@ import {
     LockOpen,
     Pencil,
     Redo2,
+    Replace,
     Scan,
     SquareDashed,
     Undo2,
@@ -46,7 +49,11 @@ const ICON_NODES: Record<string, IconNode> = {
     ZoomIn,
     ZoomOut,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    // 集合运算：替换 / 并集 / 补集
+    Replace,
+    Combine,
+    Diff
 } as unknown as Record<string, IconNode>;
 
 /** 语义名字 -> lucide 图标名。换图标只改这里。 */
@@ -64,7 +71,11 @@ export const ICONS = {
     zoomIn: "ZoomIn",
     zoomOut: "ZoomOut",
     previousLine: "ChevronLeft",
-    nextLine: "ChevronRight"
+    nextLine: "ChevronRight",
+    /** 范围选择：替换 / 并集 / 补集 */
+    scopeReplace: "Replace",
+    scopeAdd: "Combine",
+    scopeSub: "Diff"
 } as const;
 
 export type IconName = keyof typeof ICONS;
