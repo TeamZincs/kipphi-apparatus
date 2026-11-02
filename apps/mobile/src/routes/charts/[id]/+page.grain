@@ -240,8 +240,13 @@
                 // 结构重建走 `needsreflow` → `reflowAll()`。移动端再节流到 ~10Hz。
                 const now = performance.now();
 
-                if (now - lastTickAt > 100) {
+                // 只在**判定线列表可见**时才刷新它 —— 不可见时刷新等于白算。
+                if (activeTab === "lines" && now - lastTickAt > 100) {
                     lastTickAt = now;
+
+                    // 进度文字是模板里的 `{format(currentTime)}`，得喂响应式；
+                    // 每帧写会把整页重算，所以跟着这个 10Hz 的节流一起更新
+                    currentTime = player.time;
                     refreshAll();
                 }
             });
@@ -392,7 +397,8 @@
 
         if (!delta) return;
 
-        player.renderingBeats = Math.max(0, player.renderingBeats + delta);
+        // 不夹到 0：零前时间是合法的（音符画布就能滚到负数），事件画布同理
+        player.renderingBeats = player.renderingBeats + delta;
 
         // 暂停时没有播放循环 —— 只改 audio.currentTime 不会重绘，
         // 得手动 render 一次，`drawn` 才会把编辑器带到新位置
