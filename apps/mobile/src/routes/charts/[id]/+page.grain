@@ -325,7 +325,38 @@
         playing = true;
     }
 
+    /** 待应用的 seek 目标（拖动进度条时会有很多次 input，只保留最后一次） */
+    let pendingSeek: number | null = null;
+    /** 已经排队的那一帧（0 = 没排） */
+    let seekFrame = 0;
+
+    /**
+     * 跳转（会**合并**同一帧内的多次请求）。
+     *
+     * 之前每个 `input` 事件都直接改 `audio.currentTime` 并排一个 rAF 去 `render()`：
+     * 快速拖动时几十个 rAF 排在一起，每个都整张画布重画 + 派发 `drawn`
+     * （`drawn` 里还有 drawEditors / syncProgress / refreshAll），
+     * 主线程被塞满 —— 表现就是"卡一下才跟得上手指"。
+     *
+     * 现在只记下最后的目标，一帧只应用一次、只 render 一次。
+     */
     function seek(time: number): void {
+        pendingSeek = time;
+
+        if (seekFrame) return;
+
+        seekFrame = requestAnimationFrame(() => {
+            seekFrame = 0;
+
+            const target = pendingSeek;
+
+            pendingSeek = null;
+
+            if (target !== null) applySeek(target);
+        });
+    }
+
+    function applySeek(time: number): void {
         if (!player) return;
 
         const next = Math.max(0, total > 0 ? Math.min(time, total) : time);
@@ -339,11 +370,9 @@
 
         currentTime = next;
 
-        requestAnimationFrame(() => {
-            player?.render();
-
-            if (player) drawEditors(player.renderingBeats);
-        });
+        // 已经在 rAF 里了，直接渲染：`render()` 自己会派发 `drawn`，
+        // 那边的回调会负责画编辑器和同步进度
+        void player.render();
     }
     //#endregion
 
@@ -567,7 +596,13 @@
 
     function onProgressInput(event: Event): void {
         event.stopPropagation();
-        seek(Number((event.target as HTMLInputElement).value));
+
+        // 拖动中：只把滑块位置留在手指处（`syncProgress` 已被 `progressDragging` 挡住），
+        // 真正的跳转走合并后的 `seek()`
+        const value = Number((event.target as HTMLInputElement).value);
+
+        currentTime = value;
+        seek(value);
         showControls();
     }
 
