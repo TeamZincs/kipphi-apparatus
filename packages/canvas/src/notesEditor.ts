@@ -604,71 +604,7 @@ export class NotesEditor extends EventTarget {
         context.fillText("by Zes-Minkey-Young", textPosX, -40);
         context.fillText("MIT Licensed", textPosX, -10);
 
-        context.fillStyle = "#AAA";
-
-        //*
-        const pointedTime = this.pointedTime;
-        const pointedPositionX = this.pointedPositionX;
-        const canvasPoint = this.canvasPoint;
-
-        if (canvasPoint) {
-            context.fillText(
-                `Cursor: ${canvasPoint.x.toFixed(3)}, ${canvasPoint.y.toFixed(3)}`,
-                textPosX,
-                -height + 40,
-            );
-        }
-        context.fillText(
-            "State:" + NotesEditorState[this.state],
-            textPosX,
-            -height + 70,
-        );
-        if (pointedTime)
-            context.fillText(
-                `PointedTime: ${pointedTime[0]}:${pointedTime[1]}/${pointedTime[2]}`,
-                textPosX,
-                -height + 100,
-            );
-        if (pointedPositionX !== undefined)
-            context.fillText(
-                `PointedPosition: ${pointedPositionX}`,
-                textPosX,
-                -height + 130,
-            );
-        context.fillText(
-            `Selected: ${this.notesSelection.size}`,
-            textPosX,
-            -height + 160,
-        );
-        context.fillText(
-            `Scope-select Mode: ${
-                this.state === NotesEditorState.selectScope
-                    ? SelectState[this.selectState]
-                    : SelectState[this.lastSelectState]
-            }`,
-            textPosX,
-            -height + 190,
-        );
-        if (this.clipboard?.size > 0) {
-            context.fillText(
-                `Copied: ${this.clipboard.size}`,
-                textPosX,
-                -height + 220,
-            );
-        }
-        if (this.targetNNList && this.targetNNList.timeRanges) {
-            context.font = "10px Phigros";
-            context.fillText(
-                `Range: ${this.targetNNList.timeRanges
-                    .map(
-                        (range) =>
-                            range[0].toFixed(2) + "-" + range[1].toFixed(2),
-                    )
-                    .join(",")}`,
-                textPosX,
-                -height / 2,
-            );
-        }
+        // 画布上的状态文字（State / Cursor / Selected …）已移到工具栏按钮里
         context.restore();
 
         // 绘制x坐标线

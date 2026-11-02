@@ -740,29 +740,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         // const middleValue = Math.round(-this.basis / this.valueRatio)
         // const basis = -medianOf(valueRange) / lengthOf(valueRange) * this.innerHeight;
         // 计算上下界
-        context.save();
-        context.fillStyle = "#AAA";
-        context.font = "30px phigros";
-        const textPosX = -this.innerWidth / 2 + 10;
-        const canvasPoint = this.canvasPoint;
-        if (canvasPoint) {
-            this.context.fillText(
-                `Cursor: ${canvasPoint.x.toFixed(3)}, ${canvasPoint.y.toFixed(3)}`,
-                textPosX,
-                -150,
-            );
-        }
-        context.fillText("Beats: " + beats.toFixed(4), textPosX, -60);
-        const pointedTime = this.pointedTime;
-        if (pointedTime) {
-            context.fillText(
-                `PointedTime: ${pointedTime[0]}:${pointedTime[1]}/${pointedTime[2]}`,
-                textPosX,
-                -30,
-            );
-        }
-
-        context.restore();
+        // 画布上的状态文字（State / Beats / Selected …）已移到工具栏按钮里
         context.save();
         context.strokeStyle = this.timeGridColor;
         context.fillStyle = this.timeGridColor;
@@ -1625,47 +1603,7 @@ export abstract class EventSequenceEditor<
         // const middleValue = Math.round(-this.basis / this.valueRatio)
         // const basis = -medianOf(valueRange) / lengthOf(valueRange) * this.innerHeight;
         // 计算上下界
-        context.save();
-        context.fillStyle = "#AAA";
-        context.font = "30px phigros";
-        const textPosX = -this.innerWidth / 2 + 10;
-        const canvasPoint = this.canvasPoint;
-        if (canvasPoint) {
-            this.context.fillText(
-                `Cursor: ${canvasPoint.x.toFixed(3)}, ${canvasPoint.y.toFixed(3)}`,
-                textPosX,
-                -150,
-            );
-        }
-        context.fillText("Sequence: " + this.target.id, textPosX, -120);
-        context.fillText(
-            "State: " + EventCurveEditorState[this.state],
-            textPosX,
-            -90,
-        );
-        context.fillText("Beats: " + beats.toFixed(4), textPosX, -60);
-        const pointedTime = this.pointedTime;
-        if (pointedTime) {
-            context.fillText(
-                `PointedTime: ${pointedTime[0]}:${pointedTime[1]}/${pointedTime[2]}`,
-                textPosX,
-                -30,
-            );
-        }
-        context.fillText(`Selected: ${this.nodesSelection.size}`, textPosX, 30);
-        context.fillText(
-            `Scope-select Mode: ${
-                this.state === EventCurveEditorState.selecting
-                    ? SelectState[this.selectState]
-                    : SelectState[this.lastSelectState]
-            }`,
-            textPosX,
-            60,
-        );
-        if (this.clipboard.size > 0)
-            context.fillText(`Copied: ${this.clipboard.size}`, textPosX, 90);
-
-        context.restore();
+        // 画布上的状态文字（State / Beats / Selected …）已移到工具栏按钮里
         context.save();
         context.strokeStyle = this.timeGridColor;
         context.fillStyle = this.timeGridColor;
