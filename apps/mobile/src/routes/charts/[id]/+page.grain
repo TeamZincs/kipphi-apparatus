@@ -493,6 +493,9 @@
     }
 
     function onPointerDown(event: PointerEvent): void {
+        // 全屏锁定（类 B 站）期间禁用左右拖动 seek，避免跟打时误触
+        if (locked) return;
+
         lastX = event.clientX;
         startTime = currentTime;
         movedBy = 0;
@@ -612,7 +615,20 @@
 
         currentTime = now;
 
-        if (progressEl) progressEl.value = String(now);
+        // 用户正在拖进度条时**不要**回写 value：每帧覆盖会让滑块被拽回原处，
+        // 表现为"拖不动、要等它一下"。松手（pointerup/change）之后自然恢复跟随。
+        if (progressEl && !progressDragging) progressEl.value = String(now);
+    }
+
+    /** 正在拖进度条（普通变量即可：只在 syncProgress 里读，不需要触发渲染） */
+    let progressDragging = false;
+
+    function beginProgressDrag(): void {
+        progressDragging = true;
+    }
+
+    function endProgressDrag(): void {
+        progressDragging = false;
     }
 
     //#region 操作栈（只读）
@@ -867,15 +883,12 @@
                 aria-label={locked ? "解锁" : "锁定"}
             >
                 <!--
-                    这里**不能**用 `{#if locked}` 切换两个图标：
-                    外层已经有一层 `{#if fullscreen}`，内层分支在 `locked` 变化时不会重算
-                    （只有按钮 class 变化时才顺带刷新一次），表现就是"点一下锁住了但图标没变"。
-                    改成单个 SVG + `d` 属性绑定，走属性刷新那条路。
-                -->
-                <!--
                     两个图标都常驻，靠按钮的 `.locked` 类切换显隐。
-                    不用 `{#if locked}`（内层分支不刷新），也不用 `d={…}` 属性绑定
-                    （SVG 的 `d` 在这个运行时里没被刷新）—— class 绑定是确定可靠的。
+
+                    （历史坑：早先这里写过 `{#if locked}` 两个分支、也写过 `d={…}`，
+                    都"点了没反应"。真正的原因是**事件处理器里有 early return**，
+                    编译器把刷新语句拼在函数末尾，落在 `return` 后面成了死代码
+                    —— 已在 grain 编译器中修复，跟 SVG / 分支 无关。）
                 -->
                 <svg
                     class="lock-icon lock-open"
@@ -920,8 +933,10 @@
                 min="0"
                 max={total || 30}
                 step="0.01"
-                value={currentTime}
                 oninput={onProgressInput}
+                onpointerdown={beginProgressDrag}
+                onpointerup={endProgressDrag}
+                onpointercancel={endProgressDrag}
                 onclick={(event) => event.stopPropagation()}
             />
 
