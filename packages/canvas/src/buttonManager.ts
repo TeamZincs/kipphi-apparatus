@@ -50,9 +50,7 @@ export type ButtonLayout =
     /** 竖排一列（事件总览的层级） */
     | { kind: "column"; x: number; y: number; size: number; step: number; radius?: number }
     /** 排形按钮组：组内密接、只有整组圆角（放大镜 2x/4x/8x） */
-    | { kind: "row"; x: number; y: number; cell: number; height: number; radius?: number }
-    /** 各自给矩形 */
-    | { kind: "free" };
+    | { kind: "row"; x: number; y: number; cell: number; height: number; radius?: number };
 
 export interface CanvasButtonRect {
     x: number;
@@ -81,19 +79,6 @@ export class ButtonManager {
         buttons: CanvasButton[],
         palette: ButtonPalette = DEFAULT_PALETTE
     ): void {
-        if (this.layout.kind === "free") {
-            this.boxes = buttons.map((button, index) => ({
-                id: button.id,
-                spec: this.specOf(button),
-                x: index * 0,
-                y: 0,
-                width: 0,
-                height: 0
-            }));
-
-            return;
-        }
-
         const boxes = this.layoutBoxes(buttons);
 
         this.boxes = boxes;
