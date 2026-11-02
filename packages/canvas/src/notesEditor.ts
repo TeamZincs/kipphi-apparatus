@@ -219,6 +219,14 @@ export class NotesEditor extends EventTarget {
             },
         );
 
+        // 滚轮缩放时间轴：**编辑器自己处理**，页面不用再管（播放器的滚轮除外）。
+        // `ctrlKey` 留给页面切换判定线，这里直接放行。
+        this.canvas.addEventListener(
+            "wheel",
+            (event) => this.wheelHandler(event),
+            { passive: false },
+        );
+
         this.canvas.addEventListener("mouseenter", () => {
             this.mouseIn = true;
         });
@@ -508,6 +516,26 @@ export class NotesEditor extends EventTarget {
     /** 点到了按钮就吃掉这次事件 */
     private handleToolbarDown(x: number, y: number): boolean {
         return this.buttons.press(x, y) !== null;
+    }
+
+    /**
+     * 滚轮缩放时间轴。
+     *
+     * 之所以放在编辑器里：缩放要跟着指针位置走、还要受轴向锁定约束，
+     * 这些只有编辑器知道。页面那边只保留播放器的滚轮（seek）。
+     */
+    wheelHandler(event: WheelEvent): boolean {
+        // ctrl + 滚轮是页面在切判定线，别抢
+        if (event.ctrlKey) return false;
+
+        event.preventDefault();
+
+        const factor = event.deltaY > 0 ? 1.15 : 1 / 1.15;
+
+        this.timeSpan = Math.min(64, Math.max(0.25, this.timeSpan * factor));
+        this.draw(this.lastBeats);
+
+        return true;
     }
 
     downHandler(event: TouchEvent | MouseEvent) {
