@@ -9,10 +9,45 @@
  * 由调用方负责把指针位置换算到这个坐标系再调用 `hitTest`。
  */
 
-import { icons } from "lucide";
+// 只按需导入用到的图标（不要 `import { icons }` 整表：包体大，而且新增依赖
+// 期间 dev server 没预打包时容易连带整条 import 链失败）
+import {
+    ChevronLeft,
+    ChevronRight,
+    Grab,
+    Hand,
+    Info,
+    Lock,
+    LockOpen,
+    Pencil,
+    Redo2,
+    Scan,
+    SquareDashed,
+    Undo2,
+    ZoomIn,
+    ZoomOut
+} from "lucide";
 
 /** lucide 的图标节点：`[['path', { d: '…' }], …]` */
 type IconNode = ReadonlyArray<readonly [string, Record<string, string | number>]>;
+
+/** 图标名 -> 节点表（具名导入的产物） */
+const ICON_NODES: Record<string, IconNode> = {
+    Hand,
+    Grab,
+    Pencil,
+    SquareDashed,
+    Scan,
+    Info,
+    Lock,
+    LockOpen,
+    Undo2,
+    Redo2,
+    ZoomIn,
+    ZoomOut,
+    ChevronLeft,
+    ChevronRight
+} as unknown as Record<string, IconNode>;
 
 /** 语义名字 -> lucide 图标名。换图标只改这里。 */
 export const ICONS = {
@@ -43,7 +78,7 @@ function pathOf(name: IconName): Path2D {
     if (cached) return cached;
 
     const lucideName = ICONS[name];
-    const nodes: IconNode = (icons as unknown as Record<string, IconNode>)[lucideName] ?? [];
+    const nodes: IconNode = ICON_NODES[lucideName] ?? [];
     const path = new Path2D();
 
     for (const [tag, attributes] of nodes) {
