@@ -1953,15 +1953,17 @@
 }
 
 .sheet {
+    /* 凸起要"长"到面板外面，所以这里不能裁 */
+    position: relative;
     width: 100%;
     max-height: 60vh;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 6px 14px calc(14px + env(safe-area-inset-bottom));
+    padding: 16px 14px calc(14px + env(safe-area-inset-bottom));
     background: var(--surface);
     border-radius: 16px 16px 0 0;
-    overflow: hidden;
+    overflow: visible;
     animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
     will-change: transform;
 }
@@ -1975,12 +1977,14 @@
     animation: sheet-out 0.22s ease-in forwards;
 }
 
-/* 上沿的凸起：50vw 的圆角梯形，整块可拖 */
+/* 上沿的凸起：50vw 的圆角梯形，**超出面板上沿**、和面板同色，整块可拖 */
 .sheet-handle {
-    flex: 0 0 auto;
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 50vw;
     height: 16px;
-    align-self: center;
     touch-action: none;
     cursor: grab;
 }
@@ -1991,8 +1995,9 @@
     height: 100%;
 }
 
+/* 和面板同色：看起来像面板顶上长出来的一块 */
 .handle-body {
-    fill: var(--border);
+    fill: var(--surface);
 }
 
 .handle-arrow {
