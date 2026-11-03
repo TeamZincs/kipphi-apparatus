@@ -22,6 +22,9 @@
     import { fetchTexture, _ReturnType } from "@kpa/shared/background/tauri";
 
     import JudgeLineList from "./JudgeLineList.grain";
+    import EventSheet from "./EventSheet.grain";
+    import NoteSheet from "./NoteSheet.grain";
+    import SheetShell from "./SheetShell.grain";
 
     import { scheduleSave } from "#/save";
     import {
@@ -1107,6 +1110,20 @@
         }, 260);
     }
 
+    /**
+     * 真正卸载面板。
+     *
+     * 收起动画由 `SheetShell` 负责（它播完再回调），这里只把状态清掉 ——
+     * 所以不需要 `sheetClosing` 之类的中间态。
+     */
+    function closeSheetNow(): void {
+        sheetOpen = false;
+        editingNote = null;
+        editingNode = null;
+        sheetError = null;
+        notesCanvas?.focus?.();
+    }
+
     function closeSheet(): void {
         if (!sheetOpen || sheetClosing) return;
 
@@ -1682,306 +1699,27 @@
         </div>
     </section>
 
-    <!-- 底部面板：编辑选中的音符 / 事件节点（模态，点外面不关） -->
+    <!--
+        底部面板：骨架（遮罩 / 凸起 / 开合动画 / 下滑收起）在 `SheetShell.grain`，
+        内容按"音符 / 事件节点"拆成两个组件 —— 各自持有草稿、自己订阅操作列表，
+        父级只传稳定的对象引用和关闭回调。
+    -->
     {#if sheetOpen}
-        <div class="sheet-mask {sheetClosing ? "closing" : ""}">
-            <div
-                class="sheet {sheetOpening ? "opening" : ""} {sheetDragging ? "dragging" : ""} {sheetClosing ? "closing" : ""}"
-                style={`--sheet-from:${sheetOffset}px; transform: translateY(${sheetOffset}px)`}
-            >
-                <!-- 上沿的凸起：圆角梯形 + 一根长而缓的圆头折线箭头，可下滑收起 -->
-                <div
-                    class="sheet-handle"
-                    role="button"
-                    aria-label="下滑收起"
-                    onpointerdown={onHandleDown}
-                    onpointermove={onHandleMove}
-                    onpointerup={onHandleUp}
-                    onpointercancel={onHandleUp}
-                >
-                    <svg viewBox="0 0 100 14" preserveAspectRatio="none">
-                        <path
-                            class="handle-body"
-                            d="M14 1 H86 C92 1 96 4 98 8 L99 13 H1 L2 8 C4 4 8 1 14 1 Z"
-                        ></path>
-                        <polyline
-                            class="handle-arrow"
-                            points="36 6 50 8.5 64 6"
-                        ></polyline>
-                    </svg>
-                </div>
-
-                <div class="sheet-head">
-                    <p class="sheet-title">
-                        {sheetKind === "note" ? "音符" : "事件节点"}
-                    </p>
-
-                    <!-- 时间输入形态：三个框 ↔ 单个分数框 -->
-                    <button
-                        class="switch {timeSingle ? "on" : ""}"
-                        role="switch"
-                        aria-checked={timeSingle}
-                        aria-label="时间输入方式"
-                        onclick={toggleTimeMode}
-                    >
-                        <span class="knob"></span>
-                    </button>
-                </div>
-
-                <!--
-                    没有"应用"按钮：输入框 `change` / 失焦就提交（这两个事件都会冒泡，
-                    挂在这一层就能覆盖所有输入框）。开关和排形按钮在各自的 onclick 里提交。
-                -->
-                <div class="sheet-body" onchange={commitSheet} onblur={commitSheet}>
-                    {#if sheetKind === "note"}
-                        <!-- 左列：类型 → 时间 → X → 在线上方 / 假音符 -->
-                        <div class="sheet-col">
-                            <div class="field">
-                                <span>类型</span>
-                                <div class="segmented">
-                                    {#for option of NOTE_TYPE_OPTIONS with key = option[0]}
-                                        <button
-                                            class="seg {draftType === option[0] ? "on" : ""}"
-                                            onclick={() => {
-                                                draftType = option[0];
-                                                commitSheet();
-                                            }}
-                                        >{option[1]}</button>
-                                    {/for}
-                                </div>
-                            </div>
-
-                            <div class="field">
-                                <span>开始</span>
-                                {#if timeSingle}
-                                    <input
-                                        class="num"
-                                        type="text"
-                                        placeholder="3+1/4"
-                                        bind:value={draftStartText}
-                                    />
-                                {:else}
-                                    <div class="triple">
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="拍"
-                                            bind:value={draftStartB}
-                                        />
-                                        <span class="sep">:</span>
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="分子"
-                                            bind:value={draftStartN}
-                                        />
-                                        <span class="sep">/</span>
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="分母"
-                                            bind:value={draftStartD}
-                                        />
-                                    </div>
-                                {/if}
-                            </div>
-
-                            <div class="field">
-                                <span>结束</span>
-                                {#if timeSingle}
-                                    <input
-                                        class="num"
-                                        type="text"
-                                        placeholder="4"
-                                        bind:value={draftEndText}
-                                    />
-                                {:else}
-                                    <div class="triple">
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="拍"
-                                            bind:value={draftEndB}
-                                        />
-                                        <span class="sep">:</span>
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="分子"
-                                            bind:value={draftEndN}
-                                        />
-                                        <span class="sep">/</span>
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="分母"
-                                            bind:value={draftEndD}
-                                        />
-                                    </div>
-                                {/if}
-                            </div>
-
-                            <label class="field">
-                                <span>X</span>
-                                <input
-                                    class="num"
-                                    type="text"
-                                    inputmode="decimal"
-                                    bind:value={draftPositionX}
-                                />
-                            </label>
-
-                            <div class="field">
-                                <span>在线上方</span>
-                                <button
-                                    class="switch {draftAbove ? "on" : ""}"
-                                    role="switch"
-                                    aria-checked={draftAbove}
-                                    onclick={() => {
-                                        draftAbove = !draftAbove;
-                                        commitSheet();
-                                    }}
-                                >
-                                    <span class="knob"></span>
-                                </button>
-                            </div>
-
-                            <div class="field">
-                                <span>假音符</span>
-                                <button
-                                    class="switch {draftFake ? "on" : ""}"
-                                    role="switch"
-                                    aria-checked={draftFake}
-                                    onclick={() => {
-                                        draftFake = !draftFake;
-                                        commitSheet();
-                                    }}
-                                >
-                                    <span class="knob"></span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 右列：大小 / 判定大小 / 透明度 → Y 偏移 / 速度 -->
-                        <div class="sheet-col">
-                            <label class="field">
-                                <span>大小</span>
-                                <input
-                                    class="num"
-                                    type="text"
-                                    inputmode="decimal"
-                                    bind:value={draftSize}
-                                />
-                            </label>
-
-                            <label class="field">
-                                <span>判定大小</span>
-                                <input
-                                    class="num"
-                                    type="text"
-                                    inputmode="decimal"
-                                    bind:value={draftJudgeSize}
-                                />
-                            </label>
-
-                            <label class="field">
-                                <span>透明度</span>
-                                <input
-                                    class="num"
-                                    type="text"
-                                    inputmode="decimal"
-                                    bind:value={draftAlpha}
-                                />
-                            </label>
-
-                            <label class="field">
-                                <span>Y 偏移</span>
-                                <input
-                                    class="num"
-                                    type="text"
-                                    inputmode="decimal"
-                                    bind:value={draftYOffset}
-                                />
-                            </label>
-
-                            <label class="field">
-                                <span>速度</span>
-                                <input
-                                    class="num"
-                                    type="text"
-                                    inputmode="decimal"
-                                    bind:value={draftSpeed}
-                                />
-                            </label>
-                        </div>
-                    {:else}
-                        <div class="sheet-col">
-                            <div class="field">
-                                <span>时间</span>
-                                {#if timeSingle}
-                                    <input
-                                        class="num"
-                                        type="text"
-                                        placeholder="3+1/4"
-                                        bind:value={draftNodeTimeText}
-                                    />
-                                {:else}
-                                    <div class="triple">
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="拍"
-                                            bind:value={draftNodeB}
-                                        />
-                                        <span class="sep">:</span>
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="分子"
-                                            bind:value={draftNodeN}
-                                        />
-                                        <span class="sep">/</span>
-                                        <input
-                                            class="num"
-                                            type="text"
-                                            inputmode="numeric"
-                                            placeholder="分母"
-                                            bind:value={draftNodeD}
-                                        />
-                                    </div>
-                                {/if}
-                            </div>
-                        </div>
-
-                        <div class="sheet-col">
-                            <label class="field">
-                                <span>值</span>
-                                <input type="text" bind:value={draftNodeValue} />
-                            </label>
-                        </div>
-                    {/if}
-                </div>
-
-                {#if sheetError}
-                    <p class="sheet-error">{sheetError}</p>
-                {/if}
-
-                <div class="sheet-actions">
-                    <button class="sheet-btn danger" onclick={deleteCurrent}>删除</button>
-                    {#if sheetKind === "note"}
-                        <button class="sheet-btn" onclick={setNoteAsDefault}>设为默认</button>
-                    {/if}
-                </div>
-            </div>
-        </div>
+        <SheetShell onclose={closeSheetNow}>
+            {#if sheetKind === "note"}
+                <NoteSheet
+                    note={editingNote}
+                    editor={notesEditor}
+                    onclose={closeSheetNow}
+                />
+            {:else}
+                <EventSheet
+                    node={editingNode}
+                    editor={eventEditors}
+                    onclose={closeSheetNow}
+                />
+            {/if}
+        </SheetShell>
     {/if}
 </main>
 
