@@ -176,6 +176,14 @@ export class NotesEditor extends EventTarget {
      */
     private dragPlaceType: NoteType | null = null;
 
+    /**
+     * 通过**音符类型按钮**进入 edit 之前的模式。
+     *
+     * 这种"按一下按钮、放一个音符"是一次性的，放完应该回到原来的模式；
+     * 直接在 edit 模式里连点的（没有经过按钮）则留在 edit，方便连着放。
+     */
+    private modeBeforeEdit: NotesEditorState | null = null;
+
     /** 松手时指针是否落在画布内（拖出即放只有在画布内才真的放） */
     private pointerInsideCanvas = false;
 
@@ -664,9 +672,14 @@ export class NotesEditor extends EventTarget {
                 active: state === NotesEditorState.edit && this.noteType === type,
                 // 按下就切到 edit + 记下"可能要拖出去放"
                 onPress: () => {
+                    const previous = this.state;
+
                     this.noteType = type;
                     this.dragPlaceType = type;
                     this.setMode("edit");
+                    // 记住进来之前是什么模式：放完要回到它（而不是一直停在 edit）
+                    this.modeBeforeEdit =
+                        previous === NotesEditorState.edit ? null : previous;
                 },
                 onRelease: (inside: boolean) => {
                     const placing = this.dragPlaceType;
@@ -730,6 +743,9 @@ export class NotesEditor extends EventTarget {
      * selectingScope（那是"已选中"的中间态，没有选中物时是非法的）。
      */
     private setMode(mode: "select" | "scope" | "edit"): void {
+        // 手动切模式就不再有"放完回原模式"这回事（类型按钮会在 setMode 之后另行设置）
+        this.modeBeforeEdit = null;
+
         this.state =
             mode === "edit"
                 ? NotesEditorState.edit
@@ -951,9 +967,16 @@ export class NotesEditor extends EventTarget {
 
         if (note) {
             this.selectNote(note);
-            // 放完**留在 edit 模式**（不是 selecting）：可以接着放 / 接着拖
             this.wasEditing = true;
-            this.state = NotesEditorState.edit;
+
+            // 由**音符类型按钮**进入的编辑是"单发"的：放完回到原来的模式；
+            // 本来就在 edit 模式里连点的，留在 edit 方便接着放。
+            if (this.modeBeforeEdit !== null) {
+                this.state = this.modeBeforeEdit;
+                this.modeBeforeEdit = null;
+            } else {
+                this.state = NotesEditorState.edit;
+            }
         }
 
         this.draw(this.lastBeats);

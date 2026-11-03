@@ -420,6 +420,8 @@ export class EventSequenceEditors extends EventTarget {
             // 画布上按下起的预览：松手就在这里落子
             if (this.activatedEditor.previewPoint) {
                 this.activatedEditor.commitPreview();
+                // 从「笔」按钮进来的就回到原模式，手动在 edit 里点的留在 edit
+                this.finishPlacement();
                 this.draw();
 
                 return;
@@ -491,6 +493,14 @@ export class EventSequenceEditors extends EventTarget {
 
     /** 按住"编辑"按钮拖到画布上放节点 */
     private dragPlaceMode = false;
+
+    /**
+     * 通过「笔」按钮进入 edit 之前的模式。
+     *
+     * 从按钮进来的"放一个节点"是一次性的，放完应该回到原来的模式；
+     * 直接在 edit 模式里连点的则留在 edit。
+     */
+    private modeBeforeEdit: EventCurveEditorState | null = null;
 
     /**
      * 轴向拖动（select 模式下点空白处按住拖）。
@@ -569,8 +579,16 @@ export class EventSequenceEditors extends EventTarget {
                 active: state === EventCurveEditorState.edit,
                 // 按下"笔"之后可以拖到画布上放节点
                 onPress: () => {
+                    const editor = this.activatedEditor;
+                    const previous = editor.state;
+
                     this.setMode("edit");
                     this.dragPlaceMode = true;
+                    // 记住进来之前的模式：放完要回到它
+                    this.modeBeforeEdit =
+                        previous === EventCurveEditorState.edit
+                            ? null
+                            : previous;
                 },
                 onRelease: (inside: boolean) => {
                     const placing = this.dragPlaceMode;
@@ -586,6 +604,9 @@ export class EventSequenceEditors extends EventTarget {
                     }
 
                     this.activatedEditor.commitPreview();
+                    // 放完回到进"笔"之前的模式
+                    this.finishPlacement();
+                    this.draw();
                 }
             }
         ];
@@ -594,6 +615,9 @@ export class EventSequenceEditors extends EventTarget {
     /** 一律落在基础态（不是 selecting / selectingScope） */
     private setMode(mode: "select" | "scope" | "edit"): void {
         const editor = this.activatedEditor;
+
+        // 手动切模式就不再有"放完回原模式"这回事（笔按钮会在 setMode 之后另行设置）
+        this.modeBeforeEdit = null;
 
         editor.state =
             mode === "edit"
@@ -606,6 +630,15 @@ export class EventSequenceEditors extends EventTarget {
         if (mode === "scope") editor.selectState = editor.lastSelectState;
 
         this.draw();
+    }
+
+    /** 落子之后：如果是从「笔」按钮进来的，就回到原来的模式 */
+    private finishPlacement(): void {
+        const previous = this.modeBeforeEdit;
+
+        this.modeBeforeEdit = null;
+
+        if (previous !== null) this.activatedEditor.state = previous;
     }
 
     /** 切范围选择的合并方式，并进入 selectScope */
