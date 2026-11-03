@@ -16,6 +16,8 @@ import {
     ArrowUpDown,
     ChevronLeft,
     ChevronRight,
+    ClipboardPaste,
+    Copy,
     Grab,
     Hand,
     Info,
@@ -58,7 +60,10 @@ const ICON_NODES: Record<string, IconNode> = {
     SquaresSubtract,
     // 轴向：上下（时间）/ 左右（横轴）
     ArrowUpDown,
-    ArrowLeftRight
+    ArrowLeftRight,
+    // 复制 / 粘贴
+    Copy,
+    ClipboardPaste
 } as unknown as Record<string, IconNode>;
 
 /** 语义名字 -> lucide 图标名。换图标只改这里。 */
@@ -83,7 +88,10 @@ export const ICONS = {
     scopeSub: "SquaresSubtract",
     /** 轴向：当前允许滑动的方向（上下 = 时间，左右 = 横轴） */
     axisTime: "ArrowUpDown",
-    axisX: "ArrowLeftRight"
+    axisX: "ArrowLeftRight",
+    /** 复制 / 粘贴 */
+    copy: "Copy",
+    paste: "ClipboardPaste"
 } as const;
 
 export type IconName = keyof typeof ICONS;

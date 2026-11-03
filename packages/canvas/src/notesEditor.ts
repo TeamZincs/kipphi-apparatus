@@ -181,6 +181,9 @@ export class NotesEditor extends EventTarget {
 
     /** 这次按下落在工具栏按钮上（松手时不再走画布逻辑） */
     private toolbarPressed = false;
+
+    /** 点了"粘贴"按钮，等着在画布上点目标位置 */
+    private pendingPaste = false;
     padding: number;
     // end
 
@@ -494,12 +497,21 @@ export class NotesEditor extends EventTarget {
         gap: 6
     });
 
-    /** 第二排：判定线切换（‹ #id ›）+ 轴向锁定 */
+    /** 第二排：判定线切换（‹ #id ›）+ 轴向锁定 + 复制 / 粘贴 */
     readonly navButtons = new ButtonManager("screen", {
         kind: "toolbar",
         size: 40,
         margin: 14,
         y: 14 + 40 + 6,
+        gap: 6
+    });
+
+    /** 第三排：三种框选模式（替换 / 并集 / 补集） */
+    readonly scopeButtons = new ButtonManager("screen", {
+        kind: "toolbar",
+        size: 40,
+        margin: 14,
+        y: 14 + (40 + 6) * 2,
         gap: 6
     });
 
@@ -559,22 +571,45 @@ export class NotesEditor extends EventTarget {
                         : ("axisTime" as const),
                 onClick: () => this.togglePanAxis(),
             },
-            // 三种范围选择方式：替换 / 并集 / 补集（点一下就进 selectScope）
-            ...(
-                [
-                    ["scope-replace", SelectState.replace, "scopeReplace"],
-                    ["scope-add", SelectState.extend, "scopeAdd"],
-                    ["scope-sub", SelectState.exclude, "scopeSub"],
-                ] as const
-            ).map(([id, state, icon]) => ({
-                id,
-                icon,
-                active:
-                    this.state === NotesEditorState.selectScope &&
-                    this.selectState === state,
-                onClick: () => this.setSelectState(state),
-            })),
+            // 复制 / 粘贴
+            {
+                id: "copy",
+                icon: "copy" as const,
+                disabled: this.notesSelection.size === 0,
+                onClick: () => {
+                    this.copy();
+                    this.draw(this.lastBeats);
+                },
+            },
+            {
+                id: "paste",
+                icon: "paste" as const,
+                disabled: (this.clipboard?.size ?? 0) === 0,
+                // 点一下进入"待粘贴"，之后在画布上点目标位置即可
+                onClick: () => {
+                    this.pendingPaste = true;
+                    this.draw(this.lastBeats);
+                },
+            },
         ];
+    }
+
+    /** 第三排：三种范围选择方式（点一下就进 selectScope） */
+    private scopeButtonList(): CanvasButton[] {
+        return (
+            [
+                ["scope-replace", SelectState.replace, "scopeReplace"],
+                ["scope-add", SelectState.extend, "scopeAdd"],
+                ["scope-sub", SelectState.exclude, "scopeSub"],
+            ] as const
+        ).map(([id, state, icon]) => ({
+            id,
+            icon,
+            active:
+                this.state === NotesEditorState.selectScope &&
+                this.selectState === state,
+            onClick: () => this.setSelectState(state),
+        }));
     }
 
     /** 切范围选择的合并方式，并进入 selectScope 模式 */
@@ -661,6 +696,7 @@ export class NotesEditor extends EventTarget {
         this.context.setTransform(1, 0, 0, 1, 0, 0);
         this.buttons.draw(this.context, this.toolbarButtons());
         this.navButtons.draw(this.context, this.navButtonList());
+        this.scopeButtons.draw(this.context, this.scopeButtonList());
         this.context.restore();
     }
 
@@ -711,7 +747,8 @@ export class NotesEditor extends EventTarget {
     private handleToolbarDown(x: number, y: number): boolean {
         const hit =
             this.buttons.press(x, y) !== null ||
-            this.navButtons.press(x, y) !== null;
+            this.navButtons.press(x, y) !== null ||
+            this.scopeButtons.press(x, y) !== null;
 
         this.toolbarPressed = hit;
 
@@ -832,10 +869,35 @@ export class NotesEditor extends EventTarget {
         this.draw(this.lastBeats);
     }
 
+    /** 这次预览是为了粘贴（松手时走 paste，而不是新建一个） */
+    private pastingFromClipboard = false;
+
+    /** 用剪贴板里第一个音符的类型起一个预览（只是视觉提示，松手才真的 paste） */
+    private beginPastePreview(): boolean {
+        const clipboard = this.clipboard;
+
+        if (!clipboard || clipboard.size === 0) return false;
+
+        const first = [...clipboard][0];
+
+        if (!first) return false;
+
+        this.pastingFromClipboard = true;
+        this.beginPreview(first.type);
+
+        return true;
+    }
+
     /** 指针移动时把预览挪过去 */
     private movePreview(): void {
         // 从按钮拖出来的：指针第一次进画布才建预览（按下那一刻还没有坐标）
         if (!this.preview) {
+            if (this.pendingPaste) {
+                this.beginPastePreview();
+
+                return;
+            }
+
             if (this.dragPlaceType) this.beginPreview(this.dragPlaceType);
 
             return;
@@ -860,6 +922,22 @@ export class NotesEditor extends EventTarget {
 
         // 滑出画布就不落子（拖出去又拖回来时 pointerInsideCanvas 会是 true）
         if (!this.pointerInsideCanvas) {
+            this.draw(this.lastBeats);
+
+            return;
+        }
+
+        // 粘贴：位置直接用当前指针，`paste()` 自己按剪贴板最早的那个对齐
+        if (this.pastingFromClipboard) {
+            this.pastingFromClipboard = false;
+            this.pendingPaste = false;
+
+            this.pointedTime = preview.time;
+            this.pointedPositionX = preview.positionX;
+            this.paste(false, false);
+
+            this.wasEditing = true;
+            this.state = NotesEditorState.edit;
             this.draw(this.lastBeats);
 
             return;
@@ -959,6 +1037,15 @@ export class NotesEditor extends EventTarget {
             if (this.handleToolbarDown(point.x, point.y)) return;
         }
 
+        // 待粘贴：这一下只用来定位，松手才真的粘
+        if (this.pendingPaste) {
+            this.updatePointedFrom(event);
+
+            if (this.beginPastePreview()) this.draw(this.lastBeats);
+
+            return;
+        }
+
         const coord = canvasCoord.mul(this.matrixInverted);
         const { x, y } = coord;
         // console.log("offset:", offsetX, offsetY)
@@ -1016,6 +1103,7 @@ export class NotesEditor extends EventTarget {
 
             this.buttons.release(point.x, point.y);
             this.navButtons.release(point.x, point.y);
+            this.scopeButtons.release(point.x, point.y);
         }
 
         // 这次手势属于按钮（onRelease 已在上面处理过），别再走画布那套
