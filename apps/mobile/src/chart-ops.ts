@@ -8,7 +8,20 @@
  * 之外的所有文件都当 extraFiles 原样落盘** —— 视频、着色器（.glsl）、
  * 纹理（textures/）、effect 依赖全在这一堆里，漏掉任何一个谱面就少东西。
  */
-import { Chart, JudgeLine, Op } from 'kipphi';
+import {
+    EasingType,
+    EvaluatorType,
+    EventNodeSequence,
+    SCHEMA,
+    VERSION,
+    type BPMSegmentData,
+    type ChartDataKPA2,
+    type EventLayerDataKPA2,
+    type EventNodeSequenceDataKPA2,
+    type EventType,
+    type EventValueESType,
+    type JudgeLineDataKPA2
+} from 'kipphi';
 
 import {
     checkChartDirExists,
@@ -16,6 +29,7 @@ import {
     importChart,
     parseRawInfoTxt,
     saveChartMeta,
+    saveChartProject,
     saveTextFile,
     type ChartMetadata
 } from '@kpa/shared/background/tauri';
@@ -66,32 +80,177 @@ async function idForImport(file: File): Promise<string> {
     return await freshId();
 }
 
+/** 新建谱面需要的输入：标题、基础 BPM、音源、曲绘 */
+export interface NewChartInput {
+    title: string;
+    bpm: number;
+    music: File;
+    illustration: File;
+}
+
+const extensionOf = (file: File): string =>
+    file.name.split('.').pop()?.toLowerCase() ?? '';
+
 /**
- * 新建空谱面。
+ * 搭一份"刚建出来"的 KPA2 数据。
  *
- * 只写 `metadata.json` + 谱面本体；音乐/曲绘留空（`getChartProject` 读不到会退化成
- * null，不影响编辑）。这样不用先塞假的二进制文件进去。
+ * 直接抄桌面端 `routes/create/+page.grain` 的 `createChart()`：
+ * 24 条判定线、每条一条事件层（moveX / moveY / rotate / alpha）+ speed 序列，
+ * 外加一条 BPM 记在最前面。这样打开就有东西可编辑，不是一张白纸。
  */
-export async function createEmptyChart(title: string): Promise<string> {
+function buildBaseChart(
+    title: string,
+    baseBPM: number,
+    duration: number
+): ChartDataKPA2 {
+    const eventNodeSequenceData: EventNodeSequenceDataKPA2<EventValueESType>[] = [];
+    const orphanLines: JudgeLineDataKPA2[] = [];
+    const bpmList: BPMSegmentData[] = [
+        {
+            bpm: baseBPM,
+            // 答案是 0 0 0，但这里沿用桌面端的写法
+            startTime: [0, 0, 1]
+        }
+    ];
+    const judgeLineGroups: string[] = ['Default'];
+
+    const addSequence = (
+        id: string,
+        type: Exclude<EventType, EventType.bpm | EventType.easing>
+    ): string => {
+        const defaultValue =
+            EventNodeSequence.getDefaultValueFromEventType(type);
+        const data: EventNodeSequenceDataKPA2<EventValueESType> = {
+            id,
+            type,
+            events: [
+                {
+                    startTime: [0, 0, 1],
+                    endTime: [1, 0, 1],
+                    start: defaultValue as EventValueESType,
+                    end: defaultValue as EventValueESType,
+                    evaluator: {
+                        type: EvaluatorType.eased,
+                        easing: {
+                            type: EasingType.normal,
+                            identifier: 1
+                        }
+                    }
+                }
+            ],
+            final: {
+                start: defaultValue as EventValueESType,
+                startTime: [1, 0, 1],
+                evaluator: {
+                    type: EvaluatorType.eased,
+                    easing: {
+                        type: EasingType.normal,
+                        identifier: 1
+                    }
+                }
+            }
+        };
+
+        eventNodeSequenceData.push(data);
+
+        return id;
+    };
+
+    const addJudgeLine = (index: number): void => {
+        const eventLayer: EventLayerDataKPA2 = {
+            moveX: addSequence(`#${index}.0.moveX`, 0),
+            moveY: addSequence(`#${index}.0.moveY`, 1),
+            rotate: addSequence(`#${index}.0.rotate`, 2),
+            alpha: addSequence(`#${index}.0.alpha`, 3)
+        };
+        const data: JudgeLineDataKPA2 = {
+            id: index,
+            group: 0,
+            hnLists: {},
+            nnLists: {},
+            name: 'untitled',
+            texture: 'line.png',
+            eventLayers: [eventLayer],
+            cover: true,
+            speedEventNodeSeq: addSequence(`#${index}.speed`, 4),
+            rotatesWithFather: false,
+            anchor: [0.5, 0.5],
+            zOrder: 0,
+            children: []
+        };
+
+        orphanLines.push(data);
+    };
+
+    for (let index = 0; index < 24; index += 1) addJudgeLine(index);
+
+    return {
+        version: VERSION,
+        $schema: SCHEMA,
+        offset: 0,
+        duration,
+        info: {
+            level: '0',
+            name: title,
+            charter: '',
+            illustrator: '',
+            composer: ''
+        },
+        ui: {},
+        wrapperEasings: [],
+        templateEasings: [],
+        macroEvaluators: [],
+        timeMacros: [],
+        valueMacros: [],
+        eventNodeSequences: eventNodeSequenceData,
+        orphanLines,
+        bpmList,
+        judgeLineGroups
+    } as unknown as ChartDataKPA2;
+    // 上面这份和桌面端 `createChart()` 的产物**逐字段一致**：它同样不写
+    // `video` / `noteMacros`（读谱那边对缺失是宽容的）。`ChartDataKPA2`
+    // 的类型要求这两个字段，所以这里只能收一次窄。
+}
+
+/**
+ * 新建谱面：**必须**给标题、基础 BPM、音源、曲绘。
+ *
+ * 和桌面端一样走 `saveChartProject`（一次性把 chart / music / illustration /
+ * metadata 都写好），不是"建个文件夹就完事"。
+ */
+export async function createChart(input: NewChartInput): Promise<string> {
+    const title = input.title.trim();
+
+    if (!title) throw new Error('请填写谱面标题');
+    if (!Number.isFinite(input.bpm) || input.bpm <= 0)
+        throw new Error('基础 BPM 必须是正数');
+    if (!AUDIO_EXT.test(input.music.name))
+        throw new Error('音源格式不支持（ogg / mp3 / wav / m4a）');
+    if (!IMAGE_EXT.test(input.illustration.name))
+        throw new Error('曲绘格式不支持（png / jpg / webp）');
+
+    const musicData = await input.music.arrayBuffer();
+    const duration = await audioDuration(
+        musicData,
+        input.music.type || 'audio/ogg'
+    );
+
+    if (!duration) throw new Error('读不出音源时长，换一个文件试试');
+
+    const chart = buildBaseChart(title, input.bpm, duration);
     const id = await freshId();
-    const chart = new Chart();
-    const operations = new Op.OperationList(chart);
 
-    // 先给一条判定线，不然编辑器点开是空白
-    operations.do(new Op.JudgeLineCreateOperation(chart, new JudgeLine(chart)));
-
-    await createChartDir(id);
-    await saveTextFile(id, 'chart.kpa.json', JSON.stringify(chart.dumpKPA()));
-    await saveChartMeta(id, {
-        title: title.trim() || '未命名谱面',
-        chart: 'chart.kpa.json',
-        music: 'music.ogg',
-        illustration: 'illustration.png',
-        type: 'KPA2',
-        durationSecs: 0
-    } as ChartMetadata);
-
-    return id;
+    return await saveChartProject({
+        id,
+        chartContent: JSON.stringify(chart, null, 2),
+        chartType: 'KPA2',
+        title,
+        musicData,
+        musicExtension: extensionOf(input.music),
+        illustrationData: await input.illustration.arrayBuffer(),
+        illustrationExtension: extensionOf(input.illustration),
+        durationSecs: duration
+    });
 }
 
 /** 读音频时长，读不到就 0 */

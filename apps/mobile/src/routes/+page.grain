@@ -2,7 +2,7 @@
     import { navigate } from "@graints/runtime";
 
     import { queryCharts } from "#/background";
-    import { createEmptyChart, importChartFile } from "#/chart-ops";
+    import { createChart, importChartFile } from "#/chart-ops";
     import { isTauri } from "#/tauri";
 
     interface Item {
@@ -20,8 +20,15 @@
 
     let askingTitle = $state(false);
     let draftTitle = $state("");
+    let draftBpm = $state("120");
+    let draftMusic = $state<File | null>(null);
+    let draftIllustration = $state<File | null>(null);
+    /** 对话框里的校验提示（不关窗，就地显示） */
+    let createError = $state<string | null>(null);
 
     let fileInput: HTMLInputElement;
+    let musicInput: HTMLInputElement;
+    let illustrationInput: HTMLInputElement;
 
     /** 浏览器预览用：没有谱面目录，给一条示例 */
     const demoItem = (): Item => ({
@@ -68,15 +75,64 @@
         }
 
         draftTitle = "";
+        draftBpm = "120";
+        draftMusic = null;
+        draftIllustration = null;
+        createError = null;
         askingTitle = true;
     }
 
+    /** 选文件：只是记下，真正的校验和落盘在 `confirmCreate` */
+    function pickMusic(event: Event): void {
+        draftMusic = (event.target as HTMLInputElement).files?.[0] ?? null;
+        createError = null;
+    }
+
+    function pickIllustration(event: Event): void {
+        draftIllustration =
+            (event.target as HTMLInputElement).files?.[0] ?? null;
+        createError = null;
+    }
+
     async function confirmCreate() {
+        const bpm = Number(draftBpm);
+
+        // 四项都齐了才建（跟桌面端 create 页一致）
+        if (!draftTitle.trim()) {
+            createError = "请填写谱面标题";
+
+            return;
+        }
+
+        if (!Number.isFinite(bpm) || bpm <= 0) {
+            createError = "基础 BPM 必须是正数";
+
+            return;
+        }
+
+        if (!draftMusic) {
+            createError = "请选择音源";
+
+            return;
+        }
+
+        if (!draftIllustration) {
+            createError = "请选择曲绘";
+
+            return;
+        }
+
+        createError = null;
         askingTitle = false;
         busy = "正在创建…";
 
         try {
-            const id = await createEmptyChart(draftTitle);
+            const id = await createChart({
+                title: draftTitle,
+                bpm,
+                music: draftMusic,
+                illustration: draftIllustration
+            });
 
             navigate(`/charts/${encodeURIComponent(id)}`);
         } catch (e) {
@@ -180,6 +236,41 @@
                         if (event.key === "Enter") confirmCreate();
                     }}
                 />
+
+                <div class="dialog-row">
+                    <span class="dialog-label">基础 BPM</span>
+                    <input
+                        class="dialog-input bpm"
+                        type="number"
+                        inputmode="decimal"
+                        min="1"
+                        step="0.01"
+                        bind:value={draftBpm}
+                    />
+                </div>
+
+                <!-- 音源 / 曲绘：点按钮挑文件，选完把名字显示出来 -->
+                <button class="dialog-pick" onclick={() => musicInput?.click()}>
+                    <span class="dialog-label">音源</span>
+                    <span class="dialog-value">
+                        {draftMusic?.name ?? "选择音频（ogg / mp3 / wav / m4a）"}
+                    </span>
+                </button>
+
+                <button
+                    class="dialog-pick"
+                    onclick={() => illustrationInput?.click()}
+                >
+                    <span class="dialog-label">曲绘</span>
+                    <span class="dialog-value">
+                        {draftIllustration?.name ?? "选择图片（png / jpg / webp）"}
+                    </span>
+                </button>
+
+                {#if createError}
+                    <p class="dialog-error">{createError}</p>
+                {/if}
+
                 <div class="dialog-actions">
                     <button class="action" onclick={() => (askingTitle = false)}>取消</button>
                     <button class="action primary" onclick={confirmCreate}>创建</button>
@@ -195,6 +286,22 @@
         accept=".pez,.zip,.json"
         bind:this={fileInput}
         onchange={onFiles}
+    />
+
+    <!-- 新建谱面用的两个文件选择器（藏起来，由对话框里的按钮触发） -->
+    <input
+        class="file-input"
+        type="file"
+        accept=".ogg,.mp3,.wav,.m4a,audio/*"
+        bind:this={musicInput}
+        onchange={pickMusic}
+    />
+    <input
+        class="file-input"
+        type="file"
+        accept=".png,.jpg,.jpeg,.webp,image/*"
+        bind:this={illustrationInput}
+        onchange={pickIllustration}
     />
 </main>
 
@@ -366,6 +473,55 @@
 .dialog-actions {
     display: flex;
     gap: 10px;
+}
+
+/* 基础 BPM：标签 + 数字输入 */
+.dialog-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dialog-label {
+    flex: 0 0 auto;
+    font-size: 0.85em;
+    opacity: 0.7;
+}
+
+.dialog-input.bpm {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 音源 / 曲绘：整行可点，选完显示文件名 */
+.dialog-pick {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dialog-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9em;
+    opacity: 0.85;
+}
+
+.dialog-error {
+    margin: 0;
+    color: #ff7b72;
+    font-size: 0.85em;
 }
 
 .file-input {
