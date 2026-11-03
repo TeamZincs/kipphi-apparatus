@@ -828,7 +828,7 @@
     let sheetKind = $state<"note" | "node">("note");
     /** 正在编辑的事件节点 */
     let editingNode: any = null;
-    let draftNodeBeats = $state(0);
+
     let draftNodeValue = $state("");
     /** 正在编辑的音符（画布上的引用，只能从编辑器拿） */
     let editingNote: Note | null = null;
@@ -838,19 +838,29 @@
     /*
      * 草稿用一组独立 `$state`，不塞进一个对象里：
      * 对象字段的写入在 grain 里不保证触发重算，而这些输入框必须实时回显。
+     *
+     * 数值一律存**字符串**：数字框是自己实现的（不要浏览器那对上下箭头），
+     * 解析放在「应用」那一步，输入过程中允许 `-`、`.` 这种中间态。
      */
     let draftType = $state(0);
-    let draftBeats = $state(0);
-    let draftEndBeats = $state(0);
-    let draftPositionX = $state(0);
-    let draftSpeed = $state(1);
-    let draftYOffset = $state(0);
-    let draftAlpha = $state(1);
-    let draftSize = $state(1);
-    let draftJudgeSize = $state(1);
-    // 这两个在谱面里是 0/1，但复选框绑定的是布尔 —— 分开存，应用时再转
+    /** 时间用分数文本：`3` / `3+1/4`（也接受 `3.25`） */
+    let draftStartText = $state("");
+    let draftEndText = $state("");
+    let draftPositionX = $state("");
+    let draftSpeed = $state("");
+    let draftYOffset = $state("");
+    let draftAlpha = $state("");
+    let draftSize = $state("");
+    let draftJudgeSize = $state("");
     let draftAbove = $state(false);
     let draftFake = $state(false);
+    let draftNodeTimeText = $state("");
+
+    // 面板拖动 / 开合动画
+    let sheetOffset = $state(0);
+    let sheetDragging = $state(false);
+    let sheetClosing = $state(false);
+    let sheetDragFrom = 0;
 
     /** 四种音符类型（下拉用；顺序和画布按钮一致） */
     const NOTE_TYPE_OPTIONS: [number, string][] = [
@@ -860,13 +870,113 @@
         [NoteType.hold, "Hold"]
     ];
 
-    /** 拍数 → `TimeT`（用 1000 做分母，毫秒级够用） */
+    /** 拍数 → `TimeT`（用 960 做分母：能被 2/3/4/8/16 整除，分数显示好看） */
     const toTime = (beats: number): TimeT =>
         TC.validateIp([
             Math.floor(beats),
-            Math.round((beats % 1) * 1000),
-            1000
+            Math.round((beats % 1) * 960),
+            960
         ]);
+
+    /** `TimeT` → 分数文本（`3` / `3+1/4`），和桌面端 FractionInput 的观感一致 */
+    function formatTime(time: TimeT): string {
+        const beat = Math.floor(TC.toBeats(time));
+        const rest = TC.toBeats(time) - beat;
+
+        if (rest <= 1e-6) return String(beat);
+
+        // 约分：把 [0,1) 的余数写成最简分数
+        let numerator = Math.round(rest * 960);
+        let denominator = 960;
+        const gcd = (a: number, b: number): number =>
+            b === 0 ? a : gcd(b, a % b);
+        const divisor = gcd(numerator, denominator);
+
+        numerator /= divisor;
+        denominator /= divisor;
+
+        if (denominator === 1) return String(beat + numerator);
+
+        return beat === 0
+            ? `${numerator}/${denominator}`
+            : `${beat}+${numerator}/${denominator}`;
+    }
+
+    /** 分数文本 → 拍数；认 `3`、`3+1/4`、`3.25`，认不出就 NaN */
+    function parseTime(text: string): number {
+        const trimmed = text.trim();
+        const mixed = /^(\d+)\s*\+\s*(\d+)\s*\/\s*(\d+)$/.exec(trimmed);
+
+        if (mixed) {
+            const denominator = Number(mixed[3]);
+
+            if (!denominator) return NaN;
+
+            return Number(mixed[1]) + Number(mixed[2]) / denominator;
+        }
+
+        const fraction = /^(\d+)\s*\/\s*(\d+)$/.exec(trimmed);
+
+        if (fraction) {
+            const denominator = Number(fraction[2]);
+
+            return denominator ? Number(fraction[1]) / denominator : NaN;
+        }
+
+        const decimal = Number(trimmed);
+
+        return Number.isFinite(decimal) ? decimal : NaN;
+    }
+
+    /** 字符串 → 数字，空串/非法都算 NaN（由调用方决定报什么错） */
+    const num = (text: string): number => {
+        const trimmed = text.trim();
+
+        return trimmed === "" ? NaN : Number(trimmed);
+    };
+
+    //#region 面板开合 / 拖动
+    function closeSheet(): void {
+        if (!sheetOpen || sheetClosing) return;
+
+        // 先播收起动画，再真正移除
+        sheetClosing = true;
+        sheetOffset = 0;
+        setTimeout(() => {
+            sheetOpen = false;
+            sheetClosing = false;
+            editingNote = null;
+            editingNode = null;
+            sheetError = null;
+            notesCanvas?.focus?.();
+        }, 220);
+    }
+
+    function onHandleDown(event: PointerEvent): void {
+        sheetDragFrom = event.clientY;
+        sheetDragging = true;
+        (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    }
+
+    function onHandleMove(event: PointerEvent): void {
+        if (!sheetDragging) return;
+
+        const delta = event.clientY - sheetDragFrom;
+
+        // 只允许往下拖
+        sheetOffset = Math.max(0, delta);
+    }
+
+    function onHandleUp(): void {
+        if (!sheetDragging) return;
+
+        sheetDragging = false;
+
+        // 拖过半屏高就收起，否则弹回去
+        if (sheetOffset > window.innerHeight * 0.15) closeSheet();
+        else sheetOffset = 0;
+    }
+    //#endregion
 
     function openNoteSheet(): void {
         const note = notesEditor?.selectedNote;
@@ -877,16 +987,18 @@
         editingNode = null;
         editingNote = note;
         draftType = note.type;
-        draftBeats = TC.toBeats(note.startTime);
-        draftEndBeats = TC.toBeats(note.endTime);
-        draftPositionX = note.positionX;
-        draftSpeed = note.speed;
-        draftYOffset = note.yOffset;
-        draftAlpha = note.alpha;
-        draftSize = note.size;
-        draftJudgeSize = note.judgeSize;
+        draftStartText = formatTime(note.startTime);
+        draftEndText = formatTime(note.endTime);
+        draftPositionX = String(note.positionX);
+        draftSpeed = String(note.speed);
+        draftYOffset = String(note.yOffset);
+        draftAlpha = String(note.alpha);
+        draftSize = String(note.size);
+        draftJudgeSize = String(note.judgeSize);
         draftAbove = note.above === 1;
         draftFake = note.isFake === 1;
+        sheetOffset = 0;
+        sheetClosing = false;
         sheetError = null;
         sheetOpen = true;
     }
@@ -899,8 +1011,10 @@
         sheetKind = "node";
         editingNote = null;
         editingNode = node;
-        draftNodeBeats = TC.toBeats(node.time);
+        draftNodeTimeText = formatTime(node.time);
         draftNodeValue = String(node.value);
+        sheetOffset = 0;
+        sheetClosing = false;
         sheetError = null;
         sheetOpen = true;
     }
@@ -912,18 +1026,24 @@
 
         if (!node || !ops) return;
 
-        const queue: any[] = [];
-        const beats = draftNodeBeats;
-        const value =
-            typeof node.value === "number"
-                ? Number(draftNodeValue)
-                : draftNodeValue;
+        const beats = parseTime(draftNodeTimeText);
 
-        if (typeof node.value === "number" && !Number.isFinite(value as number)) {
+        if (!Number.isFinite(beats)) {
+            sheetError = "时间格式不对（`3` / `3+1/4` / `3.25` 都行）";
+
+            return;
+        }
+
+        const numeric = typeof node.value === "number";
+        const value = numeric ? num(draftNodeValue) : draftNodeValue;
+
+        if (numeric && !Number.isFinite(value)) {
             sheetError = "值必须是数字";
 
             return;
         }
+
+        const queue: any[] = [];
 
         if (Math.abs(beats - TC.toBeats(node.time)) > 1e-6)
             queue.push(
@@ -944,16 +1064,6 @@
         closeSheet();
     }
 
-    function closeSheet(): void {
-        sheetOpen = false;
-        editingNote = null;
-        editingNode = null;
-        sheetError = null;
-
-        // 面板关掉之后把焦点还给画布，免得下一次按键没反应
-        notesCanvas?.focus?.();
-    }
-
     function applySheet(): void {
         if (sheetKind === "node") {
             applyNodeSheet();
@@ -966,7 +1076,33 @@
 
         if (!note || !ops) return;
 
-        if (!(draftBeats >= 0) || !(draftEndBeats > draftBeats)) {
+        // 先把文本解析成数字，任何一项不合法就整体拒绝（避免半套改动）
+        const startBeats = parseTime(draftStartText);
+        const endBeats = parseTime(draftEndText);
+        const positionX = num(draftPositionX);
+        const speed = num(draftSpeed);
+        const yOffset = num(draftYOffset);
+        const alpha = num(draftAlpha);
+        const size = num(draftSize);
+        const judgeSize = num(draftJudgeSize);
+        const numbers = [
+            startBeats,
+            endBeats,
+            positionX,
+            speed,
+            yOffset,
+            alpha,
+            size,
+            judgeSize
+        ];
+
+        if (!numbers.every((value) => Number.isFinite(value))) {
+            sheetError = "有字段不是有效数字（时间支持 `3` / `3+1/4` / `3.25`）";
+
+            return;
+        }
+
+        if (!(startBeats >= 0) || !(endBeats > startBeats)) {
             sheetError = "结束时间必须晚于开始时间";
 
             return;
@@ -986,17 +1122,17 @@
 
         if (draftType !== note.type)
             queue.push(new Op.NoteTypeChangeOperation(note, draftType));
-        if (draftPositionX !== note.positionX)
+        if (positionX !== note.positionX)
             queue.push(
-                new Op.NotePropChangeOperation(note, "positionX", draftPositionX)
+                new Op.NotePropChangeOperation(note, "positionX", positionX)
             );
-        if (draftAlpha !== note.alpha)
-            queue.push(new Op.NotePropChangeOperation(note, "alpha", draftAlpha));
-        if (draftSize !== note.size)
-            queue.push(new Op.NotePropChangeOperation(note, "size", draftSize));
-        if (draftJudgeSize !== note.judgeSize)
+        if (alpha !== note.alpha)
+            queue.push(new Op.NotePropChangeOperation(note, "alpha", alpha));
+        if (size !== note.size)
+            queue.push(new Op.NotePropChangeOperation(note, "size", size));
+        if (judgeSize !== note.judgeSize)
             queue.push(
-                new Op.NotePropChangeOperation(note, "judgeSize", draftJudgeSize)
+                new Op.NotePropChangeOperation(note, "judgeSize", judgeSize)
             );
         const aboveValue = draftAbove ? 1 : 0;
         const fakeValue = draftFake ? 1 : 0;
@@ -1009,25 +1145,28 @@
             queue.push(
                 new Op.NotePropChangeOperation(note, "isFake", fakeValue)
             );
-        if (draftSpeed !== note.speed)
-            queue.push(new Op.NoteSpeedChangeOperation(note, draftSpeed, line));
-        if (draftYOffset !== note.yOffset)
-            queue.push(
-                new Op.NoteYOffsetChangeOperation(note, draftYOffset, line)
-            );
+        if (speed !== note.speed)
+            queue.push(new Op.NoteSpeedChangeOperation(note, speed, line));
+        if (yOffset !== note.yOffset)
+            queue.push(new Op.NoteYOffsetChangeOperation(note, yOffset, line));
 
-        const startChanged = Math.abs(draftBeats - TC.toBeats(note.startTime)) > 1e-6;
-        const endChanged = Math.abs(draftEndBeats - TC.toBeats(note.endTime)) > 1e-6;
+        const startChanged =
+            Math.abs(startBeats - TC.toBeats(note.startTime)) > 1e-6;
+        const endChanged =
+            Math.abs(endBeats - TC.toBeats(note.endTime)) > 1e-6;
 
         if (startChanged || endChanged) {
-            const start = toTime(draftBeats);
-
             queue.push(
-                new Op.NoteTimeChangeOperation(note, seq.getNodeOf(start))
+                new Op.NoteTimeChangeOperation(
+                    note,
+                    seq.getNodeOf(toTime(startBeats))
+                )
             );
 
             if (endChanged)
-                queue.push(new Op.HoldEndTimeChangeOperation(note, toTime(draftEndBeats)));
+                queue.push(
+                    new Op.HoldEndTimeChangeOperation(note, toTime(endBeats))
+                );
         }
 
         if (queue.length === 0) {
@@ -1260,14 +1399,34 @@
         </div>
     </section>
 
-    <!-- 底部面板：编辑选中的音符（模态，点外面不关） -->
+    <!-- 底部面板：编辑选中的音符 / 事件节点（模态，点外面不关） -->
     {#if sheetOpen}
-        <div class="sheet-mask">
-            <div class="sheet">
-                <!-- 上沿的凸起：点它收起 -->
-                <button class="sheet-handle" onclick={closeSheet} aria-label="收起">
-                    ▾
-                </button>
+        <div class="sheet-mask {sheetClosing ? "closing" : ""}">
+            <div
+                class="sheet {sheetDragging ? "dragging" : ""} {sheetClosing ? "closing" : ""}"
+                style={`transform: translateY(${sheetOffset}px)`}
+            >
+                <!-- 上沿的凸起：圆角梯形 + 一根长而缓的圆头折线箭头，可下滑收起 -->
+                <div
+                    class="sheet-handle"
+                    role="button"
+                    aria-label="下滑收起"
+                    onpointerdown={onHandleDown}
+                    onpointermove={onHandleMove}
+                    onpointerup={onHandleUp}
+                    onpointercancel={onHandleUp}
+                >
+                    <svg viewBox="0 0 100 14" preserveAspectRatio="none">
+                        <path
+                            class="handle-body"
+                            d="M14 1 H86 C92 1 96 4 98 8 L99 13 H1 L2 8 C4 4 8 1 14 1 Z"
+                        ></path>
+                        <polyline
+                            class="handle-arrow"
+                            points="36 6 50 8.5 64 6"
+                        ></polyline>
+                    </svg>
+                </div>
 
                 <p class="sheet-title">
                     {sheetKind === "note" ? "音符" : "事件节点"}
@@ -1277,9 +1436,7 @@
                     {#if sheetKind === "note"}
                     <label class="field">
                         <span>类型</span>
-                        <select
-                            bind:value={draftType}
-                        >
+                        <select bind:value={draftType}>
                             {#for option of NOTE_TYPE_OPTIONS with key = option[0]}
                                 <option value={option[0]}>{option[1]}</option>
                             {/for}
@@ -1287,31 +1444,33 @@
                     </label>
 
                     <label class="field">
-                        <span>开始（拍）</span>
+                        <span>开始</span>
                         <input
-                            type="number"
-                            inputmode="decimal"
-                            step="0.001"
-                            bind:value={draftBeats}
+                            class="num"
+                            type="text"
+                            inputmode="text"
+                            placeholder="3+1/4"
+                            bind:value={draftStartText}
                         />
                     </label>
 
                     <label class="field">
-                        <span>结束（拍）</span>
+                        <span>结束</span>
                         <input
-                            type="number"
-                            inputmode="decimal"
-                            step="0.001"
-                            bind:value={draftEndBeats}
+                            class="num"
+                            type="text"
+                            inputmode="text"
+                            placeholder="4"
+                            bind:value={draftEndText}
                         />
                     </label>
 
                     <label class="field">
                         <span>X</span>
                         <input
-                            type="number"
+                            class="num"
+                            type="text"
                             inputmode="decimal"
-                            step="1"
                             bind:value={draftPositionX}
                         />
                     </label>
@@ -1319,9 +1478,9 @@
                     <label class="field">
                         <span>速度</span>
                         <input
-                            type="number"
+                            class="num"
+                            type="text"
                             inputmode="decimal"
-                            step="0.1"
                             bind:value={draftSpeed}
                         />
                     </label>
@@ -1329,9 +1488,9 @@
                     <label class="field">
                         <span>Y 偏移</span>
                         <input
-                            type="number"
+                            class="num"
+                            type="text"
                             inputmode="decimal"
-                            step="1"
                             bind:value={draftYOffset}
                         />
                     </label>
@@ -1339,11 +1498,9 @@
                     <label class="field">
                         <span>透明度</span>
                         <input
-                            type="number"
+                            class="num"
+                            type="text"
                             inputmode="decimal"
-                            step="0.05"
-                            min="0"
-                            max="1"
                             bind:value={draftAlpha}
                         />
                     </label>
@@ -1351,9 +1508,9 @@
                     <label class="field">
                         <span>大小</span>
                         <input
-                            type="number"
+                            class="num"
+                            type="text"
                             inputmode="decimal"
-                            step="0.05"
                             bind:value={draftSize}
                         />
                     </label>
@@ -1361,30 +1518,45 @@
                     <label class="field">
                         <span>判定大小</span>
                         <input
-                            type="number"
+                            class="num"
+                            type="text"
                             inputmode="decimal"
-                            step="0.05"
                             bind:value={draftJudgeSize}
                         />
                     </label>
 
-                    <label class="field">
+                    <div class="field">
                         <span>在线上方</span>
-                        <input type="checkbox" bind:checked={draftAbove} />
-                    </label>
+                        <button
+                            class="switch {draftAbove ? "on" : ""}"
+                            role="switch"
+                            aria-checked={draftAbove}
+                            onclick={() => (draftAbove = !draftAbove)}
+                        >
+                            <span class="knob"></span>
+                        </button>
+                    </div>
 
-                    <label class="field">
+                    <div class="field">
                         <span>假音符</span>
-                        <input type="checkbox" bind:checked={draftFake} />
-                    </label>
+                        <button
+                            class="switch {draftFake ? "on" : ""}"
+                            role="switch"
+                            aria-checked={draftFake}
+                            onclick={() => (draftFake = !draftFake)}
+                        >
+                            <span class="knob"></span>
+                        </button>
+                    </div>
                 {:else}
                     <label class="field">
-                        <span>时间（拍）</span>
+                        <span>时间</span>
                         <input
-                            type="number"
-                            inputmode="decimal"
-                            step="0.001"
-                            bind:value={draftNodeBeats}
+                            class="num"
+                            type="text"
+                            inputmode="text"
+                            placeholder="3+1/4"
+                            bind:value={draftNodeTimeText}
                         />
                     </label>
 
@@ -1773,6 +1945,11 @@
     display: flex;
     align-items: flex-end;
     background: rgba(0, 0, 0, 0.45);
+    animation: sheet-mask-in 0.18s ease-out;
+}
+
+.sheet-mask.closing {
+    animation: sheet-mask-out 0.22s ease-in forwards;
 }
 
 .sheet {
@@ -1781,24 +1958,49 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+    padding: 6px 14px calc(14px + env(safe-area-inset-bottom));
     background: var(--surface);
     border-radius: 16px 16px 0 0;
     overflow: hidden;
+    animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform;
 }
 
-/* 上沿那个凸起：点它收起 */
+/* 拖动中不要动画，否则跟手会滞一下 */
+.sheet.dragging {
+    animation: none;
+}
+
+.sheet.closing {
+    animation: sheet-out 0.22s ease-in forwards;
+}
+
+/* 上沿的凸起：50vw 的圆角梯形，整块可拖 */
 .sheet-handle {
+    flex: 0 0 auto;
+    width: 50vw;
+    height: 16px;
     align-self: center;
-    width: 64px;
-    height: 22px;
-    border: none;
-    border-radius: 11px;
-    background: var(--border);
-    color: var(--text);
-    font-size: 12px;
-    line-height: 1;
-    cursor: pointer;
+    touch-action: none;
+    cursor: grab;
+}
+
+.sheet-handle svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.handle-body {
+    fill: var(--border);
+}
+
+.handle-arrow {
+    fill: none;
+    stroke: var(--text-dim);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .sheet-title {
@@ -1811,8 +2013,10 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, 1fr)：否则 input 的默认最小宽度会把两列撑爆，出现横向滚动条 */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px 10px;
 }
 
@@ -1820,24 +2024,63 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
     font-size: 12px;
     color: var(--text-dim);
 }
 
 .field input,
 .field select {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 8px 10px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--bg);
     color: var(--text);
     font: inherit;
+    /* 自实现的数字框：不要浏览器那对上下箭头 */
+    appearance: none;
+    -webkit-appearance: none;
 }
 
-.field input[type="checkbox"] {
-    align-self: flex-start;
-    width: 20px;
-    height: 20px;
+/* select 要保留系统箭头（上面那条 appearance:none 是给自实现数字框的） */
+.field select {
+    appearance: auto;
+    -webkit-appearance: auto;
+}
+
+/* 布尔值：圆角矩形开关（半径和输入框一致） */
+.switch {
+    width: 46px;
+    height: 26px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.switch .knob {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    background: var(--text-dim);
+    transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.switch.on {
+    background: var(--accent, #4c8dff);
+    border-color: transparent;
+}
+
+.switch.on .knob {
+    transform: translateX(20px);
+    background: #fff;
 }
 
 .sheet-error {
@@ -1866,5 +2109,41 @@
     background: var(--accent, #4c8dff);
     border-color: transparent;
     color: #fff;
+}
+
+@keyframes sheet-in {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes sheet-out {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(100%);
+    }
+}
+
+@keyframes sheet-mask-in {
+    from {
+        background: rgba(0, 0, 0, 0);
+    }
+    to {
+        background: rgba(0, 0, 0, 0.45);
+    }
+}
+
+@keyframes sheet-mask-out {
+    from {
+        background: rgba(0, 0, 0, 0.45);
+    }
+    to {
+        background: rgba(0, 0, 0, 0);
+    }
 }
 </style>
