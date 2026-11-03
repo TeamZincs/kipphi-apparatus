@@ -89,7 +89,19 @@
              */
             closing = false;
             offset = 0;
-            opening = false;
+
+            /*
+             * 复位成"待入场"：实例被复用时，下次打开要靠这个类重播 `sheet-in`。
+             * 定时器也要重排，否则 260ms 后再也不会摘掉它。
+             */
+            opening = true;
+
+            if (openingTimer) clearTimeout(openingTimer);
+
+            openingTimer = setTimeout(() => {
+                opening = false;
+                openingTimer = null;
+            }, 260);
 
             onclose();
         }, 220);
