@@ -454,6 +454,19 @@
         drawEditors(player.renderingBeats);
     }
 
+    /**
+     * 谱面变动 → 重画播放器 + 当前画布。
+     *
+     * 播放器渲染会派发 `drawn`（那里也会画编辑器），但那是"播放链路"的副作用；
+     * 暂停时也可能不触发，所以这里显式补一次，保证改完立刻能看到。
+     */
+    function onOperationsChanged(): void {
+        if (!player) return;
+
+        void player.render();
+        drawActiveEditor();
+    }
+
     async function bootEditors(): Promise<void> {
         // 先抓成局部变量：`operationList` 是 import 进来的 live binding，
         // `await` 之后 TS 就不再认为它非空了
@@ -951,6 +964,13 @@
             await bootEditors();
 
             selectedLineId.subscribe(() => syncEditorTargets());
+
+            /*
+             * 谱面被改动（本页面板、撤销 / 重做、别处改了对象）→ 播放器和当前画布
+             * 都要重画一次。`operationList` 是唯一真相，它发 `needsupdate` 就说明
+             * 数据变了，画面不能再停在旧状态。
+             */
+            operationList?.addEventListener("needsupdate", onOperationsChanged);
 
             await bootPlayer();
         } catch (error) {
