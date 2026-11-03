@@ -111,9 +111,12 @@
             <p class="title">{title}</p>
         {/if}
 
-        {#if children}
-            {children()}
-        {/if}
+        <!--
+            `children` 要按插值写法交给运行时（`{children}`），
+            不要自己 `{children()}` —— 那样会把内容渲染两遍
+            （一次走插值、一次走手调用）。
+        -->
+        {children}
     </div>
 </div>
 

@@ -1576,11 +1576,6 @@
         父级只传稳定的对象引用和关闭回调。
     -->
     {#if sheetOpen}
-        <!-- 临时探针：能看到这条红条 = 状态正常、问题在 SheetShell 里；看不到 = open 没触发 -->
-        <div
-            style="position: fixed; top: 0; left: 0; z-index: 999; background: #e33; color: #fff; font: 12px sans-serif; padding: 4px 8px;"
-        >sheet open ({sheetKind})</div>
-
         <SheetShell onclose={closeSheetNow}>
             {#if sheetKind === "note"}
                 <NoteSheet
