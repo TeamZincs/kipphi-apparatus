@@ -1,0 +1,559 @@
+<script>
+    /*
+     * 音符面板（底部面板的**内容**部分）。
+     *
+     * 只管一件事：把 `note` 的字段摆出来、改了就发操作。
+     * 骨架（遮罩 / 凸起 / 动画）在 `SheetShell.grain` 里。
+     *
+     * 为什么属性存在本地 `$state`：grain 的子组件 props 不会跟着父组件状态刷新，
+     * 所以值必须由这个组件自己持有；对象的引用在面板打开期间是稳定的。
+     */
+    import { NoteType, Op, TC, type Note } from "kipphi";
+
+    import { operationList } from "#/store";
+    import {
+        beatsOf,
+        formatTime,
+        num,
+        parseTime,
+        splitBeats,
+        toTime
+    } from "#/time";
+
+    let { note, editor, onclose } = $props<{
+        note: Note;
+        editor: any;
+        onclose: () => void;
+    }>();
+
+    /** 时间用三个框还是一整个分数框 */
+    let timeSingle = $state(false);
+    let error = $state<string | null>(null);
+
+    // 草稿：数值一律存字符串（输入过程中允许 `-`、`.` 这种中间态）
+    let type = $state(note.type);
+    let startB = $state("0");
+    let startN = $state("0");
+    let startD = $state("1");
+    let endB = $state("0");
+    let endN = $state("0");
+    let endD = $state("1");
+    let startText = $state("");
+    let endText = $state("");
+    let positionX = $state("");
+    let speed = $state("");
+    let yOffset = $state("");
+    let alpha = $state("");
+    let size = $state("");
+    let judgeSize = $state("");
+    let above = $state(false);
+    let fake = $state(false);
+
+    const TYPE_OPTIONS: [number, string][] = [
+        [NoteType.tap, "Tap"],
+        [NoteType.drag, "Drag"],
+        [NoteType.flick, "Flick"],
+        [NoteType.hold, "Hold"]
+    ];
+
+    function pull(): void {
+        type = note.type;
+        startB = String(note.startTime[0]);
+        startN = String(note.startTime[1]);
+        startD = String(note.startTime[2]);
+        endB = String(note.endTime[0]);
+        endN = String(note.endTime[1]);
+        endD = String(note.endTime[2]);
+        startText = formatTime(note.startTime);
+        endText = formatTime(note.endTime);
+        positionX = String(note.positionX);
+        speed = String(note.speed);
+        yOffset = String(note.yOffset);
+        alpha = String(note.alpha);
+        size = String(note.size);
+        judgeSize = String(note.judgeSize);
+        above = note.above === 1;
+        fake = note.isFake === 1;
+    }
+
+    pull();
+
+    // 撤销 / 重做 / 别处改了同一个音符 → 把值回灌（对应桌面端的 listen + onOperation）
+    const onOperation = (): void => pull();
+
+    operationList?.addEventListener("needsupdate", onOperation);
+
+    /** 三个框 ↔ 单个框，互相换算，切来切去不丢输入 */
+    function toggleTimeMode(): void {
+        timeSingle = !timeSingle;
+
+        if (timeSingle) {
+            const start = beatsOf(startB, startN, startD);
+            const end = beatsOf(endB, endN, endD);
+
+            startText = Number.isFinite(start) ? formatTime(toTime(start)) : "";
+            endText = Number.isFinite(end) ? formatTime(toTime(end)) : "";
+
+            return;
+        }
+
+        const apply = (
+            text: string,
+            set: (b: string, n: string, d: string) => void
+        ): void => {
+            const beats = parseTime(text);
+
+            if (!Number.isFinite(beats)) return;
+
+            set(...splitBeats(beats));
+        };
+
+        apply(startText, (b, n, d) => {
+            startB = b;
+            startN = n;
+            startD = d;
+        });
+        apply(endText, (b, n, d) => {
+            endB = b;
+            endN = n;
+            endD = d;
+        });
+    }
+
+    /** 提交：只把真正变了的字段做成操作（没变化时是空操作） */
+    function commit(): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const startBeats = timeSingle
+            ? parseTime(startText)
+            : beatsOf(startB, startN, startD);
+        const endBeats = timeSingle
+            ? parseTime(endText)
+            : beatsOf(endB, endN, endD);
+        const px = num(positionX);
+        const sp = num(speed);
+        const yo = num(yOffset);
+        const al = num(alpha);
+        const sz = num(size);
+        const js = num(judgeSize);
+        const numbers = [startBeats, endBeats, px, sp, yo, al, sz, js];
+
+        if (!numbers.every((value) => Number.isFinite(value))) {
+            error = "有字段不是有效数字（时间支持 `3` / `3+1/4` / `3.25`）";
+
+            return;
+        }
+
+        if (!(startBeats >= 0) || !(endBeats > startBeats)) {
+            error = "结束时间必须晚于开始时间";
+
+            return;
+        }
+
+        const line = note.parentNode?.parentSeq?.parentLine;
+        const seq = note.parentNode?.parentSeq;
+
+        if (!line || !seq) {
+            error = "这个音符还没挂在判定线上";
+
+            return;
+        }
+
+        error = null;
+
+        const queue: any[] = [];
+
+        if (type !== note.type)
+            queue.push(new Op.NoteTypeChangeOperation(note, type));
+        if (px !== note.positionX)
+            queue.push(new Op.NotePropChangeOperation(note, "positionX", px));
+        if (al !== note.alpha)
+            queue.push(new Op.NotePropChangeOperation(note, "alpha", al));
+        if (sz !== note.size)
+            queue.push(new Op.NotePropChangeOperation(note, "size", sz));
+        if (js !== note.judgeSize)
+            queue.push(new Op.NotePropChangeOperation(note, "judgeSize", js));
+        if ((above ? 1 : 0) !== note.above)
+            queue.push(
+                new Op.NotePropChangeOperation(note, "above", above ? 1 : 0)
+            );
+        if ((fake ? 1 : 0) !== note.isFake)
+            queue.push(
+                new Op.NotePropChangeOperation(note, "isFake", fake ? 1 : 0)
+            );
+        if (sp !== note.speed)
+            queue.push(new Op.NoteSpeedChangeOperation(note, sp, line));
+        if (yo !== note.yOffset)
+            queue.push(new Op.NoteYOffsetChangeOperation(note, yo, line));
+
+        const startChanged =
+            Math.abs(startBeats - TC.toBeats(note.startTime)) > 1e-6;
+        const endChanged = Math.abs(endBeats - TC.toBeats(note.endTime)) > 1e-6;
+
+        if (startChanged || endChanged) {
+            queue.push(
+                new Op.NoteTimeChangeOperation(
+                    note,
+                    seq.getNodeOf(toTime(startBeats))
+                )
+            );
+
+            if (endChanged)
+                queue.push(
+                    new Op.HoldEndTimeChangeOperation(note, toTime(endBeats))
+                );
+        }
+
+        if (queue.length === 0) return;
+
+        ops.tryDo(() =>
+            queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
+        );
+    }
+
+    /** 删除（桌面端 NoteEditor 的「删除」同一个操作） */
+    function remove(): void {
+        if (!operationList) return;
+
+        operationList.do(new Op.NoteDeleteOperation(note));
+        editor?.draw();
+        onclose();
+    }
+
+    /** 设为默认：把当前音符的手感/外观参数存进 defaultNoteConfig */
+    function setAsDefault(): void {
+        if (!editor) return;
+
+        editor.defaultNoteConfig = {
+            absoluteYOffset: note.yOffset,
+            alpha: note.alpha,
+            visibleBeats: note.visibleBeats,
+            size: note.size,
+            tint:
+                note.tint &&
+                [
+                    (note.tint >> 16) & 0xff,
+                    (note.tint >> 8) & 0xff,
+                    note.tint & 0xff
+                ],
+            tintHitEffects:
+                note.tintHitEffects &&
+                [
+                    (note.tintHitEffects >> 16) & 0xff,
+                    (note.tintHitEffects >> 8) & 0xff,
+                    note.tintHitEffects & 0xff
+                ],
+            judgeSize: note.judgeSize,
+            isFake: Number(note.isFake),
+            speed: note.speed,
+            isAbove: Number(note.above)
+        };
+
+        onclose();
+    }
+</script>
+
+<div class="head">
+    <span class="kind">音符</span>
+
+    <!-- 时间输入形态：三个框 ↔ 单个分数框 -->
+    <button
+        class="switch {timeSingle ? "on" : ""}"
+        role="switch"
+        aria-checked={timeSingle}
+        aria-label="时间输入方式"
+        onclick={toggleTimeMode}
+    >
+        <span class="knob"></span>
+    </button>
+</div>
+
+<!-- change / 失焦都会冒泡到这里：一处覆盖所有输入框，没有"应用"按钮 -->
+<div class="body" onchange={commit} onblur={commit}>
+    <div class="col">
+        <div class="field">
+            <span>类型</span>
+            <div class="segmented">
+                {#for option of TYPE_OPTIONS with key = option[0]}
+                    <button
+                        class="seg {type === option[0] ? "on" : ""}"
+                        onclick={() => {
+                            type = option[0];
+                            commit();
+                        }}
+                    >{option[1]}</button>
+                {/for}
+            </div>
+        </div>
+
+        <div class="field">
+            <span>开始</span>
+            {#if timeSingle}
+                <input class="num" type="text" placeholder="3+1/4" bind:value={startText} />
+            {:else}
+                <div class="triple">
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={startB} />
+                    <span class="sep">:</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={startN} />
+                    <span class="sep">/</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={startD} />
+                </div>
+            {/if}
+        </div>
+
+        <div class="field">
+            <span>结束</span>
+            {#if timeSingle}
+                <input class="num" type="text" placeholder="4" bind:value={endText} />
+            {:else}
+                <div class="triple">
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={endB} />
+                    <span class="sep">:</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={endN} />
+                    <span class="sep">/</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={endD} />
+                </div>
+            {/if}
+        </div>
+
+        <label class="field">
+            <span>X</span>
+            <input class="num" type="text" inputmode="decimal" bind:value={positionX} />
+        </label>
+
+        <div class="field">
+            <span>在线上方</span>
+            <button
+                class="switch {above ? "on" : ""}"
+                role="switch"
+                aria-checked={above}
+                onclick={() => {
+                    above = !above;
+                    commit();
+                }}
+            >
+                <span class="knob"></span>
+            </button>
+        </div>
+
+        <div class="field">
+            <span>假音符</span>
+            <button
+                class="switch {fake ? "on" : ""}"
+                role="switch"
+                aria-checked={fake}
+                onclick={() => {
+                    fake = !fake;
+                    commit();
+                }}
+            >
+                <span class="knob"></span>
+            </button>
+        </div>
+    </div>
+
+    <div class="col">
+        <label class="field">
+            <span>大小</span>
+            <input class="num" type="text" inputmode="decimal" bind:value={size} />
+        </label>
+
+        <label class="field">
+            <span>判定大小</span>
+            <input class="num" type="text" inputmode="decimal" bind:value={judgeSize} />
+        </label>
+
+        <label class="field">
+            <span>透明度</span>
+            <input class="num" type="text" inputmode="decimal" bind:value={alpha} />
+        </label>
+
+        <label class="field">
+            <span>Y 偏移</span>
+            <input class="num" type="text" inputmode="decimal" bind:value={yOffset} />
+        </label>
+
+        <label class="field">
+            <span>速度</span>
+            <input class="num" type="text" inputmode="decimal" bind:value={speed} />
+        </label>
+    </div>
+</div>
+
+{#if error}
+    <p class="error">{error}</p>
+{/if}
+
+<div class="actions">
+    <button class="btn danger" onclick={remove}>删除</button>
+    <button class="btn" onclick={setAsDefault}>设为默认</button>
+</div>
+
+<style>
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .kind {
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    .body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    /* 两列：左主要属性、右尺寸/偏移；列内自上而下 */
+    .col {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .field input,
+    .field select {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        /* 自实现的数字框：不要浏览器那对上下箭头 */
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    /* 三个时间框：`[拍:子/母]` */
+    .triple {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .triple .num {
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: center;
+    }
+
+    .triple .sep {
+        align-self: center;
+        color: var(--text-dim);
+        font-size: 13px;
+        line-height: 1;
+    }
+
+    /* 类型：排形按钮（组内密接、无圆角，只有整组圆角） */
+    .segmented {
+        display: flex;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .seg {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 8px 0;
+        border: none;
+        border-right: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text-dim);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .seg:last-child {
+        border-right: none;
+    }
+
+    .seg.on {
+        background: var(--accent, #4c8dff);
+        color: #fff;
+    }
+
+    /* 布尔值：圆角矩形开关（半径和输入框一致） */
+    .switch {
+        width: 46px;
+        height: 26px;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: background 0.16s ease, border-color 0.16s ease;
+    }
+
+    .switch .knob {
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        background: var(--text-dim);
+        transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .switch.on {
+        background: var(--accent, #4c8dff);
+        border-color: transparent;
+    }
+
+    .switch.on .knob {
+        transform: translateX(20px);
+        background: #fff;
+    }
+
+    .error {
+        margin: 0;
+        color: #ff7b72;
+        font-size: 12px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .btn.danger {
+        color: #ff7b72;
+        border-color: rgba(255, 123, 114, 0.45);
+    }
+</style>

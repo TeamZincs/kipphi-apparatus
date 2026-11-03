@@ -1,0 +1,307 @@
+<script>
+    /*
+     * 事件节点面板（底部面板的内容部分）。
+     *
+     * 只给最常用的两项：时间、值。缓动 / 求值器 / 宏那一套桌面端才有完整 UI，
+     * 手机上塞不下，先不做。
+     */
+    import { Op, TC } from "kipphi";
+
+    import { operationList } from "#/store";
+    import {
+        beatsOf,
+        formatTime,
+        num,
+        parseTime,
+        splitBeats,
+        toTime
+    } from "#/time";
+
+    let { node, editor, onclose } = $props<{
+        node: any;
+        editor: any;
+        onclose: () => void;
+    }>();
+
+    let timeSingle = $state(false);
+    let error = $state<string | null>(null);
+
+    let beat = $state("0");
+    let numerator = $state("0");
+    let denominator = $state("1");
+    let timeText = $state("");
+    let value = $state("");
+
+    function pull(): void {
+        beat = String(node.time[0]);
+        numerator = String(node.time[1]);
+        denominator = String(node.time[2]);
+        timeText = formatTime(node.time);
+        value = String(node.value);
+    }
+
+    pull();
+
+    // 撤销 / 重做 / 别处改了同一个节点 → 回灌
+    const onOperation = (): void => pull();
+
+    operationList?.addEventListener("needsupdate", onOperation);
+
+    function toggleTimeMode(): void {
+        timeSingle = !timeSingle;
+
+        if (timeSingle) {
+            const beats = beatsOf(beat, numerator, denominator);
+
+            timeText = Number.isFinite(beats) ? formatTime(toTime(beats)) : "";
+
+            return;
+        }
+
+        const beats = parseTime(timeText);
+
+        if (!Number.isFinite(beats)) return;
+
+        const [b, n, d] = splitBeats(beats);
+
+        beat = b;
+        numerator = n;
+        denominator = d;
+    }
+
+    function commit(): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const beats = timeSingle
+            ? parseTime(timeText)
+            : beatsOf(beat, numerator, denominator);
+
+        if (!Number.isFinite(beats)) {
+            error = "时间格式不对（`3` / `3+1/4` / `3.25` 都行）";
+
+            return;
+        }
+
+        const numeric = typeof node.value === "number";
+        const next = numeric ? num(value) : value;
+
+        if (numeric && !Number.isFinite(next)) {
+            error = "值必须是数字";
+
+            return;
+        }
+
+        error = null;
+
+        const queue: any[] = [];
+
+        if (Math.abs(beats - TC.toBeats(node.time)) > 1e-6)
+            queue.push(new Op.EventNodeTimeChangeOperation(node, toTime(beats)));
+        if (next !== node.value)
+            queue.push(new Op.EventNodeValueChangeOperation(node, next));
+
+        if (queue.length === 0) return;
+
+        ops.tryDo(() =>
+            queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
+        );
+    }
+
+    function remove(): void {
+        if (!operationList) return;
+
+        try {
+            operationList.do(new Op.EventNodePairRemoveOperation(node));
+        } catch {
+            // 头 / 尾节点不能单独删
+            error = "这个节点不能单独删除";
+
+            return;
+        }
+
+        editor?.draw();
+        onclose();
+    }
+</script>
+
+<div class="head">
+    <span class="kind">事件节点</span>
+
+    <button
+        class="switch {timeSingle ? "on" : ""}"
+        role="switch"
+        aria-checked={timeSingle}
+        aria-label="时间输入方式"
+        onclick={toggleTimeMode}
+    >
+        <span class="knob"></span>
+    </button>
+</div>
+
+<div class="body" onchange={commit} onblur={commit}>
+    <div class="col">
+        <div class="field">
+            <span>时间</span>
+            {#if timeSingle}
+                <input class="num" type="text" placeholder="3+1/4" bind:value={timeText} />
+            {:else}
+                <div class="triple">
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={beat} />
+                    <span class="sep">:</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={numerator} />
+                    <span class="sep">/</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={denominator} />
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <div class="col">
+        <label class="field">
+            <span>值</span>
+            <input type="text" bind:value={value} />
+        </label>
+    </div>
+</div>
+
+{#if error}
+    <p class="error">{error}</p>
+{/if}
+
+<div class="actions">
+    <button class="btn danger" onclick={remove}>删除</button>
+</div>
+
+<style>
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .kind {
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    .body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .col {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .field input {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    .triple {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .triple .num {
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: center;
+    }
+
+    .triple .sep {
+        align-self: center;
+        color: var(--text-dim);
+        font-size: 13px;
+        line-height: 1;
+    }
+
+    .switch {
+        width: 46px;
+        height: 26px;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: background 0.16s ease, border-color 0.16s ease;
+    }
+
+    .switch .knob {
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        background: var(--text-dim);
+        transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .switch.on {
+        background: var(--accent, #4c8dff);
+        border-color: transparent;
+    }
+
+    .switch.on .knob {
+        transform: translateX(20px);
+        background: #fff;
+    }
+
+    .error {
+        margin: 0;
+        color: #ff7b72;
+        font-size: 12px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .btn.danger {
+        color: #ff7b72;
+        border-color: rgba(255, 123, 114, 0.45);
+    }
+</style>

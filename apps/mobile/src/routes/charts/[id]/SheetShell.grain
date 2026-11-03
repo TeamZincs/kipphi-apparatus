@@ -1,0 +1,228 @@
+<script>
+    /*
+     * 底部面板的**骨架**：遮罩 + 面板 + 上沿凸起 + 开合动画 + 下滑收起。
+     *
+     * 为什么不放在 `components/`：它只服务这一页（高度、圆角、安全区都跟着
+     * 编辑器页的布局走），拆到公共目录反而要把它不该关心的东西传进来。
+     *
+     * 内容由调用方用 children 塞进来 —— 音符和事件节点的表单各写各的。
+     */
+    let { title = "", onclose } = $props<{
+        /** 可选标题；内容自己带标题时留空即可 */
+        title?: string;
+        onclose: () => void;
+    }>();
+
+    /** 入场动画只播一次（否则松手去掉 dragging 时会重播，看着像"闪一下"） */
+    let opening = $state(true);
+    let closing = $state(false);
+    let dragging = $state(false);
+    let offset = $state(0);
+    let moved = false;
+    let dragFrom = 0;
+    let openingTimer: ReturnType<typeof setTimeout> | null = null;
+
+    openingTimer = setTimeout(() => {
+        opening = false;
+        openingTimer = null;
+    }, 260);
+
+    function down(event: PointerEvent): void {
+        dragFrom = event.clientY;
+        dragging = true;
+        moved = false;
+        opening = false;
+        if (openingTimer) clearTimeout(openingTimer);
+        (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    }
+
+    function move(event: PointerEvent): void {
+        if (!dragging) return;
+
+        const delta = event.clientY - dragFrom;
+
+        if (Math.abs(delta) > 4) moved = true;
+
+        // 只允许往下拖
+        offset = Math.max(0, delta);
+    }
+
+    function up(): void {
+        if (!dragging) return;
+
+        dragging = false;
+
+        // 点一下（几乎没移动）→ 收起
+        if (!moved) {
+            close();
+
+            return;
+        }
+
+        // 拖过阈值收起，否则从当前位置平滑弹回
+        if (offset > window.innerHeight * 0.15) close();
+        else offset = 0;
+    }
+
+    function close(): void {
+        if (closing) return;
+
+        opening = false;
+        closing = true;
+
+        // 等收起动画播完再让调用方卸载（offset 不归零，动画从当前位置接着走）
+        setTimeout(() => {
+            if (openingTimer) clearTimeout(openingTimer);
+            onclose();
+        }, 220);
+    }
+</script>
+
+<div class="mask {closing ? "closing" : ""}">
+    <div
+        class="sheet {opening ? "opening" : ""} {dragging ? "dragging" : ""} {closing ? "closing" : ""}"
+        style={`--sheet-from:${offset}px; transform: translateY(${offset}px)`}
+    >
+        <!-- 上沿的凸起：50vw 的圆角梯形，超出面板上沿、和面板同色，整块可拖 -->
+        <div
+            class="handle"
+            role="button"
+            aria-label="下滑收起"
+            onpointerdown={down}
+            onpointermove={move}
+            onpointerup={up}
+            onpointercancel={up}
+        >
+            <svg viewBox="0 0 100 14" preserveAspectRatio="none">
+                <path
+                    class="handle-body"
+                    d="M14 1 H86 C92 1 96 4 98 8 L99 13 H1 L2 8 C4 4 8 1 14 1 Z"
+                ></path>
+                <polyline class="handle-arrow" points="36 6 50 8.5 64 6"></polyline>
+            </svg>
+        </div>
+
+        {#if title}
+            <p class="title">{title}</p>
+        {/if}
+
+        {children}
+    </div>
+</div>
+
+<style>
+    .mask {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: flex-end;
+        background: rgba(0, 0, 0, 0.45);
+        animation: mask-in 0.18s ease-out;
+    }
+
+    .mask.closing {
+        animation: mask-out 0.22s ease-in forwards;
+    }
+
+    .sheet {
+        position: relative;
+        width: 100%;
+        max-height: 60vh;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 16px 14px calc(14px + env(safe-area-inset-bottom));
+        background: var(--surface);
+        border-radius: 16px 16px 0 0;
+        /* 凸起要"长"到面板外面，这里不能裁 */
+        overflow: visible;
+        will-change: transform;
+        transition: transform 0.18s ease;
+    }
+
+    /* 入场动画只在 opening 期间挂：否则松手去掉 dragging 会重播一遍 */
+    .sheet.opening {
+        animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .sheet.dragging {
+        animation: none;
+        transition: none;
+    }
+
+    .sheet.closing {
+        animation: sheet-out 0.22s ease-in forwards;
+    }
+
+    .handle {
+        position: absolute;
+        top: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 50vw;
+        height: 16px;
+        touch-action: none;
+        cursor: grab;
+    }
+
+    .handle svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .handle-body {
+        fill: var(--surface);
+    }
+
+    .handle-arrow {
+        fill: none;
+        stroke: var(--text-dim);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .title {
+        margin: 0;
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    @keyframes sheet-in {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes sheet-out {
+        from {
+            transform: translateY(var(--sheet-from, 0px));
+        }
+        to {
+            transform: translateY(100%);
+        }
+    }
+
+    @keyframes mask-in {
+        from {
+            background: rgba(0, 0, 0, 0);
+        }
+        to {
+            background: rgba(0, 0, 0, 0.45);
+        }
+    }
+
+    @keyframes mask-out {
+        from {
+            background: rgba(0, 0, 0, 0.45);
+        }
+        to {
+            background: rgba(0, 0, 0, 0);
+        }
+    }
+</style>
