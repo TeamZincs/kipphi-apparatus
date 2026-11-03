@@ -1,3 +1,51 @@
+<script macro>
+    /*
+     * `$lsprop(对象, 字段)` —— 展开成一个**绑定值**（get / set / listen）：
+     *
+     *   get    读 `对象.字段`
+     *   set    发一条对应的操作（只改这一个字段）
+     *   listen 订阅操作列表，撤销 / 重做 / 别处改动时重算
+     *
+     * 宏没有卫生性，拼出来的字符串直接用组件 `<script>` 里 import 的
+     * `Op` 和 `operationList`，所以这里不需要（也不能）import 它们。
+     *
+     * `listen` 返回取消订阅函数 —— 运行时重新 listen 之前会先调它，
+     * 所以反复挂载不会在事件总线上堆重复回调。
+     */
+    function $lsprop(target: string, field: string) {
+        return [
+            'get',
+            ':',
+            `() => ${target}.${field}`,
+            ',',
+            'set',
+            ':',
+            `(v) => operationList.do(new Op.NotePropChangeOperation(${target}, "${field}", v))`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
+
+    /** 音符类型：操作类是 `NoteTypeChangeOperation`，其余同 `$lsprop` */
+    function $lstype(target: string) {
+        return [
+            'get',
+            ':',
+            `() => ${target}.type`,
+            ',',
+            'set',
+            ':',
+            `(v) => operationList.do(new Op.NoteTypeChangeOperation(${target}, v))`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
+</script>
+
 <script>
     /*
      * 音符面板（底部面板的**内容**部分）。
@@ -410,16 +458,7 @@
     <div class="col">
         <div class="field">
             <span>类型</span>
-            <Segmented
-                options={TYPE_OPTIONS}
-                bind:value={
-                    get: () => type,
-                    set: (v: number) => {
-                        type = v;
-                        commitField("type");
-                    }
-                }
-            />
+            <Segmented options={TYPE_OPTIONS} bind:value={$lstype(note)} />
         </div>
 
         <div class="field">
@@ -477,28 +516,12 @@
 
         <div class="field">
             <span>在线上方</span>
-            <Switch
-                bind:checked={
-                    get: () => above,
-                    set: (v: boolean) => {
-                        above = v;
-                        commitField("above");
-                    }
-                }
-            />
+            <Switch bind:checked={$lsprop(note, "above")} />
         </div>
 
         <div class="field">
             <span>假音符</span>
-            <Switch
-                bind:checked={
-                    get: () => fake,
-                    set: (v: boolean) => {
-                        fake = v;
-                        commitField("fake");
-                    }
-                }
-            />
+            <Switch bind:checked={$lsprop(note, "isFake")} />
         </div>
     </div>
 
