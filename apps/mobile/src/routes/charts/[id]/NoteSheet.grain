@@ -10,6 +10,7 @@
      */
     import { NoteType, Op, TC, type Note } from "kipphi";
 
+    import NumField from "#/components/NumField.grain";
     import Segmented from "#/components/Segmented.grain";
     import Switch from "#/components/Switch.grain";
 
@@ -448,7 +449,13 @@
 
         <label class="field">
             <span>X</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={positionX} onchange={() => commitField("positionX")} />
+            <NumField
+                bind:value={
+                    get: () => positionX,
+                    set: (v: string) => (positionX = v)
+                }
+                oncommit={() => commitField("positionX")}
+            />
         </label>
 
         <div class="field">
@@ -481,27 +488,48 @@
     <div class="col">
         <label class="field">
             <span>大小</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={size} onchange={() => commitField("size")} />
+            <NumField
+                bind:value={{ get: () => size, set: (v: string) => (size = v) }}
+                oncommit={() => commitField("size")}
+            />
         </label>
 
         <label class="field">
             <span>判定大小</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={judgeSize} onchange={() => commitField("judgeSize")} />
+            <NumField
+                bind:value={{
+                    get: () => judgeSize,
+                    set: (v: string) => (judgeSize = v)
+                }}
+                oncommit={() => commitField("judgeSize")}
+            />
         </label>
 
         <label class="field">
             <span>透明度</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={alpha} onchange={() => commitField("alpha")} />
+            <NumField
+                bind:value={{ get: () => alpha, set: (v: string) => (alpha = v) }}
+                oncommit={() => commitField("alpha")}
+            />
         </label>
 
         <label class="field">
             <span>Y 偏移</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={yOffset} onchange={() => commitField("yOffset")} />
+            <NumField
+                bind:value={{
+                    get: () => yOffset,
+                    set: (v: string) => (yOffset = v)
+                }}
+                oncommit={() => commitField("yOffset")}
+            />
         </label>
 
         <label class="field">
             <span>速度</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={speed} onchange={() => commitField("speed")} />
+            <NumField
+                bind:value={{ get: () => speed, set: (v: string) => (speed = v) }}
+                oncommit={() => commitField("speed")}
+            />
         </label>
     </div>
 </div>
