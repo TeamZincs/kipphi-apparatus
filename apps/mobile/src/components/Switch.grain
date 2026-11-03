@@ -1,0 +1,65 @@
+<script>
+    /*
+     * 圆角矩形开关（滑块那种），圆角半径和输入框一致。
+     *
+     * 值通过 `bind:checked={ get: …, set: … }` 传进来 —— 这套写法在 grain 里是
+     * "活的"（读值会登记依赖），所以父级改状态时这里会跟着刷新。
+     */
+    let { checked, disabled = false } = $props<{
+        checked: { get: () => boolean; set: (v: boolean) => void };
+        disabled?: boolean;
+    }>();
+
+    function toggle(): void {
+        if (disabled) return;
+
+        checked.set(!checked.get());
+    }
+</script>
+
+<button
+    class="switch {checked.get() ? "on" : ""} {disabled ? "disabled" : ""}"
+    role="switch"
+    aria-checked={checked.get()}
+    onclick={toggle}
+>
+    <span class="knob"></span>
+</button>
+
+<style>
+    .switch {
+        width: 46px;
+        height: 26px;
+        padding: 3px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: background 0.16s ease, border-color 0.16s ease;
+    }
+
+    .switch .knob {
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        background: var(--text-dim);
+        transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .switch.on {
+        background: var(--accent, #4c8dff);
+        border-color: transparent;
+    }
+
+    .switch.on .knob {
+        transform: translateX(20px);
+        background: #fff;
+    }
+
+    .switch.disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+</style>

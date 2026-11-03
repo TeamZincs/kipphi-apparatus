@@ -1,0 +1,52 @@
+<script>
+    /*
+     * 排形按钮组：组内密接、无圆角，只有整组圆角；选中填强调色。
+     *
+     * `value` 用 `bind:value={ get: …, set: … }` 传，写回时由父级负责落操作。
+     */
+    let { options, value } = $props<{
+        /** `[值, 显示文字]` 列表 */
+        options: [number, string][];
+        value: { get: () => number; set: (v: number) => void };
+    }>();
+</script>
+
+<div class="segmented">
+    {#for option of options with key = option[0]}
+        <button
+            class="seg {value.get() === option[0] ? "on" : ""}"
+            onclick={() => value.set(option[0])}
+        >{option[1]}</button>
+    {/for}
+</div>
+
+<style>
+    .segmented {
+        display: flex;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .seg {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 8px 0;
+        border: none;
+        border-right: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text-dim);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .seg:last-child {
+        border-right: none;
+    }
+
+    .seg.on {
+        background: var(--accent, #4c8dff);
+        color: #fff;
+    }
+</style>

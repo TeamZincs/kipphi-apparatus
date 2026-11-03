@@ -7,6 +7,8 @@
      */
     import { Op, TC } from "kipphi";
 
+    import Switch from "#/components/Switch.grain";
+
     import { operationList } from "#/store";
     import {
         beatsOf,
@@ -129,15 +131,15 @@
 <div class="head">
     <span class="kind">事件节点</span>
 
-    <button
-        class="switch {timeSingle ? "on" : ""}"
-        role="switch"
-        aria-checked={timeSingle}
-        aria-label="时间输入方式"
-        onclick={toggleTimeMode}
-    >
-        <span class="knob"></span>
-    </button>
+    <Switch
+        bind:checked={
+            get: () => timeSingle,
+            set: (v: boolean) => {
+                if (v === timeSingle) return;
+                toggleTimeMode();
+            }
+        }
+    />
 </div>
 
 <div class="body" onchange={commit} onblur={commit}>

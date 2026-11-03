@@ -10,6 +10,9 @@
      */
     import { NoteType, Op, TC, type Note } from "kipphi";
 
+    import Segmented from "#/components/Segmented.grain";
+    import Switch from "#/components/Switch.grain";
+
     import { operationList } from "#/store";
     import {
         beatsOf,
@@ -259,15 +262,15 @@
     <span class="kind">音符</span>
 
     <!-- 时间输入形态：三个框 ↔ 单个分数框 -->
-    <button
-        class="switch {timeSingle ? "on" : ""}"
-        role="switch"
-        aria-checked={timeSingle}
-        aria-label="时间输入方式"
-        onclick={toggleTimeMode}
-    >
-        <span class="knob"></span>
-    </button>
+    <Switch
+        bind:checked={
+            get: () => timeSingle,
+            set: (v: boolean) => {
+                if (v === timeSingle) return;
+                toggleTimeMode();
+            }
+        }
+    />
 </div>
 
 <!-- change / 失焦都会冒泡到这里：一处覆盖所有输入框，没有"应用"按钮 -->
@@ -275,17 +278,16 @@
     <div class="col">
         <div class="field">
             <span>类型</span>
-            <div class="segmented">
-                {#for option of TYPE_OPTIONS with key = option[0]}
-                    <button
-                        class="seg {type === option[0] ? "on" : ""}"
-                        onclick={() => {
-                            type = option[0];
-                            commit();
-                        }}
-                    >{option[1]}</button>
-                {/for}
-            </div>
+            <Segmented
+                options={TYPE_OPTIONS}
+                bind:value={
+                    get: () => type,
+                    set: (v: number) => {
+                        type = v;
+                        commit();
+                    }
+                }
+            />
         </div>
 
         <div class="field">
@@ -325,32 +327,28 @@
 
         <div class="field">
             <span>在线上方</span>
-            <button
-                class="switch {above ? "on" : ""}"
-                role="switch"
-                aria-checked={above}
-                onclick={() => {
-                    above = !above;
-                    commit();
-                }}
-            >
-                <span class="knob"></span>
-            </button>
+            <Switch
+                bind:checked={
+                    get: () => above,
+                    set: (v: boolean) => {
+                        above = v;
+                        commit();
+                    }
+                }
+            />
         </div>
 
         <div class="field">
             <span>假音符</span>
-            <button
-                class="switch {fake ? "on" : ""}"
-                role="switch"
-                aria-checked={fake}
-                onclick={() => {
-                    fake = !fake;
-                    commit();
-                }}
-            >
-                <span class="knob"></span>
-            </button>
+            <Switch
+                bind:checked={
+                    get: () => fake,
+                    set: (v: boolean) => {
+                        fake = v;
+                        commit();
+                    }
+                }
+            />
         </div>
     </div>
 
