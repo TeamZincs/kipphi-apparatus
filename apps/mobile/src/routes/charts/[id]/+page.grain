@@ -1028,12 +1028,14 @@
     function closeSheet(): void {
         if (!sheetOpen || sheetClosing) return;
 
-        // 先播收起动画，再真正移除
+        // 先播收起动画，再真正移除。
+        // **不要**把 offset 归零：收起动画从"松手时的位置"接着走，
+        // 否则会先跳回完全展开再往下收，视觉上很别扭。
         sheetClosing = true;
-        sheetOffset = 0;
         setTimeout(() => {
             sheetOpen = false;
             sheetClosing = false;
+            sheetOffset = 0;
             editingNote = null;
             editingNode = null;
             sheetError = null;
@@ -1509,7 +1511,7 @@
         <div class="sheet-mask {sheetClosing ? "closing" : ""}">
             <div
                 class="sheet {sheetDragging ? "dragging" : ""} {sheetClosing ? "closing" : ""}"
-                style={`transform: translateY(${sheetOffset}px)`}
+                style={`--sheet-from:${sheetOffset}px; transform: translateY(${sheetOffset}px)`}
             >
                 <!-- 上沿的凸起：圆角梯形 + 一根长而缓的圆头折线箭头，可下滑收起 -->
                 <div
@@ -1584,6 +1586,7 @@
                                             placeholder="拍"
                                             bind:value={draftStartB}
                                         />
+                                        <span class="sep">:</span>
                                         <input
                                             class="num"
                                             type="text"
@@ -1591,6 +1594,7 @@
                                             placeholder="分子"
                                             bind:value={draftStartN}
                                         />
+                                        <span class="sep">/</span>
                                         <input
                                             class="num"
                                             type="text"
@@ -1620,6 +1624,7 @@
                                             placeholder="拍"
                                             bind:value={draftEndB}
                                         />
+                                        <span class="sep">:</span>
                                         <input
                                             class="num"
                                             type="text"
@@ -1627,6 +1632,7 @@
                                             placeholder="分子"
                                             bind:value={draftEndN}
                                         />
+                                        <span class="sep">/</span>
                                         <input
                                             class="num"
                                             type="text"
@@ -1745,6 +1751,7 @@
                                             placeholder="拍"
                                             bind:value={draftNodeB}
                                         />
+                                        <span class="sep">:</span>
                                         <input
                                             class="num"
                                             type="text"
@@ -1752,6 +1759,7 @@
                                             placeholder="分子"
                                             bind:value={draftNodeN}
                                         />
+                                        <span class="sep">/</span>
                                         <input
                                             class="num"
                                             type="text"
@@ -2174,9 +2182,14 @@
     will-change: transform;
 }
 
-/* 拖动中不要动画，否则跟手会滞一下 */
+/* 松手回弹的过渡（拖动中要关掉，否则跟手会滞一下） */
+.sheet {
+    transition: transform 0.18s ease;
+}
+
 .sheet.dragging {
     animation: none;
+    transition: none;
 }
 
 .sheet.closing {
@@ -2257,6 +2270,14 @@
     flex: 1 1 0;
     min-width: 0;
     text-align: center;
+}
+
+/* 时间分隔符：`[拍:子/母]` */
+.triple .sep {
+    align-self: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    line-height: 1;
 }
 
 /* 类型：排形按钮（组内密接、无圆角，只有整组圆角） */
@@ -2389,9 +2410,10 @@
     }
 }
 
+/* 从松手时的位置继续往下收（`--sheet-from` 由内联样式给） */
 @keyframes sheet-out {
     from {
-        transform: translateY(0);
+        transform: translateY(var(--sheet-from, 0px));
     }
     to {
         transform: translateY(100%);
