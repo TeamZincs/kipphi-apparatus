@@ -75,8 +75,9 @@
         alpha = String(note.alpha);
         size = String(note.size);
         judgeSize = String(note.judgeSize);
-        above = note.above === 1;
-        fake = note.isFake === 1;
+        // 运行时是 boolean（不是 0/1）—— 之前拿 `=== 1` 比，所以开关永远是关的
+        above = note.above;
+        fake = note.isFake;
     }
 
     pull();
@@ -178,14 +179,11 @@
             queue.push(new Op.NotePropChangeOperation(note, "size", sz));
         if (js !== note.judgeSize)
             queue.push(new Op.NotePropChangeOperation(note, "judgeSize", js));
-        if ((above ? 1 : 0) !== note.above)
-            queue.push(
-                new Op.NotePropChangeOperation(note, "above", above ? 1 : 0)
-            );
-        if ((fake ? 1 : 0) !== note.isFake)
-            queue.push(
-                new Op.NotePropChangeOperation(note, "isFake", fake ? 1 : 0)
-            );
+        // `Note.above` / `Note.isFake` 在运行时是 **boolean**（KPA JSON 里才是 0/1）
+        if (above !== note.above)
+            queue.push(new Op.NotePropChangeOperation(note, "above", above));
+        if (fake !== note.isFake)
+            queue.push(new Op.NotePropChangeOperation(note, "isFake", fake));
         if (sp !== note.speed)
             queue.push(new Op.NoteSpeedChangeOperation(note, sp, line));
         if (yo !== note.yOffset)
