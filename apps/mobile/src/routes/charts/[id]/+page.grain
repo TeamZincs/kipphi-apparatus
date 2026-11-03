@@ -843,7 +843,17 @@
      * 解析放在「应用」那一步，输入过程中允许 `-`、`.` 这种中间态。
      */
     let draftType = $state(0);
-    /** 时间用分数文本：`3` / `3+1/4`（也接受 `3.25`） */
+    /**
+     * 时间默认拆成「拍 / 分子 / 分母」三个框；面板右上角的 switch 可以切成
+     * 单个分数框（`3+1/4`）。两种表示之间切换时会互相换算，不会丢输入。
+     */
+    let timeSingle = $state(false);
+    let draftStartB = $state("0");
+    let draftStartN = $state("0");
+    let draftStartD = $state("1");
+    let draftEndB = $state("0");
+    let draftEndN = $state("0");
+    let draftEndD = $state("1");
     let draftStartText = $state("");
     let draftEndText = $state("");
     let draftPositionX = $state("");
@@ -854,6 +864,9 @@
     let draftJudgeSize = $state("");
     let draftAbove = $state(false);
     let draftFake = $state(false);
+    let draftNodeB = $state("0");
+    let draftNodeN = $state("0");
+    let draftNodeD = $state("1");
     let draftNodeTimeText = $state("");
 
     // 面板拖动 / 开合动画
@@ -935,6 +948,82 @@
         return trimmed === "" ? NaN : Number(trimmed);
     };
 
+    /** 三个框（拍 / 分子 / 分母）→ 拍数；分母为 0 时算 NaN */
+    function beatsOf(beat: string, numerator: string, denominator: string): number {
+        const b = num(beat);
+        const n = num(numerator);
+        const d = num(denominator);
+
+        if (!Number.isFinite(b) || !Number.isFinite(n) || !d) return NaN;
+
+        return b + n / d;
+    }
+
+    /** 拍数 → 三个框的文本（用 960 做分母，能被 2/3/4/8/16 整除） */
+    function splitBeats(beats: number): [string, string, string] {
+        const beat = Math.floor(beats);
+        let numerator = Math.round((beats - beat) * 960);
+        let denominator = 960;
+        const gcd = (a: number, b: number): number =>
+            b === 0 ? a : gcd(b, a % b);
+        const divisor = numerator === 0 ? 1 : gcd(numerator, denominator);
+
+        numerator /= divisor;
+        denominator /= divisor;
+
+        return [String(beat), String(numerator), String(denominator)];
+    }
+
+    /** 右上角 switch：在「三个框」和「单个分数框」之间切换，顺带换算已有输入 */
+    function toggleTimeMode(): void {
+        const wasSingle = timeSingle;
+
+        timeSingle = !wasSingle;
+
+        if (timeSingle) {
+            // 三个框 → 单个框
+            const start = beatsOf(draftStartB, draftStartN, draftStartD);
+            const end = beatsOf(draftEndB, draftEndN, draftEndD);
+            const node = beatsOf(draftNodeB, draftNodeN, draftNodeD);
+
+            draftStartText = Number.isFinite(start) ? formatTime(toTime(start)) : "";
+            draftEndText = Number.isFinite(end) ? formatTime(toTime(end)) : "";
+            draftNodeTimeText = Number.isFinite(node) ? formatTime(toTime(node)) : "";
+
+            return;
+        }
+
+        // 单个框 → 三个框
+        const apply = (
+            text: string,
+            set: (beat: string, n: string, d: string) => void
+        ): void => {
+            const beats = parseTime(text);
+
+            if (!Number.isFinite(beats)) return;
+
+            const [beat, n, d] = splitBeats(beats);
+
+            set(beat, n, d);
+        };
+
+        apply(draftStartText, (beat, n, d) => {
+            draftStartB = beat;
+            draftStartN = n;
+            draftStartD = d;
+        });
+        apply(draftEndText, (beat, n, d) => {
+            draftEndB = beat;
+            draftEndN = n;
+            draftEndD = d;
+        });
+        apply(draftNodeTimeText, (beat, n, d) => {
+            draftNodeB = beat;
+            draftNodeN = n;
+            draftNodeD = d;
+        });
+    }
+
     //#region 面板开合 / 拖动
     function closeSheet(): void {
         if (!sheetOpen || sheetClosing) return;
@@ -987,6 +1076,13 @@
         editingNode = null;
         editingNote = note;
         draftType = note.type;
+        // 时间两种表示都填好，切 switch 时不必再算
+        draftStartB = String(note.startTime[0]);
+        draftStartN = String(note.startTime[1]);
+        draftStartD = String(note.startTime[2]);
+        draftEndB = String(note.endTime[0]);
+        draftEndN = String(note.endTime[1]);
+        draftEndD = String(note.endTime[2]);
         draftStartText = formatTime(note.startTime);
         draftEndText = formatTime(note.endTime);
         draftPositionX = String(note.positionX);
@@ -1011,6 +1107,9 @@
         sheetKind = "node";
         editingNote = null;
         editingNode = node;
+        draftNodeB = String(node.time[0]);
+        draftNodeN = String(node.time[1]);
+        draftNodeD = String(node.time[2]);
         draftNodeTimeText = formatTime(node.time);
         draftNodeValue = String(node.value);
         sheetOffset = 0;
@@ -1026,7 +1125,9 @@
 
         if (!node || !ops) return;
 
-        const beats = parseTime(draftNodeTimeText);
+        const beats = timeSingle
+            ? parseTime(draftNodeTimeText)
+            : beatsOf(draftNodeB, draftNodeN, draftNodeD);
 
         if (!Number.isFinite(beats)) {
             sheetError = "时间格式不对（`3` / `3+1/4` / `3.25` 都行）";
@@ -1077,8 +1178,12 @@
         if (!note || !ops) return;
 
         // 先把文本解析成数字，任何一项不合法就整体拒绝（避免半套改动）
-        const startBeats = parseTime(draftStartText);
-        const endBeats = parseTime(draftEndText);
+        const startBeats = timeSingle
+            ? parseTime(draftStartText)
+            : beatsOf(draftStartB, draftStartN, draftStartD);
+        const endBeats = timeSingle
+            ? parseTime(draftEndText)
+            : beatsOf(draftEndB, draftEndN, draftEndD);
         const positionX = num(draftPositionX);
         const speed = num(draftSpeed);
         const yOffset = num(draftYOffset);
@@ -1428,143 +1533,244 @@
                     </svg>
                 </div>
 
-                <p class="sheet-title">
-                    {sheetKind === "note" ? "音符" : "事件节点"}
-                </p>
+                <div class="sheet-head">
+                    <p class="sheet-title">
+                        {sheetKind === "note" ? "音符" : "事件节点"}
+                    </p>
+
+                    <!-- 时间输入形态：三个框 ↔ 单个分数框 -->
+                    <button
+                        class="switch {timeSingle ? "on" : ""}"
+                        role="switch"
+                        aria-checked={timeSingle}
+                        aria-label="时间输入方式"
+                        onclick={toggleTimeMode}
+                    >
+                        <span class="knob"></span>
+                    </button>
+                </div>
 
                 <div class="sheet-body">
                     {#if sheetKind === "note"}
-                    <label class="field">
-                        <span>类型</span>
-                        <select bind:value={draftType}>
-                            {#for option of NOTE_TYPE_OPTIONS with key = option[0]}
-                                <option value={option[0]}>{option[1]}</option>
-                            {/for}
-                        </select>
-                    </label>
+                        <!-- 左列：类型 → 时间 → X → 在线上方 / 假音符 -->
+                        <div class="sheet-col">
+                            <div class="field">
+                                <span>类型</span>
+                                <div class="segmented">
+                                    {#for option of NOTE_TYPE_OPTIONS with key = option[0]}
+                                        <button
+                                            class="seg {draftType === option[0] ? "on" : ""}"
+                                            onclick={() => (draftType = option[0])}
+                                        >{option[1]}</button>
+                                    {/for}
+                                </div>
+                            </div>
 
-                    <label class="field">
-                        <span>开始</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="text"
-                            placeholder="3+1/4"
-                            bind:value={draftStartText}
-                        />
-                    </label>
+                            <div class="field">
+                                <span>开始</span>
+                                {#if timeSingle}
+                                    <input
+                                        class="num"
+                                        type="text"
+                                        placeholder="3+1/4"
+                                        bind:value={draftStartText}
+                                    />
+                                {:else}
+                                    <div class="triple">
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="拍"
+                                            bind:value={draftStartB}
+                                        />
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="分子"
+                                            bind:value={draftStartN}
+                                        />
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="分母"
+                                            bind:value={draftStartD}
+                                        />
+                                    </div>
+                                {/if}
+                            </div>
 
-                    <label class="field">
-                        <span>结束</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="text"
-                            placeholder="4"
-                            bind:value={draftEndText}
-                        />
-                    </label>
+                            <div class="field">
+                                <span>结束</span>
+                                {#if timeSingle}
+                                    <input
+                                        class="num"
+                                        type="text"
+                                        placeholder="4"
+                                        bind:value={draftEndText}
+                                    />
+                                {:else}
+                                    <div class="triple">
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="拍"
+                                            bind:value={draftEndB}
+                                        />
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="分子"
+                                            bind:value={draftEndN}
+                                        />
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="分母"
+                                            bind:value={draftEndD}
+                                        />
+                                    </div>
+                                {/if}
+                            </div>
 
-                    <label class="field">
-                        <span>X</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="decimal"
-                            bind:value={draftPositionX}
-                        />
-                    </label>
+                            <label class="field">
+                                <span>X</span>
+                                <input
+                                    class="num"
+                                    type="text"
+                                    inputmode="decimal"
+                                    bind:value={draftPositionX}
+                                />
+                            </label>
 
-                    <label class="field">
-                        <span>速度</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="decimal"
-                            bind:value={draftSpeed}
-                        />
-                    </label>
+                            <div class="field">
+                                <span>在线上方</span>
+                                <button
+                                    class="switch {draftAbove ? "on" : ""}"
+                                    role="switch"
+                                    aria-checked={draftAbove}
+                                    onclick={() => (draftAbove = !draftAbove)}
+                                >
+                                    <span class="knob"></span>
+                                </button>
+                            </div>
 
-                    <label class="field">
-                        <span>Y 偏移</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="decimal"
-                            bind:value={draftYOffset}
-                        />
-                    </label>
+                            <div class="field">
+                                <span>假音符</span>
+                                <button
+                                    class="switch {draftFake ? "on" : ""}"
+                                    role="switch"
+                                    aria-checked={draftFake}
+                                    onclick={() => (draftFake = !draftFake)}
+                                >
+                                    <span class="knob"></span>
+                                </button>
+                            </div>
+                        </div>
 
-                    <label class="field">
-                        <span>透明度</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="decimal"
-                            bind:value={draftAlpha}
-                        />
-                    </label>
+                        <!-- 右列：大小 / 判定大小 / 透明度 → Y 偏移 / 速度 -->
+                        <div class="sheet-col">
+                            <label class="field">
+                                <span>大小</span>
+                                <input
+                                    class="num"
+                                    type="text"
+                                    inputmode="decimal"
+                                    bind:value={draftSize}
+                                />
+                            </label>
 
-                    <label class="field">
-                        <span>大小</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="decimal"
-                            bind:value={draftSize}
-                        />
-                    </label>
+                            <label class="field">
+                                <span>判定大小</span>
+                                <input
+                                    class="num"
+                                    type="text"
+                                    inputmode="decimal"
+                                    bind:value={draftJudgeSize}
+                                />
+                            </label>
 
-                    <label class="field">
-                        <span>判定大小</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="decimal"
-                            bind:value={draftJudgeSize}
-                        />
-                    </label>
+                            <label class="field">
+                                <span>透明度</span>
+                                <input
+                                    class="num"
+                                    type="text"
+                                    inputmode="decimal"
+                                    bind:value={draftAlpha}
+                                />
+                            </label>
 
-                    <div class="field">
-                        <span>在线上方</span>
-                        <button
-                            class="switch {draftAbove ? "on" : ""}"
-                            role="switch"
-                            aria-checked={draftAbove}
-                            onclick={() => (draftAbove = !draftAbove)}
-                        >
-                            <span class="knob"></span>
-                        </button>
-                    </div>
+                            <label class="field">
+                                <span>Y 偏移</span>
+                                <input
+                                    class="num"
+                                    type="text"
+                                    inputmode="decimal"
+                                    bind:value={draftYOffset}
+                                />
+                            </label>
 
-                    <div class="field">
-                        <span>假音符</span>
-                        <button
-                            class="switch {draftFake ? "on" : ""}"
-                            role="switch"
-                            aria-checked={draftFake}
-                            onclick={() => (draftFake = !draftFake)}
-                        >
-                            <span class="knob"></span>
-                        </button>
-                    </div>
-                {:else}
-                    <label class="field">
-                        <span>时间</span>
-                        <input
-                            class="num"
-                            type="text"
-                            inputmode="text"
-                            placeholder="3+1/4"
-                            bind:value={draftNodeTimeText}
-                        />
-                    </label>
+                            <label class="field">
+                                <span>速度</span>
+                                <input
+                                    class="num"
+                                    type="text"
+                                    inputmode="decimal"
+                                    bind:value={draftSpeed}
+                                />
+                            </label>
+                        </div>
+                    {:else}
+                        <div class="sheet-col">
+                            <div class="field">
+                                <span>时间</span>
+                                {#if timeSingle}
+                                    <input
+                                        class="num"
+                                        type="text"
+                                        placeholder="3+1/4"
+                                        bind:value={draftNodeTimeText}
+                                    />
+                                {:else}
+                                    <div class="triple">
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="拍"
+                                            bind:value={draftNodeB}
+                                        />
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="分子"
+                                            bind:value={draftNodeN}
+                                        />
+                                        <input
+                                            class="num"
+                                            type="text"
+                                            inputmode="numeric"
+                                            placeholder="分母"
+                                            bind:value={draftNodeD}
+                                        />
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
 
-                    <label class="field">
-                        <span>值</span>
-                        <input type="text" bind:value={draftNodeValue} />
-                    </label>
-                {/if}
+                        <div class="sheet-col">
+                            <label class="field">
+                                <span>值</span>
+                                <input type="text" bind:value={draftNodeValue} />
+                            </label>
+                        </div>
+                    {/if}
                 </div>
 
                 {#if sheetError}
@@ -2014,15 +2220,73 @@
     opacity: 0.8;
 }
 
+.sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .sheet-body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    display: grid;
-    /* minmax(0, 1fr)：否则 input 的默认最小宽度会把两列撑爆，出现横向滚动条 */
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+/* 两列：左边主要属性、右边尺寸/偏移那些；列内自上而下排 */
+.sheet-col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* 时间：拍 / 分子 / 分母 */
+.triple {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+}
+
+.triple .num {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+}
+
+/* 类型：排形按钮（组内密接、无圆角，只有整组圆角） */
+.segmented {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.seg {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 0;
+    border: none;
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.seg:last-child {
+    border-right: none;
+}
+
+.seg.on {
+    background: var(--accent, #4c8dff);
+    color: #fff;
 }
 
 .field {
