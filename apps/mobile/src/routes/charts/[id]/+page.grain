@@ -824,64 +824,18 @@
         });
     }
 
-    //#region 底部面板（编辑选中的音符）
-    /** 面板展开 */
-    let sheetOpen = $state(false);
-    /** 当前编辑的是音符还是事件节点（两套字段） */
-    let sheetKind = $state<"note" | "node">("note");
-    /** 正在编辑的事件节点 */
-    let editingNode: any = null;
-
-    let draftNodeValue = $state("");
-    /** 正在编辑的音符（画布上的引用，只能从编辑器拿） */
-    let editingNote: Note | null = null;
-    /** 就地校验提示 */
-    let sheetError = $state<string | null>(null);
-
+    //#region 底部面板（挂载点）
     /*
-     * 草稿用一组独立 `$state`，不塞进一个对象里：
-     * 对象字段的写入在 grain 里不保证触发重算，而这些输入框必须实时回显。
+     * 页面只保留"面板开着没有、编的是哪一个"这几个状态。
      *
-     * 数值一律存**字符串**：数字框是自己实现的（不要浏览器那对上下箭头），
-     * 解析放在「应用」那一步，输入过程中允许 `-`、`.` 这种中间态。
+     * 草稿、提交、删除 / 设为默认、订阅操作列表、拖拽与开合动画，全都在
+     * `SheetShell.grain` / `NoteSheet.grain` / `EventSheet.grain` 里 ——
+     * 它们各自持有自己需要的状态，页面不再掺和。
      */
-    let draftType = $state(0);
-    /**
-     * 时间默认拆成「拍 / 分子 / 分母」三个框；面板右上角的 switch 可以切成
-     * 单个分数框（`3+1/4`）。两种表示之间切换时会互相换算，不会丢输入。
-     */
-    let timeSingle = $state(false);
-    let draftStartB = $state("0");
-    let draftStartN = $state("0");
-    let draftStartD = $state("1");
-    let draftEndB = $state("0");
-    let draftEndN = $state("0");
-    let draftEndD = $state("1");
-    let draftStartText = $state("");
-    let draftEndText = $state("");
-    let draftPositionX = $state("");
-    let draftSpeed = $state("");
-    let draftYOffset = $state("");
-    let draftAlpha = $state("");
-    let draftSize = $state("");
-    let draftJudgeSize = $state("");
-    let draftAbove = $state(false);
-    let draftFake = $state(false);
-    let draftNodeB = $state("0");
-    let draftNodeN = $state("0");
-    let draftNodeD = $state("1");
-    let draftNodeTimeText = $state("");
-
-    // 面板拖动 / 开合动画
-    let sheetOffset = $state(0);
-    let sheetDragging = $state(false);
-    let sheetClosing = $state(false);
-    /** 入场动画只播一次：播完就摘掉 `opening`，否则松手时会重播 */
-    let sheetOpening = $state(false);
-    let sheetDragFrom = 0;
-    /** 这次按下有没有真的移动过（用来区分"点一下"和"拖动"） */
-    let sheetDragMoved = false;
-    let sheetOpeningTimer: ReturnType<typeof setTimeout> | null = null;
+    let sheetOpen = $state(false);
+    let sheetKind = $state<"note" | "node">("note");
+    let editingNote: Note | null = null;
+    let editingNode: any = null;
 
     /** 四种音符类型（下拉用；顺序和画布按钮一致） */
     const NOTE_TYPE_OPTIONS: [number, string][] = [
@@ -1209,12 +1163,7 @@
         draftJudgeSize = String(note.judgeSize);
         draftAbove = note.above === 1;
         draftFake = note.isFake === 1;
-        sheetOffset = 0;
-        sheetClosing = false;
-        sheetError = null;
         sheetOpen = true;
-        startSheetOpening();
-        subscribeSheet();
     }
 
     function openNodeSheet(): void {
@@ -1230,12 +1179,7 @@
         draftNodeD = String(node.time[2]);
         draftNodeTimeText = formatTime(node.time);
         draftNodeValue = String(node.value);
-        sheetOffset = 0;
-        sheetClosing = false;
-        sheetError = null;
         sheetOpen = true;
-        startSheetOpening();
-        subscribeSheet();
     }
 
     /** 事件节点：只改时间与值（缓动 / 求值器留给桌面端，手机上不好做） */
