@@ -7,10 +7,15 @@
      *
      * 内容由调用方用 children 塞进来 —— 音符和事件节点的表单各写各的。
      */
-    let { title = "", onclose } = $props<{
+    let { title = "", onclose, children } = $props<{
         /** 可选标题；内容自己带标题时留空即可 */
         title?: string;
         onclose: () => void;
+        /**
+         * 插槽内容。grain 里 children 是 `$props` 的一个普通字段（函数），
+         * 不是全局变量 —— 直接写 `{children}` 会 `ReferenceError`。
+         */
+        children?: () => unknown;
     }>();
 
     /** 入场动画只播一次（否则松手去掉 dragging 时会重播，看着像"闪一下"） */
@@ -106,7 +111,9 @@
             <p class="title">{title}</p>
         {/if}
 
-        {children}
+        {#if children}
+            {children()}
+        {/if}
     </div>
 </div>
 
