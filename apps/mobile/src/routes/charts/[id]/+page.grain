@@ -1145,24 +1145,6 @@
         sheetKind = "note";
         editingNode = null;
         editingNote = note;
-        draftType = note.type;
-        // 时间两种表示都填好，切 switch 时不必再算
-        draftStartB = String(note.startTime[0]);
-        draftStartN = String(note.startTime[1]);
-        draftStartD = String(note.startTime[2]);
-        draftEndB = String(note.endTime[0]);
-        draftEndN = String(note.endTime[1]);
-        draftEndD = String(note.endTime[2]);
-        draftStartText = formatTime(note.startTime);
-        draftEndText = formatTime(note.endTime);
-        draftPositionX = String(note.positionX);
-        draftSpeed = String(note.speed);
-        draftYOffset = String(note.yOffset);
-        draftAlpha = String(note.alpha);
-        draftSize = String(note.size);
-        draftJudgeSize = String(note.judgeSize);
-        draftAbove = note.above === 1;
-        draftFake = note.isFake === 1;
         sheetOpen = true;
     }
 
@@ -1174,11 +1156,6 @@
         sheetKind = "node";
         editingNote = null;
         editingNode = node;
-        draftNodeB = String(node.time[0]);
-        draftNodeN = String(node.time[1]);
-        draftNodeD = String(node.time[2]);
-        draftNodeTimeText = formatTime(node.time);
-        draftNodeValue = String(node.value);
         sheetOpen = true;
     }
 
