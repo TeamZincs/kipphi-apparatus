@@ -472,6 +472,7 @@
 
         // 画布上的「详细信息」→ 弹底部面板
         notesEditor.addEventListener("inspect", openNoteSheet);
+        eventEditors.addEventListener("inspect", openNodeSheet);
 
         // 画布里的判定线切换按钮 → 页面（`selectedLineId` 的单一数据源在这里）
         const onTargetChange = (event: Event): void => {
@@ -823,6 +824,12 @@
     //#region 底部面板（编辑选中的音符）
     /** 面板展开 */
     let sheetOpen = $state(false);
+    /** 当前编辑的是音符还是事件节点（两套字段） */
+    let sheetKind = $state<"note" | "node">("note");
+    /** 正在编辑的事件节点 */
+    let editingNode: any = null;
+    let draftNodeBeats = $state(0);
+    let draftNodeValue = $state("");
     /** 正在编辑的音符（画布上的引用，只能从编辑器拿） */
     let editingNote: Note | null = null;
     /** 就地校验提示 */
@@ -866,6 +873,8 @@
 
         if (!note) return;
 
+        sheetKind = "note";
+        editingNode = null;
         editingNote = note;
         draftType = note.type;
         draftBeats = TC.toBeats(note.startTime);
@@ -882,9 +891,63 @@
         sheetOpen = true;
     }
 
+    function openNodeSheet(): void {
+        const node = (eventEditors as any)?.activatedEditor?.selectedNode;
+
+        if (!node) return;
+
+        sheetKind = "node";
+        editingNote = null;
+        editingNode = node;
+        draftNodeBeats = TC.toBeats(node.time);
+        draftNodeValue = String(node.value);
+        sheetError = null;
+        sheetOpen = true;
+    }
+
+    /** 事件节点：只改时间与值（缓动 / 求值器留给桌面端，手机上不好做） */
+    function applyNodeSheet(): void {
+        const node = editingNode;
+        const ops = operationList;
+
+        if (!node || !ops) return;
+
+        const queue: any[] = [];
+        const beats = draftNodeBeats;
+        const value =
+            typeof node.value === "number"
+                ? Number(draftNodeValue)
+                : draftNodeValue;
+
+        if (typeof node.value === "number" && !Number.isFinite(value as number)) {
+            sheetError = "值必须是数字";
+
+            return;
+        }
+
+        if (Math.abs(beats - TC.toBeats(node.time)) > 1e-6)
+            queue.push(
+                new Op.EventNodeTimeChangeOperation(node, toTime(beats))
+            );
+        if (value !== node.value)
+            queue.push(new Op.EventNodeValueChangeOperation(node, value));
+
+        if (queue.length === 0) {
+            closeSheet();
+
+            return;
+        }
+
+        ops.tryDo(() =>
+            queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
+        );
+        closeSheet();
+    }
+
     function closeSheet(): void {
         sheetOpen = false;
         editingNote = null;
+        editingNode = null;
         sheetError = null;
 
         // 面板关掉之后把焦点还给画布，免得下一次按键没反应
@@ -892,6 +955,12 @@
     }
 
     function applySheet(): void {
+        if (sheetKind === "node") {
+            applyNodeSheet();
+
+            return;
+        }
+
         const note = editingNote;
         const ops = operationList;
 
@@ -1200,9 +1269,12 @@
                     ▾
                 </button>
 
-                <p class="sheet-title">音符</p>
+                <p class="sheet-title">
+                    {sheetKind === "note" ? "音符" : "事件节点"}
+                </p>
 
                 <div class="sheet-body">
+                    {#if sheetKind === "note"}
                     <label class="field">
                         <span>类型</span>
                         <select
@@ -1305,6 +1377,22 @@
                         <span>假音符</span>
                         <input type="checkbox" bind:checked={draftFake} />
                     </label>
+                {:else}
+                    <label class="field">
+                        <span>时间（拍）</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="0.001"
+                            bind:value={draftNodeBeats}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>值</span>
+                        <input type="text" bind:value={draftNodeValue} />
+                    </label>
+                {/if}
                 </div>
 
                 {#if sheetError}
