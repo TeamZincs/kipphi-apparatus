@@ -873,7 +873,12 @@
     let sheetOffset = $state(0);
     let sheetDragging = $state(false);
     let sheetClosing = $state(false);
+    /** 入场动画只播一次：播完就摘掉 `opening`，否则松手时会重播 */
+    let sheetOpening = $state(false);
     let sheetDragFrom = 0;
+    /** 这次按下有没有真的移动过（用来区分"点一下"和"拖动"） */
+    let sheetDragMoved = false;
+    let sheetOpeningTimer: ReturnType<typeof setTimeout> | null = null;
 
     /** 四种音符类型（下拉用；顺序和画布按钮一致） */
     const NOTE_TYPE_OPTIONS: [number, string][] = [
@@ -1025,12 +1030,25 @@
     }
 
     //#region 面板开合 / 拖动
+    /** 打开时播一次入场动画，播完把 `opening` 摘掉 */
+    function startSheetOpening(): void {
+        sheetOpening = true;
+
+        if (sheetOpeningTimer) clearTimeout(sheetOpeningTimer);
+
+        sheetOpeningTimer = setTimeout(() => {
+            sheetOpening = false;
+            sheetOpeningTimer = null;
+        }, 260);
+    }
+
     function closeSheet(): void {
         if (!sheetOpen || sheetClosing) return;
 
         // 先播收起动画，再真正移除。
         // **不要**把 offset 归零：收起动画从"松手时的位置"接着走，
         // 否则会先跳回完全展开再往下收，视觉上很别扭。
+        sheetOpening = false;
         sheetClosing = true;
         setTimeout(() => {
             sheetOpen = false;
@@ -1046,6 +1064,9 @@
     function onHandleDown(event: PointerEvent): void {
         sheetDragFrom = event.clientY;
         sheetDragging = true;
+        sheetDragMoved = false;
+        // 抓手的瞬间就结束入场动画，免得松手时它又跑一遍
+        sheetOpening = false;
         (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     }
 
@@ -1053,6 +1074,9 @@
         if (!sheetDragging) return;
 
         const delta = event.clientY - sheetDragFrom;
+
+        // 超过 4px 才算"拖动"，否则当成"点一下"
+        if (Math.abs(delta) > 4) sheetDragMoved = true;
 
         // 只允许往下拖
         sheetOffset = Math.max(0, delta);
@@ -1063,7 +1087,14 @@
 
         sheetDragging = false;
 
-        // 拖过半屏高就收起，否则弹回去
+        // 点一下（几乎没移动）→ 收起
+        if (!sheetDragMoved) {
+            closeSheet();
+
+            return;
+        }
+
+        // 拖过阈值 → 收起；否则从当前位置平滑弹回完全展开
         if (sheetOffset > window.innerHeight * 0.15) closeSheet();
         else sheetOffset = 0;
     }
@@ -1099,6 +1130,7 @@
         sheetClosing = false;
         sheetError = null;
         sheetOpen = true;
+        startSheetOpening();
     }
 
     function openNodeSheet(): void {
@@ -1118,6 +1150,7 @@
         sheetClosing = false;
         sheetError = null;
         sheetOpen = true;
+        startSheetOpening();
     }
 
     /** 事件节点：只改时间与值（缓动 / 求值器留给桌面端，手机上不好做） */
@@ -1510,7 +1543,7 @@
     {#if sheetOpen}
         <div class="sheet-mask {sheetClosing ? "closing" : ""}">
             <div
-                class="sheet {sheetDragging ? "dragging" : ""} {sheetClosing ? "closing" : ""}"
+                class="sheet {sheetOpening ? "opening" : ""} {sheetDragging ? "dragging" : ""} {sheetClosing ? "closing" : ""}"
                 style={`--sheet-from:${sheetOffset}px; transform: translateY(${sheetOffset}px)`}
             >
                 <!-- 上沿的凸起：圆角梯形 + 一根长而缓的圆头折线箭头，可下滑收起 -->
@@ -2178,13 +2211,19 @@
     background: var(--surface);
     border-radius: 16px 16px 0 0;
     overflow: visible;
-    animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
     will-change: transform;
+    /* 松手回弹的过渡（拖动中要关掉，否则跟手会滞一下） */
+    transition: transform 0.18s ease;
 }
 
-/* 松手回弹的过渡（拖动中要关掉，否则跟手会滞一下） */
-.sheet {
-    transition: transform 0.18s ease;
+/*
+ * 入场动画只在 `.opening` 期间挂。
+ *
+ * 之前它挂在 `.sheet` 基础规则上 —— 松手时去掉 `.dragging` 会让这条动画
+ * **重新开始**，表现就是"先闪到屏幕下方，再弹上来一遍"。
+ */
+.sheet.opening {
+    animation: sheet-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .sheet.dragging {
