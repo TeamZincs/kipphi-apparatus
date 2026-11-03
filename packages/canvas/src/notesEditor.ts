@@ -140,15 +140,15 @@ export class NotesEditor extends EventTarget {
      *   · `"time"` —— 竖向拖 = 时间前后（派发 `timescroll`，页面去 seek）
      *   · `"x"`    —— 横向拖 = 左右平移（改 `positionBasis`）
      */
-    private pan: { startX: number; lastY: number; basis: number } | null = null;
+    private pan: { startPixelX: number; lastY: number; basis: number } | null =
+        null;
 
-    private panBy(x: number, y: number): void {
+    private panBy(y: number, pixelX: number): void {
         const pan = this.pan;
 
         if (!pan) return;
 
-        // 注意：`x` / `y` 已经是**模型单位**（x 是 position、y 是拍数），
-        // 不能再除一次 timeRatio —— 那会慢得像蜗牛。
+        // 时间轴：`y` 是模型单位（拍数），直接加即可
         if (this.panAxis === "time") {
             const deltaBeats = -(y - pan.lastY);
 
@@ -159,8 +159,14 @@ export class NotesEditor extends EventTarget {
             return;
         }
 
-        // 横轴：`x` 是 position 单位，换算成屏幕像素要乘 `positionRatio`
-        this.positionBasis = pan.basis + (x - pan.startX) * this.positionRatio;
+        /*
+         * 横轴必须用**位图像素**的位移。
+         *
+         * 用模型 x 会自激：`matrixInverted` 里含 `positionBasis` 的平移，
+         * 拖动改了 basis → 同一个屏幕点解出来的 x 也变 → 下一次计算再改 basis
+         * → 两个位置来回闪。
+         */
+        this.positionBasis = pan.basis + (pixelX - pan.startPixelX);
         this.draw(this.lastBeats);
     }
 
@@ -421,7 +427,7 @@ export class NotesEditor extends EventTarget {
 
         // 正在轴向拖动：只做平移，不做吸附/选中
         if (this.pan) {
-            this.panBy(x, y);
+            this.panBy(y, this.pointerInBitmap(event).x);
 
             return;
         }
@@ -976,7 +982,7 @@ export class NotesEditor extends EventTarget {
                 // 点空白处 = 开始轴向拖动（拖什么看 panAxis）
                 if (!snote) {
                     this.pan = {
-                        startX: x,
+                        startPixelX: this.pointerInBitmap(event).x,
                         lastY: y,
                         basis: this.positionBasis,
                     };

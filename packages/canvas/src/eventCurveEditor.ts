@@ -514,7 +514,9 @@ export class EventSequenceEditors extends EventTarget {
 
             if (!timeRatio) return;
 
-            const deltaBeats = -dy / timeRatio;
+            // 事件画布的时间轴是向上递增的（`matrix` 里 `-timeRatio`），
+            // 所以往下拖 = 时间前进，符号和音符画布相反
+            const deltaBeats = dy / timeRatio;
 
             pan.y = point.y;
 
