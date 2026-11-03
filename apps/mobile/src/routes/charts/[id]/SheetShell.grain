@@ -78,6 +78,19 @@
         // 等收起动画播完再让调用方卸载（offset 不归零，动画从当前位置接着走）
         setTimeout(() => {
             if (openingTimer) clearTimeout(openingTimer);
+
+            /*
+             * 卸载前把状态复位。
+             *
+             * 页面是用 `{#if sheetOpen}` 挂这个组件的，但 `{#if}` 的分支节点会被
+             * **缓存复用** —— 下次打开拿到的可能还是这个实例。如果 `closing`
+             * 留着 true，`.closing` 那条 `forwards` 动画会把面板永远停在屏幕下方，
+             * 遮罩却还在：只剩一个凸起、整页点不动。
+             */
+            closing = false;
+            offset = 0;
+            opening = false;
+
             onclose();
         }, 220);
     }
@@ -87,7 +100,11 @@
     <div
         class="sheet {opening ? "opening" : ""} {dragging ? "dragging" : ""} {closing ? "closing" : ""}"
         style={`--sheet-from:${offset}px; transform: translateY(${offset}px)`}
-    >
+        onanimationend={() => {
+            // 兜底：收起动画一结束就摘掉 `closing`，别让它靠 `forwards` 停在屏幕外
+            if (closing) closing = false;
+        }}
+        >
         <!-- 上沿的凸起：50vw 的圆角梯形，超出面板上沿、和面板同色，整块可拖 -->
         <div
             class="handle"
