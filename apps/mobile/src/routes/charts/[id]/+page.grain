@@ -9,6 +9,7 @@
     import { navigate, route } from "@graints/runtime";
 
     import { EventSequenceEditors, NotesEditor } from "@kpa/canvas";
+    import { NoteType, Op, TC, type Note, type TimeT } from "kipphi";
     import {
         AudioProcessor,
         Images,
@@ -469,6 +470,9 @@
         notesEditor.addEventListener("timescroll", onTimeScroll);
         eventEditors.addEventListener("timescroll", onTimeScroll);
 
+        // 画布上的「详细信息」→ 弹底部面板
+        notesEditor.addEventListener("inspect", openNoteSheet);
+
         // 画布里的判定线切换按钮 → 页面（`selectedLineId` 的单一数据源在这里）
         const onTargetChange = (event: Event): void => {
             const line = (event as Event & { judgeLine?: { id: number } }).judgeLine;
@@ -816,6 +820,160 @@
         });
     }
 
+    //#region 底部面板（编辑选中的音符）
+    /** 面板展开 */
+    let sheetOpen = $state(false);
+    /** 正在编辑的音符（画布上的引用，只能从编辑器拿） */
+    let editingNote: Note | null = null;
+    /** 就地校验提示 */
+    let sheetError = $state<string | null>(null);
+
+    /*
+     * 草稿用一组独立 `$state`，不塞进一个对象里：
+     * 对象字段的写入在 grain 里不保证触发重算，而这些输入框必须实时回显。
+     */
+    let draftType = $state(0);
+    let draftBeats = $state(0);
+    let draftEndBeats = $state(0);
+    let draftPositionX = $state(0);
+    let draftSpeed = $state(1);
+    let draftYOffset = $state(0);
+    let draftAlpha = $state(1);
+    let draftSize = $state(1);
+    let draftJudgeSize = $state(1);
+    // 这两个在谱面里是 0/1，但复选框绑定的是布尔 —— 分开存，应用时再转
+    let draftAbove = $state(false);
+    let draftFake = $state(false);
+
+    /** 四种音符类型（下拉用；顺序和画布按钮一致） */
+    const NOTE_TYPE_OPTIONS: [number, string][] = [
+        [NoteType.tap, "Tap"],
+        [NoteType.drag, "Drag"],
+        [NoteType.flick, "Flick"],
+        [NoteType.hold, "Hold"]
+    ];
+
+    /** 拍数 → `TimeT`（用 1000 做分母，毫秒级够用） */
+    const toTime = (beats: number): TimeT =>
+        TC.validateIp([
+            Math.floor(beats),
+            Math.round((beats % 1) * 1000),
+            1000
+        ]);
+
+    function openNoteSheet(): void {
+        const note = notesEditor?.selectedNote;
+
+        if (!note) return;
+
+        editingNote = note;
+        draftType = note.type;
+        draftBeats = TC.toBeats(note.startTime);
+        draftEndBeats = TC.toBeats(note.endTime);
+        draftPositionX = note.positionX;
+        draftSpeed = note.speed;
+        draftYOffset = note.yOffset;
+        draftAlpha = note.alpha;
+        draftSize = note.size;
+        draftJudgeSize = note.judgeSize;
+        draftAbove = note.above === 1;
+        draftFake = note.isFake === 1;
+        sheetError = null;
+        sheetOpen = true;
+    }
+
+    function closeSheet(): void {
+        sheetOpen = false;
+        editingNote = null;
+        sheetError = null;
+
+        // 面板关掉之后把焦点还给画布，免得下一次按键没反应
+        notesCanvas?.focus?.();
+    }
+
+    function applySheet(): void {
+        const note = editingNote;
+        const ops = operationList;
+
+        if (!note || !ops) return;
+
+        if (!(draftBeats >= 0) || !(draftEndBeats > draftBeats)) {
+            sheetError = "结束时间必须晚于开始时间";
+
+            return;
+        }
+
+        const line = note.parentNode?.parentSeq?.parentLine;
+        const seq = note.parentNode?.parentSeq;
+
+        if (!line || !seq) {
+            sheetError = "这个音符还没挂在判定线上";
+
+            return;
+        }
+
+        // 一条条比对，只把真正变了的字段做成操作（撤销栈里干净）
+        const queue: any[] = [];
+
+        if (draftType !== note.type)
+            queue.push(new Op.NoteTypeChangeOperation(note, draftType));
+        if (draftPositionX !== note.positionX)
+            queue.push(
+                new Op.NotePropChangeOperation(note, "positionX", draftPositionX)
+            );
+        if (draftAlpha !== note.alpha)
+            queue.push(new Op.NotePropChangeOperation(note, "alpha", draftAlpha));
+        if (draftSize !== note.size)
+            queue.push(new Op.NotePropChangeOperation(note, "size", draftSize));
+        if (draftJudgeSize !== note.judgeSize)
+            queue.push(
+                new Op.NotePropChangeOperation(note, "judgeSize", draftJudgeSize)
+            );
+        const aboveValue = draftAbove ? 1 : 0;
+        const fakeValue = draftFake ? 1 : 0;
+
+        if (aboveValue !== note.above)
+            queue.push(
+                new Op.NotePropChangeOperation(note, "above", aboveValue)
+            );
+        if (fakeValue !== note.isFake)
+            queue.push(
+                new Op.NotePropChangeOperation(note, "isFake", fakeValue)
+            );
+        if (draftSpeed !== note.speed)
+            queue.push(new Op.NoteSpeedChangeOperation(note, draftSpeed, line));
+        if (draftYOffset !== note.yOffset)
+            queue.push(
+                new Op.NoteYOffsetChangeOperation(note, draftYOffset, line)
+            );
+
+        const startChanged = Math.abs(draftBeats - TC.toBeats(note.startTime)) > 1e-6;
+        const endChanged = Math.abs(draftEndBeats - TC.toBeats(note.endTime)) > 1e-6;
+
+        if (startChanged || endChanged) {
+            const start = toTime(draftBeats);
+
+            queue.push(
+                new Op.NoteTimeChangeOperation(note, seq.getNodeOf(start))
+            );
+
+            if (endChanged)
+                queue.push(new Op.HoldEndTimeChangeOperation(note, toTime(draftEndBeats)));
+        }
+
+        if (queue.length === 0) {
+            closeSheet();
+
+            return;
+        }
+
+        ops.tryDo(() =>
+            queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
+        );
+        closeSheet();
+    }
+    //#endregion
+
     function back(): void {
         if (chart?.modified && !confirm("当前谱面有未保存的更改，确定返回吗？")) return;
 
@@ -1032,6 +1190,134 @@
             </div>
         </div>
     </section>
+
+    <!-- 底部面板：编辑选中的音符（模态，点外面不关） -->
+    {#if sheetOpen}
+        <div class="sheet-mask">
+            <div class="sheet">
+                <!-- 上沿的凸起：点它收起 -->
+                <button class="sheet-handle" onclick={closeSheet} aria-label="收起">
+                    ▾
+                </button>
+
+                <p class="sheet-title">音符</p>
+
+                <div class="sheet-body">
+                    <label class="field">
+                        <span>类型</span>
+                        <select
+                            bind:value={draftType}
+                        >
+                            {#for option of NOTE_TYPE_OPTIONS with key = option[0]}
+                                <option value={option[0]}>{option[1]}</option>
+                            {/for}
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>开始（拍）</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="0.001"
+                            bind:value={draftBeats}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>结束（拍）</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="0.001"
+                            bind:value={draftEndBeats}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>X</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="1"
+                            bind:value={draftPositionX}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>速度</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="0.1"
+                            bind:value={draftSpeed}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>Y 偏移</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="1"
+                            bind:value={draftYOffset}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>透明度</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="0.05"
+                            min="0"
+                            max="1"
+                            bind:value={draftAlpha}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>大小</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="0.05"
+                            bind:value={draftSize}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>判定大小</span>
+                        <input
+                            type="number"
+                            inputmode="decimal"
+                            step="0.05"
+                            bind:value={draftJudgeSize}
+                        />
+                    </label>
+
+                    <label class="field">
+                        <span>在线上方</span>
+                        <input type="checkbox" bind:checked={draftAbove} />
+                    </label>
+
+                    <label class="field">
+                        <span>假音符</span>
+                        <input type="checkbox" bind:checked={draftFake} />
+                    </label>
+                </div>
+
+                {#if sheetError}
+                    <p class="sheet-error">{sheetError}</p>
+                {/if}
+
+                <div class="sheet-actions">
+                    <button class="sheet-btn" onclick={closeSheet}>取消</button>
+                    <button class="sheet-btn primary" onclick={applySheet}>应用</button>
+                </div>
+            </div>
+        </div>
+    {/if}
 </main>
 
 <style>
@@ -1389,5 +1675,108 @@
     border-radius: 0;
     background: var(--surface);
     touch-action: none;
+}
+
+/* ===== 底部面板 ===== */
+.sheet-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.sheet {
+    width: 100%;
+    max-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-radius: 16px 16px 0 0;
+    overflow: hidden;
+}
+
+/* 上沿那个凸起：点它收起 */
+.sheet-handle {
+    align-self: center;
+    width: 64px;
+    height: 22px;
+    border: none;
+    border-radius: 11px;
+    background: var(--border);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.sheet-title {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.sheet-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.field input,
+.field select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+}
+
+.field input[type="checkbox"] {
+    align-self: flex-start;
+    width: 20px;
+    height: 20px;
+}
+
+.sheet-error {
+    margin: 0;
+    color: #ff7b72;
+    font-size: 12px;
+}
+
+.sheet-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.sheet-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+}
+
+.sheet-btn.primary {
+    background: var(--accent, #4c8dff);
+    border-color: transparent;
+    color: #fff;
 }
 </style>
