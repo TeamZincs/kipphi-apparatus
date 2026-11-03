@@ -1159,56 +1159,6 @@
         sheetOpen = true;
     }
 
-    /** 事件节点：只改时间与值（缓动 / 求值器留给桌面端，手机上不好做） */
-    function applyNodeSheet(): void {
-        const node = editingNode;
-        const ops = operationList;
-
-        if (!node || !ops) return;
-
-        const beats = timeSingle
-            ? parseTime(draftNodeTimeText)
-            : beatsOf(draftNodeB, draftNodeN, draftNodeD);
-
-        if (!Number.isFinite(beats)) {
-            sheetError = "时间格式不对（`3` / `3+1/4` / `3.25` 都行）";
-
-            return;
-        }
-
-        const numeric = typeof node.value === "number";
-        const value = numeric ? num(draftNodeValue) : draftNodeValue;
-
-        if (numeric && !Number.isFinite(value)) {
-            sheetError = "值必须是数字";
-
-            return;
-        }
-
-        const queue: any[] = [];
-
-        if (Math.abs(beats - TC.toBeats(node.time)) > 1e-6)
-            queue.push(
-                new Op.EventNodeTimeChangeOperation(node, toTime(beats))
-            );
-        if (value !== node.value)
-            queue.push(new Op.EventNodeValueChangeOperation(node, value));
-
-        if (queue.length === 0) return;
-
-        ops.tryDo(() =>
-            queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
-        );
-    }
-
-    /**
-     * 失焦 / 变更即提交：面板里没有"应用"按钮，每个控件自己触发。
-     * 只提交真正变了的字段，没变化时是个空操作。
-     */
-    function commitSheet(): void {
-        applySheet();
-    }
-
     function applySheet(): void {
         if (sheetKind === "node") {
             applyNodeSheet();
