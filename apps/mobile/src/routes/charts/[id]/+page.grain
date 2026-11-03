@@ -834,8 +834,13 @@
      */
     let sheetOpen = $state(false);
     let sheetKind = $state<"note" | "node">("note");
-    let editingNote: Note | null = null;
-    let editingNode: any = null;
+    /*
+     * 这两个必须是 `$state`：`SheetShell` 的 children 闭包会捕获它们，
+     * 普通变量在闭包里就是一份快照 —— 第二次打开面板时传进去的是 `null`，
+     * `NoteSheet` 读 `note.type` 直接抛，渲染中断，于是只剩凸起、还挡着模态。
+     */
+    let editingNote = $state<Note | null>(null);
+    let editingNode = $state<any>(null);
 
     /**
      * 真正卸载面板。
@@ -1288,15 +1293,20 @@
         内容按"音符 / 事件节点"拆成两个组件 —— 各自持有草稿、自己订阅操作列表，
         父级只传稳定的对象引用和关闭回调。
     -->
-    {#if sheetOpen}
+    <!--
+        条件里带目标存在性：目标为空时宁可不挂载，也不能把 `null` 传给表单
+        （表单在初始化时就读 `note.type`，一抛错整棵子树渲染中断，
+        只剩下遮罩 + 凸起，还把页面挡住 —— 就是"点哪儿都没反应"）。
+    -->
+    {#if sheetOpen && (editingNote || editingNode)}
         <SheetShell onclose={closeSheetNow}>
-            {#if sheetKind === "note"}
+            {#if sheetKind === "note" && editingNote}
                 <NoteSheet
                     note={editingNote}
                     editor={notesEditor}
                     onclose={closeSheetNow}
                 />
-            {:else}
+            {:else if editingNode}
                 <EventSheet
                     node={editingNode}
                     editor={eventEditors}
