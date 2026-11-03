@@ -81,10 +81,27 @@
         fake = note.isFake;
     }
 
-    pull();
+    /*
+     * 初始化读一次值。
+     *
+     * 包 try/catch：目标如果是个已经脱离判定线的旧引用（编辑过时间 / 速度的操作
+     * 会 remove + add 换对象），这里抛错会打断整棵子树渲染 —— 表现是面板只剩凸起。
+     * 出错就把原因写进 `error` 显示在面板里，至少不会被一堵看不见的模型挡住。
+     */
+    try {
+        pull();
+    } catch (e) {
+        error = `读取音符失败：${String(e)}`;
+    }
 
     // 撤销 / 重做 / 别处改了同一个音符 → 把值回灌（对应桌面端的 listen + onOperation）
-    const onOperation = (): void => pull();
+    const onOperation = (): void => {
+        try {
+            pull();
+        } catch (e) {
+            error = `同步音符失败：${String(e)}`;
+        }
+    };
 
     operationList?.addEventListener("needsupdate", onOperation);
 

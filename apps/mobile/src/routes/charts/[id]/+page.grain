@@ -55,6 +55,8 @@
     let tabIndex = $state(0);
 
     let ready = $state(false);
+    /** 未捕获异常（显示在屏幕底部，见 `<script onmount>` 里的监听） */
+    let runtimeError = $state<string | null>(null);
     let loadError = $state<string | null>(null);
 
     let playerReady = $state(false);
@@ -1097,6 +1099,25 @@
 <script onmount>
     document.addEventListener("fullscreenchange", onFullscreenChange);
 
+    /*
+     * 应用内错误条：移动端不方便开 DevTools，把未捕获异常直接显示在屏幕底部。
+     * 只在开发时有用，但也没必要按环境关掉 —— 真出错了，用户能看到比看不到强。
+     */
+    const showError = (message: string): void => {
+        runtimeError = message;
+    };
+
+    const onWindowError = (event: ErrorEvent): void => {
+        showError(event.message || String(event.error));
+    };
+
+    const onRejection = (event: PromiseRejectionEvent): void => {
+        showError(String((event.reason as Error)?.message ?? event.reason));
+    };
+
+    window.addEventListener("error", onWindowError);
+    window.addEventListener("unhandledrejection", onRejection);
+
     // 有未保存改动时，关窗口 / 刷新让浏览器弹它自己的确认框。
     // 别把回调命名成 `guard`：编译器 dev 下会插 `guard(...)`，同名局部变量会遮住它。
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -1314,6 +1335,13 @@
                 />
             {/if}
         </SheetShell>
+    {/if}
+
+    <!-- 应用内错误条：移动端不方便开 DevTools，异常直接显示出来 -->
+    {#if runtimeError}
+        <div class="runtime-error" onclick={() => (runtimeError = null)}>
+            {runtimeError}
+        </div>
     {/if}
 </main>
 
@@ -1672,6 +1700,22 @@
     border-radius: 0;
     background: var(--surface);
     touch-action: none;
+}
+
+/* ===== 应用内错误条 ===== */
+.runtime-error {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 2000;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #7f1d1d;
+    color: #fff;
+    font: 12px/1.4 monospace;
+    white-space: pre-wrap;
+    cursor: pointer;
 }
 
 /* ===== 底部面板 ===== */
