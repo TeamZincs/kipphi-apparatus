@@ -1030,6 +1030,71 @@
     }
 
     //#region 面板开合 / 拖动
+    //#region 面板跟随操作变化
+    /**
+     * 面板订阅 `operationList` 的变化：撤销 / 重做 / 别处改了同一个对象时，
+     * 面板里的值跟着回灌（和桌面端 `NoteEditor` 的 `listen` 同一思路）。
+     *
+     * 注意：这里只**读**不回写 —— 提交是失焦/变更时做的，二者不会打架。
+     */
+    let sheetBound = false;
+
+    function subscribeSheet(): void {
+        if (sheetBound || !operationList) return;
+
+        operationList.addEventListener("needsupdate", refreshDrafts);
+        sheetBound = true;
+    }
+
+    function unsubscribeSheet(): void {
+        if (!sheetBound || !operationList) return;
+
+        operationList.removeEventListener("needsupdate", refreshDrafts);
+        sheetBound = false;
+    }
+
+    /** 把对象当前的值读回面板（不写操作） */
+    function refreshDrafts(): void {
+        if (!sheetOpen) return;
+
+        if (sheetKind === "node") {
+            const node = editingNode;
+
+            if (!node) return;
+
+            draftNodeB = String(node.time[0]);
+            draftNodeN = String(node.time[1]);
+            draftNodeD = String(node.time[2]);
+            draftNodeTimeText = formatTime(node.time);
+            draftNodeValue = String(node.value);
+
+            return;
+        }
+
+        const note = editingNote;
+
+        if (!note) return;
+
+        draftType = note.type;
+        draftStartB = String(note.startTime[0]);
+        draftStartN = String(note.startTime[1]);
+        draftStartD = String(note.startTime[2]);
+        draftEndB = String(note.endTime[0]);
+        draftEndN = String(note.endTime[1]);
+        draftEndD = String(note.endTime[2]);
+        draftStartText = formatTime(note.startTime);
+        draftEndText = formatTime(note.endTime);
+        draftPositionX = String(note.positionX);
+        draftSpeed = String(note.speed);
+        draftYOffset = String(note.yOffset);
+        draftAlpha = String(note.alpha);
+        draftSize = String(note.size);
+        draftJudgeSize = String(note.judgeSize);
+        draftAbove = note.above === 1;
+        draftFake = note.isFake === 1;
+    }
+    //#endregion
+
     /** 打开时播一次入场动画，播完把 `opening` 摘掉 */
     function startSheetOpening(): void {
         sheetOpening = true;
@@ -1057,6 +1122,7 @@
             editingNote = null;
             editingNode = null;
             sheetError = null;
+            unsubscribeSheet();
             notesCanvas?.focus?.();
         }, 220);
     }
@@ -1131,6 +1197,7 @@
         sheetError = null;
         sheetOpen = true;
         startSheetOpening();
+        subscribeSheet();
     }
 
     function openNodeSheet(): void {
@@ -1151,6 +1218,7 @@
         sheetError = null;
         sheetOpen = true;
         startSheetOpening();
+        subscribeSheet();
     }
 
     /** 事件节点：只改时间与值（缓动 / 求值器留给桌面端，手机上不好做） */
@@ -1188,16 +1256,19 @@
         if (value !== node.value)
             queue.push(new Op.EventNodeValueChangeOperation(node, value));
 
-        if (queue.length === 0) {
-            closeSheet();
-
-            return;
-        }
+        if (queue.length === 0) return;
 
         ops.tryDo(() =>
             queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
         );
-        closeSheet();
+    }
+
+    /**
+     * 失焦 / 变更即提交：面板里没有"应用"按钮，每个控件自己触发。
+     * 只提交真正变了的字段，没变化时是个空操作。
+     */
+    function commitSheet(): void {
+        applySheet();
     }
 
     function applySheet(): void {
@@ -1309,15 +1380,87 @@
                 );
         }
 
-        if (queue.length === 0) {
-            closeSheet();
-
-            return;
-        }
+        if (queue.length === 0) return;
 
         ops.tryDo(() =>
             queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
         );
+    }
+
+    /** 删除：音符走 NoteDeleteOperation，节点走 EventNodePairRemoveOperation */
+    function deleteCurrent(): void {
+        if (sheetKind === "node") {
+            deleteNode();
+
+            return;
+        }
+
+        deleteNote();
+    }
+
+    function deleteNode(): void {
+        const node = editingNode;
+
+        if (!node || !operationList) return;
+
+        try {
+            operationList.do(new Op.EventNodePairRemoveOperation(node));
+        } catch {
+            // 末尾 / 头节点不能单独删，就地提示
+            sheetError = "这个节点不能单独删除";
+
+            return;
+        }
+
+        closeSheet();
+        eventEditors?.draw();
+    }
+
+    /** 删除当前音符（桌面端 NoteEditor 的「删除」同一个操作） */
+    function deleteNote(): void {
+        const note = editingNote;
+
+        if (!note || !operationList) return;
+
+        operationList.do(new Op.NoteDeleteOperation(note));
+        closeSheet();
+        notesEditor?.draw();
+    }
+
+    /**
+     * 设为默认：把当前音符的"外观/手感"参数存进 `defaultNoteConfig`，
+     * 之后新建的音符都带这些值（和桌面端一致）。
+     */
+    function setNoteAsDefault(): void {
+        const note = editingNote;
+
+        if (!note || !notesEditor) return;
+
+        notesEditor.defaultNoteConfig = {
+            absoluteYOffset: note.yOffset,
+            alpha: note.alpha,
+            visibleBeats: note.visibleBeats,
+            size: note.size,
+            tint:
+                note.tint &&
+                [
+                    (note.tint >> 16) & 0xff,
+                    (note.tint >> 8) & 0xff,
+                    note.tint & 0xff
+                ],
+            tintHitEffects:
+                note.tintHitEffects &&
+                [
+                    (note.tintHitEffects >> 16) & 0xff,
+                    (note.tintHitEffects >> 8) & 0xff,
+                    note.tintHitEffects & 0xff
+                ],
+            judgeSize: note.judgeSize,
+            isFake: Number(note.isFake),
+            speed: note.speed,
+            isAbove: Number(note.above)
+        } as typeof notesEditor.defaultNoteConfig;
+
         closeSheet();
     }
     //#endregion
@@ -1585,7 +1728,11 @@
                     </button>
                 </div>
 
-                <div class="sheet-body">
+                <!--
+                    没有"应用"按钮：输入框 `change` / 失焦就提交（这两个事件都会冒泡，
+                    挂在这一层就能覆盖所有输入框）。开关和排形按钮在各自的 onclick 里提交。
+                -->
+                <div class="sheet-body" onchange={commitSheet} onblur={commitSheet}>
                     {#if sheetKind === "note"}
                         <!-- 左列：类型 → 时间 → X → 在线上方 / 假音符 -->
                         <div class="sheet-col">
@@ -1595,7 +1742,10 @@
                                     {#for option of NOTE_TYPE_OPTIONS with key = option[0]}
                                         <button
                                             class="seg {draftType === option[0] ? "on" : ""}"
-                                            onclick={() => (draftType = option[0])}
+                                            onclick={() => {
+                                                draftType = option[0];
+                                                commitSheet();
+                                            }}
                                         >{option[1]}</button>
                                     {/for}
                                 </div>
@@ -1693,7 +1843,10 @@
                                     class="switch {draftAbove ? "on" : ""}"
                                     role="switch"
                                     aria-checked={draftAbove}
-                                    onclick={() => (draftAbove = !draftAbove)}
+                                    onclick={() => {
+                                        draftAbove = !draftAbove;
+                                        commitSheet();
+                                    }}
                                 >
                                     <span class="knob"></span>
                                 </button>
@@ -1705,7 +1858,10 @@
                                     class="switch {draftFake ? "on" : ""}"
                                     role="switch"
                                     aria-checked={draftFake}
-                                    onclick={() => (draftFake = !draftFake)}
+                                    onclick={() => {
+                                        draftFake = !draftFake;
+                                        commitSheet();
+                                    }}
                                 >
                                     <span class="knob"></span>
                                 </button>
@@ -1819,8 +1975,10 @@
                 {/if}
 
                 <div class="sheet-actions">
-                    <button class="sheet-btn" onclick={closeSheet}>取消</button>
-                    <button class="sheet-btn primary" onclick={applySheet}>应用</button>
+                    <button class="sheet-btn danger" onclick={deleteCurrent}>删除</button>
+                    {#if sheetKind === "note"}
+                        <button class="sheet-btn" onclick={setNoteAsDefault}>设为默认</button>
+                    {/if}
                 </div>
             </div>
         </div>
@@ -2438,6 +2596,12 @@
     background: var(--accent, #4c8dff);
     border-color: transparent;
     color: #fff;
+}
+
+/* 删除：危险动作，红色描边（和桌面端 DestructiveButton 同语义） */
+.sheet-btn.danger {
+    color: #ff7b72;
+    border-color: rgba(255, 123, 114, 0.45);
 }
 
 @keyframes sheet-in {
