@@ -466,67 +466,7 @@
         line-height: 1;
     }
 
-    /* 类型：排形按钮（组内密接、无圆角，只有整组圆角） */
-    .segmented {
-        display: flex;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .seg {
-        flex: 1 1 0;
-        min-width: 0;
-        padding: 8px 0;
-        border: none;
-        border-right: 1px solid var(--border);
-        background: var(--bg);
-        color: var(--text-dim);
-        font: inherit;
-        font-size: 12px;
-        cursor: pointer;
-    }
-
-    .seg:last-child {
-        border-right: none;
-    }
-
-    .seg.on {
-        background: var(--accent, #4c8dff);
-        color: #fff;
-    }
-
-    /* 布尔值：圆角矩形开关（半径和输入框一致） */
-    .switch {
-        width: 46px;
-        height: 26px;
-        padding: 3px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--bg);
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-        transition: background 0.16s ease, border-color 0.16s ease;
-    }
-
-    .switch .knob {
-        width: 18px;
-        height: 18px;
-        border-radius: 6px;
-        background: var(--text-dim);
-        transition: transform 0.16s ease, background 0.16s ease;
-    }
-
-    .switch.on {
-        background: var(--accent, #4c8dff);
-        border-color: transparent;
-    }
-
-    .switch.on .knob {
-        transform: translateX(20px);
-        background: #fff;
-    }
+    /* 排形按钮 / 开关的样式在组件里（Segmented.grain / Switch.grain） */
 
     .error {
         margin: 0;
