@@ -124,94 +124,210 @@
         });
     }
 
-    /** 提交：只把真正变了的字段做成操作（没变化时是空操作） */
-    function commit(): void {
+    /**
+     * 提交**单个字段**：每个控件只产生它自己那一条操作。
+     *
+     * 之前是一个 `commit()` 把所有字段一起 diff —— 改 alpha 也可能顺带发出
+     * `NoteTimeChangeOperation`（内部是 remove + add 整颗音符），
+     * 这就是"点一个控件却动了别的属性"的来源。
+     */
+    function commitField(field: string): void {
         const ops = operationList;
 
         if (!ops) return;
 
-        const startBeats = timeSingle
-            ? parseTime(startText)
-            : beatsOf(startB, startN, startD);
-        const endBeats = timeSingle
-            ? parseTime(endText)
-            : beatsOf(endB, endN, endD);
-        const px = num(positionX);
-        const sp = num(speed);
-        const yo = num(yOffset);
-        const al = num(alpha);
-        const sz = num(size);
-        const js = num(judgeSize);
-        const numbers = [startBeats, endBeats, px, sp, yo, al, sz, js];
-
-        if (!numbers.every((value) => Number.isFinite(value))) {
-            error = "有字段不是有效数字（时间支持 `3` / `3+1/4` / `3.25`）";
-
-            return;
-        }
-
-        if (!(startBeats >= 0) || !(endBeats > startBeats)) {
-            error = "结束时间必须晚于开始时间";
-
-            return;
-        }
-
-        const line = note.parentNode?.parentSeq?.parentLine;
-        const seq = note.parentNode?.parentSeq;
-
-        if (!line || !seq) {
-            error = "这个音符还没挂在判定线上";
-
-            return;
-        }
-
         error = null;
 
-        const queue: any[] = [];
+        switch (field) {
+            case "type":
+                if (type === note.type) return;
 
-        if (type !== note.type)
-            queue.push(new Op.NoteTypeChangeOperation(note, type));
-        if (px !== note.positionX)
-            queue.push(new Op.NotePropChangeOperation(note, "positionX", px));
-        if (al !== note.alpha)
-            queue.push(new Op.NotePropChangeOperation(note, "alpha", al));
-        if (sz !== note.size)
-            queue.push(new Op.NotePropChangeOperation(note, "size", sz));
-        if (js !== note.judgeSize)
-            queue.push(new Op.NotePropChangeOperation(note, "judgeSize", js));
-        // `Note.above` / `Note.isFake` 在运行时是 **boolean**（KPA JSON 里才是 0/1）
-        if (above !== note.above)
-            queue.push(new Op.NotePropChangeOperation(note, "above", above));
-        if (fake !== note.isFake)
-            queue.push(new Op.NotePropChangeOperation(note, "isFake", fake));
-        if (sp !== note.speed)
-            queue.push(new Op.NoteSpeedChangeOperation(note, sp, line));
-        if (yo !== note.yOffset)
-            queue.push(new Op.NoteYOffsetChangeOperation(note, yo, line));
+                ops.do(new Op.NoteTypeChangeOperation(note, type));
 
-        const startChanged =
-            Math.abs(startBeats - TC.toBeats(note.startTime)) > 1e-6;
-        const endChanged = Math.abs(endBeats - TC.toBeats(note.endTime)) > 1e-6;
+                return;
 
-        if (startChanged || endChanged) {
-            queue.push(
-                new Op.NoteTimeChangeOperation(
-                    note,
-                    seq.getNodeOf(toTime(startBeats))
-                )
-            );
+            case "above":
+                if (above === note.above) return;
 
-            if (endChanged)
-                queue.push(
-                    new Op.HoldEndTimeChangeOperation(note, toTime(endBeats))
+                ops.do(new Op.NotePropChangeOperation(note, "above", above));
+
+                return;
+
+            case "fake":
+                if (fake === note.isFake) return;
+
+                ops.do(
+                    new Op.NotePropChangeOperation(note, "isFake", fake)
                 );
+
+                return;
+
+            case "positionX": {
+                const value = num(positionX);
+
+                if (!Number.isFinite(value)) {
+                    error = "X 必须是数字";
+
+                    return;
+                }
+
+                if (value === note.positionX) return;
+
+                ops.do(
+                    new Op.NotePropChangeOperation(note, "positionX", value)
+                );
+
+                return;
+            }
+
+            case "alpha": {
+                const value = num(alpha);
+
+                if (!Number.isFinite(value)) {
+                    error = "透明度必须是数字";
+
+                    return;
+                }
+
+                if (value === note.alpha) return;
+
+                ops.do(new Op.NotePropChangeOperation(note, "alpha", value));
+
+                return;
+            }
+
+            case "size": {
+                const value = num(size);
+
+                if (!Number.isFinite(value)) {
+                    error = "大小必须是数字";
+
+                    return;
+                }
+
+                if (value === note.size) return;
+
+                ops.do(new Op.NotePropChangeOperation(note, "size", value));
+
+                return;
+            }
+
+            case "judgeSize": {
+                const value = num(judgeSize);
+
+                if (!Number.isFinite(value)) {
+                    error = "判定大小必须是数字";
+
+                    return;
+                }
+
+                if (value === note.judgeSize) return;
+
+                ops.do(
+                    new Op.NotePropChangeOperation(note, "judgeSize", value)
+                );
+
+                return;
+            }
+
+            case "speed":
+            case "yOffset": {
+                const line = note.parentNode?.parentSeq?.parentLine;
+
+                if (!line) {
+                    error = "这个音符还没挂在判定线上";
+
+                    return;
+                }
+
+                const value = num(field === "speed" ? speed : yOffset);
+
+                if (!Number.isFinite(value)) {
+                    error = "值必须是数字";
+
+                    return;
+                }
+
+                if (field === "speed") {
+                    if (value === note.speed) return;
+
+                    ops.do(new Op.NoteSpeedChangeOperation(note, value, line));
+                } else {
+                    if (value === note.yOffset) return;
+
+                    ops.do(
+                        new Op.NoteYOffsetChangeOperation(note, value, line)
+                    );
+                }
+
+                return;
+            }
+
+            case "start":
+            case "end": {
+                const seq = note.parentNode?.parentSeq;
+
+                if (!seq) {
+                    error = "这个音符还没挂在判定线上";
+
+                    return;
+                }
+
+                const start = timeSingle
+                    ? parseTime(startText)
+                    : beatsOf(startB, startN, startD);
+                const end = timeSingle
+                    ? parseTime(endText)
+                    : beatsOf(endB, endN, endD);
+
+                if (!Number.isFinite(start) || !Number.isFinite(end)) {
+                    error = "时间格式不对（`3` / `3+1/4` / `3.25` 都行）";
+
+                    return;
+                }
+
+                if (!(start >= 0) || !(end > start)) {
+                    error = "结束时间必须晚于开始时间";
+
+                    return;
+                }
+
+                const startChanged =
+                    Math.abs(start - TC.toBeats(note.startTime)) > 1e-6;
+                const endChanged =
+                    Math.abs(end - TC.toBeats(note.endTime)) > 1e-6;
+
+                if (!startChanged && !endChanged) return;
+
+                // 开始时间的变化必须走「换 node」的那条路；结束时间单独一条
+                if (startChanged) {
+                    ops.tryDo(() => {
+                        const move = new Op.NoteTimeChangeOperation(
+                            note,
+                            seq.getNodeOf(toTime(start))
+                        );
+
+                        if (!endChanged) return move;
+
+                        return new Op.ComplexOperation(
+                            move,
+                            new Op.HoldEndTimeChangeOperation(
+                                note,
+                                toTime(end)
+                            )
+                        );
+                    });
+
+                    return;
+                }
+
+                ops.do(
+                    new Op.HoldEndTimeChangeOperation(note, toTime(end))
+                );
+
+                return;
+            }
         }
-
-        if (queue.length === 0) return;
-
-        ops.tryDo(() =>
-            queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
-        );
     }
 
     /** 删除（桌面端 NoteEditor 的「删除」同一个操作） */
@@ -272,7 +388,7 @@
 </div>
 
 <!-- change / 失焦都会冒泡到这里：一处覆盖所有输入框，没有"应用"按钮 -->
-<div class="body" onchange={commit} onblur={commit}>
+<div class="body">
     <div class="col">
         <div class="field">
             <span>类型</span>
@@ -282,7 +398,7 @@
                     get: () => type,
                     set: (v: number) => {
                         type = v;
-                        commit();
+                        commitField("type");
                     }
                 }
             />
@@ -291,14 +407,20 @@
         <div class="field">
             <span>开始</span>
             {#if timeSingle}
-                <input class="num" type="text" placeholder="3+1/4" bind:value={startText} />
+                <input
+                    class="num"
+                    type="text"
+                    placeholder="3+1/4"
+                    bind:value={startText}
+                    onchange={() => commitField("start")}
+                />
             {:else}
                 <div class="triple">
-                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={startB} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={startB} onchange={() => commitField("start")} />
                     <span class="sep">:</span>
-                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={startN} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={startN} onchange={() => commitField("start")} />
                     <span class="sep">/</span>
-                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={startD} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={startD} onchange={() => commitField("start")} />
                 </div>
             {/if}
         </div>
@@ -306,21 +428,27 @@
         <div class="field">
             <span>结束</span>
             {#if timeSingle}
-                <input class="num" type="text" placeholder="4" bind:value={endText} />
+                <input
+                    class="num"
+                    type="text"
+                    placeholder="4"
+                    bind:value={endText}
+                    onchange={() => commitField("end")}
+                />
             {:else}
                 <div class="triple">
-                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={endB} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={endB} onchange={() => commitField("end")} />
                     <span class="sep">:</span>
-                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={endN} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={endN} onchange={() => commitField("end")} />
                     <span class="sep">/</span>
-                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={endD} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={endD} onchange={() => commitField("end")} />
                 </div>
             {/if}
         </div>
 
         <label class="field">
             <span>X</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={positionX} />
+            <input class="num" type="text" inputmode="decimal" bind:value={positionX} onchange={() => commitField("positionX")} />
         </label>
 
         <div class="field">
@@ -330,7 +458,7 @@
                     get: () => above,
                     set: (v: boolean) => {
                         above = v;
-                        commit();
+                        commitField("above");
                     }
                 }
             />
@@ -343,7 +471,7 @@
                     get: () => fake,
                     set: (v: boolean) => {
                         fake = v;
-                        commit();
+                        commitField("fake");
                     }
                 }
             />
@@ -353,27 +481,27 @@
     <div class="col">
         <label class="field">
             <span>大小</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={size} />
+            <input class="num" type="text" inputmode="decimal" bind:value={size} onchange={() => commitField("size")} />
         </label>
 
         <label class="field">
             <span>判定大小</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={judgeSize} />
+            <input class="num" type="text" inputmode="decimal" bind:value={judgeSize} onchange={() => commitField("judgeSize")} />
         </label>
 
         <label class="field">
             <span>透明度</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={alpha} />
+            <input class="num" type="text" inputmode="decimal" bind:value={alpha} onchange={() => commitField("alpha")} />
         </label>
 
         <label class="field">
             <span>Y 偏移</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={yOffset} />
+            <input class="num" type="text" inputmode="decimal" bind:value={yOffset} onchange={() => commitField("yOffset")} />
         </label>
 
         <label class="field">
             <span>速度</span>
-            <input class="num" type="text" inputmode="decimal" bind:value={speed} />
+            <input class="num" type="text" inputmode="decimal" bind:value={speed} onchange={() => commitField("speed")} />
         </label>
     </div>
 </div>
