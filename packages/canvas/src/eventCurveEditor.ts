@@ -370,7 +370,8 @@ export class EventSequenceEditors extends EventTarget {
 
             if (
                 (this.modesVisible && this.modeButtons.press(point.x, point.y)) ||
-                this.navButtons.press(point.x, point.y)
+                this.navButtons.press(point.x, point.y) ||
+                this.scopeButtons.press(point.x, point.y)
             ) {
                 // 记住这次按下属于按钮：松手时**不能**再交给编辑器，
                 // 否则它的 upHandler 会把刚切好的模式又改回去（表现为"切了没用"）
@@ -406,6 +407,7 @@ export class EventSequenceEditors extends EventTarget {
 
             this.modeButtons.release(point.x, point.y);
             this.navButtons.release(point.x, point.y);
+            this.scopeButtons.release(point.x, point.y);
 
             if (this.buttonPressed) {
                 this.buttonPressed = false;
@@ -475,12 +477,22 @@ export class EventSequenceEditors extends EventTarget {
         align: "right"
     });
 
-    /** 第二排：判定线切换 + 轴向锁定（同样靠右） */
+    /** 第二排：判定线切换 + 轴向锁定 + 详细信息（同样靠右） */
     readonly navButtons = new ButtonManager("screen", {
         kind: "toolbar",
         size: 40,
         margin: 14,
         y: 14 + 40 + 6,
+        gap: 6,
+        align: "right"
+    });
+
+    /** 第三排：三种框选模式 */
+    readonly scopeButtons = new ButtonManager("screen", {
+        kind: "toolbar",
+        size: 40,
+        margin: 14,
+        y: 14 + (40 + 6) * 2,
         gap: 6,
         align: "right"
     });
@@ -667,23 +679,33 @@ export class EventSequenceEditors extends EventTarget {
                     this.draw();
                 }
             },
-            // 三种范围选择方式：替换 / 并集 / 补集（点一下就进 selectScope）
-            ...(
-                [
-                    ["scope-replace", SelectState.replace, "scopeReplace"],
-                    ["scope-add", SelectState.extend, "scopeAdd"],
-                    ["scope-sub", SelectState.exclude, "scopeSub"],
-                ] as const
-            ).map(([id, state, icon]) => ({
-                id,
-                icon: icon as IconName,
-                active:
-                    this.activatedEditor.state ===
-                        EventCurveEditorState.selectScope &&
-                    this.activatedEditor.selectState === state,
-                onClick: () => this.setSelectState(state)
-            }))
+            {
+                // 详细信息：交给页面弹底部面板
+                id: "inspect",
+                icon: "info" as IconName,
+                disabled: !this.activatedEditor.selectedNode,
+                onClick: () => this.dispatchEvent(new Event("inspect"))
+            }
         ];
+    }
+
+    /** 第三排：三种范围选择方式（点一下就进 selectScope） */
+    private scopeButtonList(): CanvasButton[] {
+        return (
+            [
+                ["scope-replace", SelectState.replace, "scopeReplace"],
+                ["scope-add", SelectState.extend, "scopeAdd"],
+                ["scope-sub", SelectState.exclude, "scopeSub"],
+            ] as const
+        ).map(([id, state, icon]) => ({
+            id,
+            icon: icon as IconName,
+            active:
+                this.activatedEditor.state ===
+                    EventCurveEditorState.selectScope &&
+                this.activatedEditor.selectState === state,
+            onClick: () => this.setSelectState(state)
+        }));
     }
 
     /** 换判定线：改自己的 target，再发事件让页面回灌 `selectedLineId` */
@@ -736,6 +758,7 @@ export class EventSequenceEditors extends EventTarget {
         }
 
         this.navButtons.draw(context, this.navButtonList());
+        this.scopeButtons.draw(context, this.scopeButtonList());
         context.restore();
     }
 

@@ -599,6 +599,15 @@ export class NotesEditor extends EventTarget {
                     this.draw(this.lastBeats);
                 },
             },
+            {
+                // 详细信息：交给页面弹底部面板（编辑器自己不做 UI）
+                id: "inspect",
+                icon: "info" as const,
+                disabled: !this.selectedNote,
+                onClick: () => {
+                    this.dispatchEvent(new Event("inspect"));
+                },
+            },
         ];
     }
 
