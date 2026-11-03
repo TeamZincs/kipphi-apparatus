@@ -489,7 +489,7 @@
         <label class="field">
             <span>大小</span>
             <NumField
-                bind:value={{ get: () => size, set: (v: string) => (size = v) }}
+                bind:value={ get: () => size, set: (v: string) => (size = v) }
                 oncommit={() => commitField("size")}
             />
         </label>
@@ -497,10 +497,10 @@
         <label class="field">
             <span>判定大小</span>
             <NumField
-                bind:value={{
+                bind:value={
                     get: () => judgeSize,
                     set: (v: string) => (judgeSize = v)
-                }}
+                }
                 oncommit={() => commitField("judgeSize")}
             />
         </label>
@@ -508,7 +508,7 @@
         <label class="field">
             <span>透明度</span>
             <NumField
-                bind:value={{ get: () => alpha, set: (v: string) => (alpha = v) }}
+                bind:value={ get: () => alpha, set: (v: string) => (alpha = v) }
                 oncommit={() => commitField("alpha")}
             />
         </label>
@@ -516,10 +516,10 @@
         <label class="field">
             <span>Y 偏移</span>
             <NumField
-                bind:value={{
+                bind:value={
                     get: () => yOffset,
                     set: (v: string) => (yOffset = v)
-                }}
+                }
                 oncommit={() => commitField("yOffset")}
             />
         </label>
@@ -527,7 +527,7 @@
         <label class="field">
             <span>速度</span>
             <NumField
-                bind:value={{ get: () => speed, set: (v: string) => (speed = v) }}
+                bind:value={ get: () => speed, set: (v: string) => (speed = v) }
                 oncommit={() => commitField("speed")}
             />
         </label>
