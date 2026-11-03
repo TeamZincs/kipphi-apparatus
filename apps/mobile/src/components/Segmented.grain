@@ -7,14 +7,27 @@
     let { options, value } = $props<{
         /** `[值, 显示文字]` 列表 */
         options: [number, string][];
-        value: { get: () => number; set: (v: number) => void };
+        value: {
+            get: () => number;
+            set: (v: number) => void;
+            listen?: (update: () => void) => unknown;
+        };
     }>();
+
+    // 绑定值来自父级；它变了由 `listen` 通知，这里只负责让自己的模板重算
+    let tick = $state(0);
+
+    if (value.listen) {
+        value.listen(() => {
+            tick += 1;
+        });
+    }
 </script>
 
 <div class="segmented">
     {#for option of options with key = option[0]}
         <button
-            class="seg {value.get() === option[0] ? "on" : ""}"
+            class="seg {(tick, value.get()) === option[0] ? "on" : ""}"
             onclick={() => value.set(option[0])}
         >{option[1]}</button>
     {/for}

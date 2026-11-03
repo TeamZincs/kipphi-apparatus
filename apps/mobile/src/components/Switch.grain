@@ -6,9 +6,28 @@
      * "活的"（读值会登记依赖），所以父级改状态时这里会跟着刷新。
      */
     let { checked, disabled = false } = $props<{
-        checked: { get: () => boolean; set: (v: boolean) => void };
+        checked: {
+            get: () => boolean;
+            set: (v: boolean) => void;
+            listen?: (update: () => void) => unknown;
+        };
         disabled?: boolean;
     }>();
+
+    /*
+     * 组件内部的"重算"开关。
+     *
+     * 绑定值是从父级传进来的对象，它的变化由 `listen` 通知 —— 但 `listen` 只能
+     * 让**父级那个槽位**重算，组件自己的模板不在那条链上。所以这里自己订阅一次，
+     * 拿到通知就把 `tick` 加一，模板读它来登记依赖。
+     */
+    let tick = $state(0);
+
+    if (checked.listen) {
+        checked.listen(() => {
+            tick += 1;
+        });
+    }
 
     function toggle(): void {
         if (disabled) return;
@@ -18,7 +37,7 @@
 </script>
 
 <button
-    class="switch {checked.get() ? "on" : ""} {disabled ? "disabled" : ""}"
+    class="switch {(tick, checked.get()) ? "on" : ""} {disabled ? "disabled" : ""}"
     role="switch"
     aria-checked={checked.get()}
     onclick={toggle}

@@ -16,6 +16,7 @@
         return [
             'get',
             ':',
+            /* 值永远从**对象**上读 —— `operationList` 是唯一真相来源 */
             `() => ${target}.${field}`,
             ',',
             'set',
@@ -142,7 +143,8 @@
         error = `读取音符失败：${String(e)}`;
     }
 
-    // 撤销 / 重做 / 别处改了同一个音符 → 把值回灌（对应桌面端的 listen + onOperation）
+    // 撤销 / 重做 / 别处改了同一个音符 → 文本草稿回灌
+    //（`$lsprop` 那些绑定值不需要这里：它们自己 listen `operationList`）
     const onOperation = (): void => {
         try {
             pull();
