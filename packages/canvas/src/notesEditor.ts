@@ -593,9 +593,37 @@ export class NotesEditor extends EventTarget {
                 id: "paste",
                 icon: "paste" as const,
                 disabled: (this.clipboard?.size ?? 0) === 0,
-                // 点一下进入"待粘贴"，之后在画布上点目标位置即可
-                onClick: () => {
+                /*
+                 * 两种用法：
+                 *   · 点一下 → 进入"待粘贴"，再在画布上点目标位置（松手才粘）
+                 *   · 按住拖到画布上 → 松手就在那里粘（和拖音符类型按钮一致）
+                 */
+                onPress: () => {
                     this.pendingPaste = true;
+                    this.dragPasteMode = true;
+                },
+                onRelease: (inside: boolean) => {
+                    const dragging = this.dragPasteMode;
+
+                    this.dragPasteMode = false;
+
+                    if (inside) {
+                        // 松手还在按钮上 = 普通点击，留着 pendingPaste 等下一次点画布
+                        this.draw(this.lastBeats);
+
+                        return;
+                    }
+
+                    if (dragging && this.pasteGhosts.length > 0 && this.pointerInsideCanvas) {
+                        this.commitPreview();
+                    } else {
+                        // 拖出去但没落在画布上（比如滑到播放器上）：取消
+                        this.pendingPaste = false;
+                        this.pastingFromClipboard = false;
+                        this.pasteGhosts = [];
+                        this.preview = null;
+                    }
+
                     this.draw(this.lastBeats);
                 },
             },
@@ -897,7 +925,45 @@ export class NotesEditor extends EventTarget {
     /** 这次预览是为了粘贴（松手时走 paste，而不是新建一个） */
     private pastingFromClipboard = false;
 
-    /** 用剪贴板里第一个音符的类型起一个预览（只是视觉提示，松手才真的 paste） */
+    /** 按住"粘贴"按钮拖出来放的（松手在画布上就粘） */
+    private dragPasteMode = false;
+
+    /**
+     * 粘贴预览：剪贴板里**每一个**音符的落点。
+     *
+     * 只画第一个是不够的 —— 复制一串音符时，用户需要看到整串的排列。
+     * `paste()` 的对齐规则是"最早的那个对齐到指针时间、各自 X 不变"，
+     * 这里照抄同一套（`clone(offset)` 只改时间）。
+     */
+    private pasteGhosts: {
+        type: NoteType;
+        time: TimeT;
+        positionX: number;
+    }[] = [];
+
+    /** 按当前指针位置重算所有预览落点 */
+    private syncPasteGhosts(): void {
+        const clipboard = this.clipboard;
+
+        if (!clipboard || clipboard.size === 0 || !this.pointedTime) {
+            this.pasteGhosts = [];
+
+            return;
+        }
+
+        const notes = [...clipboard].sort((a: Note, b: Note) =>
+            TC.gt(a.startTime, b.startTime) ? 1 : -1,
+        );
+        const offset = TC.sub(this.pointedTime, notes[0]!.startTime);
+
+        this.pasteGhosts = notes.map((note) => ({
+            type: note.type,
+            time: TC.add(note.startTime, offset),
+            positionX: note.positionX,
+        }));
+    }
+
+    /** 用剪贴板里第一个音符起一个预览（视觉提示，松手才真的 paste） */
     private beginPastePreview(): boolean {
         const clipboard = this.clipboard;
 
@@ -909,12 +975,16 @@ export class NotesEditor extends EventTarget {
 
         this.pastingFromClipboard = true;
         this.beginPreview(first.type);
+        this.syncPasteGhosts();
 
         return true;
     }
 
     /** 指针移动时把预览挪过去 */
     private movePreview(): void {
+        // 指针在画布上移动，说明"这次手势"还落在画布内
+        this.pointerInsideCanvas = true;
+
         // 从按钮拖出来的：指针第一次进画布才建预览（按下那一刻还没有坐标）
         if (!this.preview) {
             if (this.pendingPaste) {
@@ -935,6 +1005,9 @@ export class NotesEditor extends EventTarget {
             time: this.pointedTime,
             positionX: this.pointedPositionX ?? this.preview.positionX,
         };
+
+        // 粘贴预览要跟着指针整串走
+        if (this.pastingFromClipboard) this.syncPasteGhosts();
     }
 
     /** 松手：真的建出来并选中 */
@@ -942,6 +1015,7 @@ export class NotesEditor extends EventTarget {
         const preview = this.preview;
 
         this.preview = null;
+        this.pasteGhosts = [];
 
         if (!preview) return;
 
@@ -993,6 +1067,34 @@ export class NotesEditor extends EventTarget {
 
     /** 画预览（半透明的音符贴图，跟着指针走） */
     private drawPreview(beats: number): void {
+        // 粘贴：整串一起画（只画第一个看不到排列）
+        if (this.pasteGhosts.length > 0) {
+            const width = this.noteWidth;
+            const height = this.noteHeight;
+
+            this.context.save();
+            this.context.globalAlpha = 0.55;
+
+            for (const ghost of this.pasteGhosts) {
+                const start = TC.toBeats(ghost.time) - beats;
+                const { x, y } = new Coordinate(ghost.positionX, start).mul(
+                    this.matrix,
+                );
+
+                this.context.drawImage(
+                    this.respack.getNoteFromType(ghost.type),
+                    x - width / 2,
+                    y - height / 2,
+                    width,
+                    height,
+                );
+            }
+
+            this.context.restore();
+
+            return;
+        }
+
         const preview = this.preview;
 
         if (!preview) return;
