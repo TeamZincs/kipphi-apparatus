@@ -14,6 +14,7 @@
         NormalEasing,
         NumericEasedEvaluator,
         Op,
+        SegmentedEasing,
         TC,
         TemplateEasing
     } from "kipphi";
@@ -356,25 +357,38 @@
         );
     }
 
-    /** 建画布（元素挂上去之后才有尺寸） */
+    /** 上一次绑定的元素（`{#if}` 换分支会换一个 canvas 元素） */
+    let easeEditorEl: HTMLCanvasElement | null = null;
+
+    /**
+     * 建画布 / 同步内容。
+     *
+     * 元素身份变了就重建：`{#if}` 从贝塞尔切回普通时，canvas 是一个**新元素**，
+     * 旧的 `easeEditor` 还指着已经卸载的那个 —— 只判断 `easeEditor` 是否为空
+     * 会导致新画布永远没人画（表现就是"普通缓动里啥也没有"）。
+     */
     function mountEasingCanvas(): void {
         const el = easeCanvasEl;
 
-        if (!el || easeEditor) return;
+        if (!el) return;
 
-        /*
-         * 和桌面端完全一致：位图固定 300×600，`rect` 也用这个尺寸。
-         * 画布里的坐标（把手位置、`elementMatrix`）全按这套算，
-         * 用 CSS 的显示尺寸去建会把曲线压扁。
-         */
-        easeEditor = new EasingCanvasImpl(el, [0, 0, 300, 600]);
-        easeEditor.addEventListener("change", (event: any) =>
-            commitSegmented(event.detail)
-        );
+        if (easeEditorEl !== el) {
+            easeEditorEl = el;
+
+            /*
+             * 和桌面端完全一致：位图固定 300×600，`rect` 也用这个尺寸。
+             * 画布里的坐标（把手位置、`elementMatrix`）全按这套算，
+             * 用 CSS 的显示尺寸去建会把曲线压扁。
+             */
+            easeEditor = new EasingCanvasImpl(el, [0, 0, 300, 600]);
+            easeEditor.addEventListener("change", (event: any) =>
+                commitSegmented(event.detail)
+            );
+        }
 
         const easing = currentEasing();
 
-        if (easing) easeEditor.draw(easing);
+        if (easing) easeEditor?.draw(easing);
     }
     //#endregion
 
@@ -425,13 +439,18 @@
             cp2y = String(easing.cp2[1]);
         }
 
-        // 曲线跟着重画（尺寸每次现取，转屏也不会糊）
+        // 普通缓动：把当前预设的 id 同步回选择器（撤销 / 换节点之后才不会错位）
+        const innerEasing =
+            easing instanceof SegmentedEasing ? easing.easing : easing;
+
+        if (innerEasing instanceof NormalEasing) {
+            normalId = innerEasing.id;
+        }
+
+        // 曲线跟着重画（换分支时元素会变，交给 mount 判断重建）
         requestAnimationFrame(() => {
             drawCurve();
-
-            const easing = currentEasing();
-
-            if (easeEditor && easing) easeEditor.draw(easing);
+            mountEasingCanvas();
         });
     }
 
@@ -761,14 +780,6 @@
                 }
             />
         {:else if easingKind === "normal"}
-            <!-- 分段画布：拖左右边界产生 SegmentedEasing（共享包的 EasingCanvas） -->
-            <canvas
-                class="curve seg"
-                width="300"
-                height="600"
-                bind:this={easeCanvasEl}
-            ></canvas>
-
             <!-- 普通缓动：序号 / 方向 / 函数，和桌面端 EasingBox 同一套数据 -->
             <EasingBox
                 bind:value={
@@ -776,6 +787,14 @@
                     set: (v: number) => setNormalId(v)
                 }
             />
+
+            <!-- 分段画布：拖左右边界产生 SegmentedEasing（共享包的 EasingCanvas） -->
+            <canvas
+                class="curve seg"
+                width="300"
+                height="600"
+                bind:this={easeCanvasEl}
+            ></canvas>
         {:else if easingKind === "template"}
             <p class="hint">模板缓动：跟谱面的模板走，只在桌面端编辑</p>
         {:else}
@@ -884,8 +903,8 @@
      * 用 `width:100%` 会被拉成扁平（曲线和把手都变形）。
      */
     .curve.seg {
-        width: 120px;
-        height: 240px;
+        width: 100px;
+        height: 200px;
         margin: 0 auto;
     }
 
