@@ -358,9 +358,20 @@ export class EventSequenceEditors extends EventTarget {
 
             editor.moveHandler(event);
 
-            // 从"编辑"按钮拖出来的：指针第一次进画布才起预览
-            if (this.dragPlaceMode && !editor.previewPoint) editor.beginPreview();
-            else editor.movePreview();
+            /*
+             * 指针第一次进画布才起预览：
+             *   · 从「笔」按钮拖出来 → 放一个节点
+             *   · 从「粘贴」按钮拖出来 → 整串节点跟着指针
+             */
+            if ((this.dragPlaceMode || this.pendingPaste) && !editor.previewPoint) {
+                if (this.pendingPaste) {
+                    (editor as unknown as { pastePreviewMode: boolean }).pastePreviewMode = true;
+                }
+
+                editor.beginPreview();
+            } else {
+                editor.movePreview();
+            }
 
             this.draw();
         });
@@ -384,6 +395,13 @@ export class EventSequenceEditors extends EventTarget {
 
             // 待粘贴：这一下只用来定位，松手才真的粘（和"放节点"同一套手感）
             if (this.pendingPaste) {
+                const pasteEditor = this.activatedEditor as unknown as {
+                    pastePreviewMode: boolean;
+                };
+
+                // 预览要画整串节点，而不是一个
+                pasteEditor.pastePreviewMode = true;
+
                 // 先把指针位置交给编辑器（它会更新 pointedTime / pointedValue）
                 this.activatedEditor.moveHandler(event);
                 this.activatedEditor.beginPreview();
@@ -435,6 +453,8 @@ export class EventSequenceEditors extends EventTarget {
             if (this.pasting) {
                 this.pasting = false;
                 this.pendingPaste = false;
+                (this.activatedEditor as unknown as { pastePreviewMode: boolean })
+                    .pastePreviewMode = false;
                 this.activatedEditor.clearPreview();
                 // `paste` 同样只在泛型子类上
                 (
@@ -536,6 +556,9 @@ export class EventSequenceEditors extends EventTarget {
 
     /** 点了"粘贴"按钮，等着在曲线上点目标位置 */
     private pendingPaste = false;
+
+    /** 按住"粘贴"按钮拖出来放的（松手在画布上就粘） */
+    private dragPasteMode = false;
 
     /** 这一次按下是为了定位粘贴（松手才真的粘） */
     private pasting = false;
@@ -745,12 +768,43 @@ export class EventSequenceEditors extends EventTarget {
                 }
             },
             {
-                // 点一下进入"待粘贴"，之后在曲线上点目标位置即可
+                /*
+                 * 两种用法：
+                 *   · 点一下 → 进入"待粘贴"，再在曲线上点目标位置（松手才粘）
+                 *   · 按住拖到画布上 → 松手就在那里粘
+                 */
                 id: "paste",
                 icon: "paste" as IconName,
                 disabled: (editor.clipboard?.size ?? 0) === 0,
-                onClick: () => {
+                onPress: () => {
                     this.pendingPaste = true;
+                    this.dragPasteMode = true;
+                },
+                onRelease: (inside: boolean) => {
+                    const dragging = this.dragPasteMode;
+
+                    this.dragPasteMode = false;
+
+                    if (inside) {
+                        // 松手还在按钮上 = 普通点击，留着待粘贴等下一次点画布
+                        this.draw();
+
+                        return;
+                    }
+
+                    const pasteEditor = this.activatedEditor as unknown as {
+                        paste: (d?: boolean, k?: boolean) => void;
+                        pastePreviewMode: boolean;
+                        previewPoint: unknown;
+                    };
+
+                    if (dragging && pasteEditor.previewPoint) {
+                        this.activatedEditor.clearPreview();
+                        pasteEditor.paste(false, false);
+                    }
+
+                    pasteEditor.pastePreviewMode = false;
+                    this.pendingPaste = false;
                     this.draw();
                 }
             },
@@ -2218,8 +2272,50 @@ export abstract class EventSequenceEditor<
         this.previewPoint = { x: pos.x, y: pos.y };
     }
 
+    /** 外层进入"待粘贴"时置 true：预览要画**整串**节点 */
+    pastePreviewMode = false;
+
+    /**
+     * 粘贴预览：剪贴板里每个节点的落点。
+     *
+     * 对齐规则照抄 `paste()`：最早的那个对齐到指针时间，其余整体平移
+     *（`EventNode.setToNewOrderedArray` 就是这么排的）。
+     */
+    pasteGhosts: { value: number; time: TimeT }[] = [];
+
+    private syncPasteGhosts(): void {
+        const clipboard = this.clipboard;
+
+        if (!clipboard || clipboard.size === 0 || !this.pointedTime) {
+            this.pasteGhosts = [];
+
+            return;
+        }
+
+        const nodes = [...clipboard] as unknown as {
+            time: TimeT;
+            value: unknown;
+        }[];
+
+        nodes.sort((a, b) => (TC.gt(a.time, b.time) ? 1 : -1));
+
+        const offset = TC.sub(this.pointedTime, nodes[0]!.time);
+
+        this.pasteGhosts = nodes.map((node) => ({
+            value: node.value as number,
+            time: TC.add(node.time, offset),
+        }));
+    }
+
+    override clearPreview(): void {
+        super.clearPreview();
+        this.pasteGhosts = [];
+    }
+
     override beginPreview(): void {
         this.syncPreviewPoint();
+
+        if (this.pastePreviewMode) this.syncPasteGhosts();
     }
 
     override movePreview(): void {
@@ -2227,6 +2323,8 @@ export abstract class EventSequenceEditor<
         if (!this.previewPoint) return;
 
         this.syncPreviewPoint();
+
+        if (this.pastePreviewMode) this.syncPasteGhosts();
     }
 
     /**
@@ -2236,6 +2334,45 @@ export abstract class EventSequenceEditor<
      * end 节点在**下方**，这样预览一看就知道落点长什么样。
      */
     override drawPreviewMarker(): void {
+        // 粘贴：整串一起画（只画一个看不出排列，也看不出会在哪几个位置落子）
+        if (this.pasteGhosts.length > 0) {
+            const { context } = this;
+            const width = this.nodeWidth;
+            const height = this.nodeHeight;
+            const beats = this.lastBeats ?? 0;
+            // `matrix` 在基类类型里没有声明，收窄一次（形状交给 Coordinate.mul 自己认）
+            const matrix = (this as unknown as Record<string, never>)["matrix"];
+
+            context.save();
+            context.globalAlpha = 0.6;
+
+            for (const ghost of this.pasteGhosts) {
+                const pos = new Coordinate(
+                    ghost.value,
+                    TC.toBeats(ghost.time) - beats,
+                ).mul(matrix);
+
+                context.drawImage(
+                    Images.START_NODE,
+                    pos.x - width / 2,
+                    pos.y - height,
+                    width,
+                    height,
+                );
+                context.drawImage(
+                    Images.END_NODE,
+                    pos.x - width / 2,
+                    pos.y,
+                    width,
+                    height,
+                );
+            }
+
+            context.restore();
+
+            return;
+        }
+
         if (!this.previewPoint) return;
 
         const { context } = this;
