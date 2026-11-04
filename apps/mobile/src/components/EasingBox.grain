@@ -1,0 +1,134 @@
+<script>
+    import { easingArray, easingMap } from "kipphi";
+
+    import Segmented from "#/components/Segmented.grain";
+
+    /*
+     * 普通缓动选择器（桌面端 `EasingBox` 的移动版）。
+     *
+     * `value` 是 `easingArray` 的下标（桌面端同一套数据）：
+     *   · 一个 id 输入框（0..29/31）
+     *   · `in / out / IO` 三档
+     *   · 函数名（linear / ease / quad …）
+     * 三种改法最终都落到同一个 id 上，互相保持同步。
+     */
+    let { value } = $props<{
+        value: { get: () => number; set: (v: number) => void };
+    }>();
+
+    const EASE_OPTIONS: [number, string][] = [
+        [0, "in"],
+        [1, "out"],
+        [2, "IO"]
+    ];
+
+    const EASE_KINDS = ["in", "out", "inout"] as const;
+
+    /** 当前 id 对应的三段信息，都从 `value` 现读 */
+    const easeKind = $node({
+        get: () => easingArray[value.get()]?.easeType ?? "in"
+    });
+    const funcKind = $node({
+        get: () => easingArray[value.get()]?.funcType ?? "linear"
+    });
+
+    const FUNC_OPTIONS = $node({
+        get: () =>
+            Object.keys(easingMap).map((name, index) => [index, name] as [
+                number,
+                string
+            ])
+    });
+
+    function setEaseKind(kind: number): void {
+        const name = EASE_KINDS[kind] ?? "in";
+        const func = funcKind;
+        const target = (easingMap as any)[func]?.[name];
+
+        if (target) value.set(target.id);
+    }
+
+    function setFuncKind(index: number): void {
+        const name = FUNC_OPTIONS[index]?.[1];
+
+        if (!name) return;
+
+        const target = (easingMap as any)[name]?.[easeKind];
+
+        if (target) value.set(target.id);
+    }
+
+    /** 直接填 id（0..31），越界就当没输入 */
+    function setId(text: string): void {
+        const id = Number(text);
+
+        if (!Number.isInteger(id) || id < 0 || id >= easingArray.length) return;
+
+        value.set(id);
+    }
+</script>
+
+<div class="row">
+    <span class="label">序号</span>
+    <input
+        class="num"
+        type="text"
+        inputmode="numeric"
+        bind:value={ get: () => String(value.get()), set: setId }
+    />
+</div>
+
+<div class="row">
+    <span class="label">方向</span>
+    <Segmented
+        options={EASE_OPTIONS}
+        bind:value={
+            get: () => EASE_KINDS.indexOf(easeKind as "in" | "out" | "inout"),
+            set: (v: number) => setEaseKind(v)
+        }
+    />
+</div>
+
+<div class="row">
+    <span class="label">函数</span>
+    <Segmented
+        options={FUNC_OPTIONS}
+        bind:value={
+            get: () => Math.max(0, FUNC_OPTIONS.findIndex((o) => o[1] === funcKind)),
+            set: (v: number) => setFuncKind(v)
+        }
+    />
+</div>
+
+<style>
+    .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .label {
+        flex: 0 0 34px;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .num {
+        flex: 1 1 0;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        appearance: none;
+    }
+
+    .row :global(.segmented) {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+</style>

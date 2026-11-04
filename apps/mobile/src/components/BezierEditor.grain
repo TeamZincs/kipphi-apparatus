@@ -1,0 +1,112 @@
+<script macro>
+    /*
+     * `$cp("x1")` —— 四个控制点输入框的绑定值：读/写 `value` 元组里的某一项。
+     *
+     * 宏没有卫生性，拼出来的 `value` 就是组件 `<script>` 里那个 props。
+     */
+    function $cp(index: string) {
+        return [
+            'get',
+            ':',
+            `() => String(value.get()[${index}])`,
+            ',',
+            'set',
+            ':',
+            `(v) => { const n = Number(v); if (!Number.isFinite(n)) return; const next = [...value.get()]; next[${index}] = n; value.set(next); }`
+        ];
+    }
+</script>
+
+<script>
+    import { BezierEditor as BezierEditorCanvas } from "@kpa/canvas";
+
+    /*
+     * 贝塞尔曲线编辑器（画布本体来自共享包 `@kpa/canvas`）。
+     *
+     * 值和桌面端一致：`[cp1x, cp1y, cp2x, cp2y]` 四元组，用绑定值传进来 ——
+     * 画布拖动 / 输入框改值都走同一个 `set`，由调用方决定发什么操作。
+     */
+    let { value } = $props<{
+        /** `[cp1x, cp1y, cp2x, cp2y]` */
+        value: {
+            get: () => number[];
+            set: (v: number[]) => void;
+        };
+    }>();
+
+    let container: HTMLDivElement | null = null;
+    let canvas: BezierEditorCanvas | null = null;
+
+    function onCanvasChange(): void {
+        if (!canvas) return;
+
+        const next = canvas.getValue();
+
+        value.set(next);
+    }
+
+    /** 外部值变了（撤销 / 输入框）→ 推回画布 */
+    function syncCanvas(): void {
+        if (!canvas) return;
+
+        const [x1, y1, x2, y2] = value.get();
+
+        canvas.setValue(x1, y1, x2, y2);
+    }
+</script>
+
+<div class="bezier" bind:this={container}></div>
+
+<div class="quad">
+    <input class="num" type="text" inputmode="decimal" placeholder="x1" bind:value={$cp("0")} onchange={syncCanvas} />
+    <input class="num" type="text" inputmode="decimal" placeholder="y1" bind:value={$cp("1")} onchange={syncCanvas} />
+    <input class="num" type="text" inputmode="decimal" placeholder="x2" bind:value={$cp("2")} onchange={syncCanvas} />
+    <input class="num" type="text" inputmode="decimal" placeholder="y2" bind:value={$cp("3")} onchange={syncCanvas} />
+</div>
+
+<script onmount>
+    if (container) {
+        canvas = new BezierEditorCanvas();
+        canvas.addTo(container);
+        canvas.addEventListener("change", onCanvasChange);
+        syncCanvas();
+    }
+</script>
+
+<style>
+    .bezier {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    /* 共享包的画布自己给 canvas 定了尺寸，这里只负责铺满 */
+    .bezier :global(canvas) {
+        display: block;
+        width: 100% !important;
+        height: 140px !important;
+    }
+
+    .quad {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .quad .num {
+        flex: 1 1 0;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 6px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        text-align: center;
+        appearance: none;
+    }
+</style>

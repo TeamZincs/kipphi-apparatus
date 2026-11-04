@@ -8,6 +8,7 @@
     import {
         BezierEasing,
         EasedEvaluator,
+        easingArray,
         ExpressionEvaluator,
         NormalEasing,
         NumericEasedEvaluator,
@@ -16,6 +17,8 @@
         TemplateEasing
     } from "kipphi";
 
+    import BezierEditor from "#/components/BezierEditor.grain";
+    import EasingBox from "#/components/EasingBox.grain";
     import Segmented from "#/components/Segmented.grain";
     import Switch from "#/components/Switch.grain";
 
@@ -321,6 +324,33 @@
 
     /** 从缓动切走时把 easing 记住 —— 切回来还是原来那条曲线 */
     let savedEasing: any = null;
+
+    /** 四个控制点草稿 → 元组（模板里直接写数组字面量会被绑定值解析器拆坏） */
+    const cpValue = (): number[] => [
+        Number(cp1x),
+        Number(cp1y),
+        Number(cp2x),
+        Number(cp2y)
+    ];
+
+    /** 普通缓动当前用的 `easingArray` 下标（预设表是共享的） */
+    let normalId = $state(0);
+
+    /** 换成预设表里的某一条普通缓动 */
+    function setNormalId(id: number): void {
+        const preset = easingArray[id];
+
+        if (!preset) return;
+
+        normalId = id;
+
+        operationList?.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(preset as any)
+            )
+        );
+    }
 
     function pull(): void {
         beat = String(node.time[0]);
@@ -656,56 +686,28 @@
             />
         </div>
 
-        {#if easingKind === "bezier" || easingKind === "normal"}
-            <!-- 缓动曲线：贝塞尔的把手可以直接拖，普通缓动只画 -->
-            <canvas
-                class="curve"
-                bind:this={curveCanvas}
-                onpointerdown={onCurveDown}
-                onpointermove={onCurveMove}
-                onpointerup={onCurveUp}
-                onpointercancel={onCurveUp}
-            ></canvas>
-        {/if}
-
         {#if easingKind === "bezier"}
-            <!-- 四个控制点写在一行：x1 y1 x2 y2 -->
-            <div class="quad">
-                <input
-                    class="num"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="x1"
-                    bind:value={cp1x}
-                    onchange={commitBezier}
-                />
-                <input
-                    class="num"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="y1"
-                    bind:value={cp1y}
-                    onchange={commitBezier}
-                />
-                <input
-                    class="num"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="x2"
-                    bind:value={cp2x}
-                    onchange={commitBezier}
-                />
-                <input
-                    class="num"
-                    type="text"
-                    inputmode="decimal"
-                    placeholder="y2"
-                    bind:value={cp2y}
-                    onchange={commitBezier}
-                />
-            </div>
+            <!-- 画布与四个控制点都在组件里（画布本体来自 `@kpa/canvas`） -->
+            <BezierEditor
+                bind:value={
+                    get: () => cpValue(),
+                    set: (v: number[]) => {
+                        cp1x = String(v[0]);
+                        cp1y = String(v[1]);
+                        cp2x = String(v[2]);
+                        cp2y = String(v[3]);
+                        commitBezier();
+                    }
+                }
+            />
         {:else if easingKind === "normal"}
-            <p class="hint">普通缓动：目前按线性处理，预设选择还没做</p>
+            <!-- 普通缓动：序号 / 方向 / 函数，和桌面端 EasingBox 同一套数据 -->
+            <EasingBox
+                bind:value={
+                    get: () => normalId,
+                    set: (v: number) => setNormalId(v)
+                }
+            />
         {:else if easingKind === "template"}
             <p class="hint">模板缓动：跟谱面的模板走，只在桌面端编辑</p>
         {:else}
