@@ -98,7 +98,7 @@ const extensionOf = (file: File): string =>
  * 24 条判定线、每条一条事件层（moveX / moveY / rotate / alpha）+ speed 序列，
  * 外加一条 BPM 记在最前面。这样打开就有东西可编辑，不是一张白纸。
  */
-function buildBaseChart(
+export function buildBaseChart(
     title: string,
     baseBPM: number,
     duration: number
