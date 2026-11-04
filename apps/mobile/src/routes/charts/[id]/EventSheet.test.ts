@@ -124,16 +124,22 @@ type Mounted = {
     setEvaluator: (next: unknown) => void;
 };
 
-async function mountSheet(throughShell = false): Promise<Mounted> {
+async function mountSheet(
+    throughShell = false,
+    initial: "bezier" | "normal" = "bezier"
+): Promise<Mounted> {
     const ops = new FakeOperationList();
 
+    // `<script module>` 的草稿是模块级的，测试之间必须加载**不同的模块实例**
+    const tag = `${initial}-${throughShell ? "shell" : "direct"}`;
+
     const storeStub = await stub(
-        "event-sheet-store",
+        `event-sheet-store-${tag}`,
         `export const operationList = (globalThis as any).__eventSheetOps;`
     );
 
     const canvasStub = await stub(
-        "event-sheet-canvas",
+        `event-sheet-canvas-${tag}`,
         `export class BezierEditor extends EventTarget {
             getValue() { return [0.25, 0.1, 0.25, 1]; }
             setValue() {}
@@ -145,7 +151,7 @@ async function mountSheet(throughShell = false): Promise<Mounted> {
                 // 模拟"框架不认识"的命令式挂载：异步挂到求值器容器上，
                 // 编译期生成的分支 nodes 快照里没有它
                 setTimeout(() => {
-                    const root = document.querySelector(".eval");
+                    const root = el.closest(".eval");
                     if (!root) return;
                     const orphan = document.createElement("canvas");
                     orphan.className = "orphan-canvas";
@@ -154,7 +160,7 @@ async function mountSheet(throughShell = false): Promise<Mounted> {
             }
         }
         export class EasingCanvas extends EventTarget {
-            constructor(_el: HTMLCanvasElement, _rect: number[]) {}
+            constructor(_el: HTMLCanvasElement, _rect: number[]) { super(); }
             draw() {}
             setValue() {}
         }`
@@ -164,26 +170,29 @@ async function mountSheet(throughShell = false): Promise<Mounted> {
 
     const segmented = await build(
         join(MOBILE_SRC, "components", "Segmented.grain"),
-        "ev-segmented"
+        `ev-segmented-${tag}`
     );
     const easingBox = await build(
         join(MOBILE_SRC, "components", "EasingBox.grain"),
-        "ev-easing-box",
+        `ev-easing-box-${tag}`,
         { "#/components/Segmented.grain": segmented }
     );
     const bezierEditor = await build(
         join(MOBILE_SRC, "components", "BezierEditor.grain"),
-        "ev-bezier-editor",
+        `ev-bezier-editor-${tag}`,
         { "@kpa/canvas": canvasStub }
     );
-    const sheet = await build(join(HERE, "EventSheet.grain"), "ev-sheet", {
+    const sheet = await build(
+        join(HERE, "EventSheet.grain"),
+        `ev-sheet-${tag}`,
+        {
         "@kpa/canvas": canvasStub,
         "#/components/BezierEditor.grain": bezierEditor,
         "#/components/EasingBox.grain": easingBox,
         "#/components/Segmented.grain": segmented,
         "#/components/Switch.grain": await build(
             join(MOBILE_SRC, "components", "Switch.grain"),
-            "ev-switch"
+            `ev-switch-${tag}`
         ),
         "#/store": storeStub,
         "#/time": join(MOBILE_SRC, "time.ts")
@@ -192,9 +201,11 @@ async function mountSheet(throughShell = false): Promise<Mounted> {
     const node = {
         time: [0, 0, 1] as [number, number, number],
         value: 0,
-        // 用贝塞尔起步，才能测到「onmount 里挂的画布」那一条分支
+        // 两种起步：贝塞尔测命令式画布，普通测 EasingBox 的残留 / 重复
         evaluator: new NumericEasedEvaluator(
-            new BezierEasing([0.25, 0.1], [0.25, 1])
+            initial === "bezier"
+                ? new BezierEasing([0.25, 0.1], [0.25, 1])
+                : easingArray[1]
         )
     };
 
@@ -204,21 +215,36 @@ async function mountSheet(throughShell = false): Promise<Mounted> {
     let entry = sheet;
 
     if (throughShell) {
-        const shell = await build(join(HERE, "SheetShell.grain"), "ev-shell");
+        const shell = await build(
+            join(HERE, "SheetShell.grain"),
+            `ev-shell-${tag}`
+        );
         entry = await buildSource(
             `<script>
     import SheetShell from "${norm(shell)}";
     import EventSheet from "${norm(sheet)}";
+
+    // 和 +page.grain 一样：外层 {#if sheetOpen}，children 里再套一层 {#if}
+    let open = $state(true);
+    let kind = $state("event");
+    (globalThis as any).__setOpen = (v) => { open = v; };
+    (globalThis as any).__setKind = (v) => { kind = v; };
 </script>
 
-<SheetShell onclose={() => {}}>
-    <EventSheet
-        node={(globalThis as any).__eventSheetNode}
-        editor={(globalThis as any).__eventSheetEditor}
-        onclose={() => {}}
-    />
-</SheetShell>`,
-            "ev-harness"
+{#if open}
+    <SheetShell onclose={() => {}}>
+        {#if kind === "note"}
+            <div class="note-stub">note</div>
+        {:else}
+            <EventSheet
+                node={(globalThis as any).__eventSheetNode}
+                editor={(globalThis as any).__eventSheetEditor}
+                onclose={() => {}}
+            />
+        {/if}
+    </SheetShell>
+{/if}`,
+            `ev-harness-${tag}`
         );
     }
 
@@ -341,5 +367,104 @@ describe("EventSheet 求值器分支", () => {
                 (b) => b.textContent === "缓动" || b.textContent === "表达式"
             ).length
         ).toBe(2);
+    });
+
+    it.each([false, true])(
+        "普通缓动起步：来回切求值器，EasingBox 不残留也不重复（经 SheetShell = %s）",
+        async (throughShell) => {
+            const { target } = await mountSheet(throughShell, "normal");
+
+            // `EasingBox` 的特征：三行 + 一个函数下拉框
+            const boxes = () => target.querySelectorAll("select.pick").length;
+            const rows = () => target.querySelectorAll("div.row").length;
+
+            expect(boxes()).toBe(1);
+            expect(rows()).toBe(3);
+
+            const buttons = [
+                ...target.querySelectorAll("button.seg")
+            ] as HTMLElement[];
+            const toExpression = buttons.find(
+                (b) => b.textContent === "表达式"
+            )!;
+            const toEased = buttons.find((b) => b.textContent === "缓动")!;
+
+            const click = (button: HTMLElement) =>
+                button.dispatchEvent(
+                    new window.MouseEvent("click", { bubbles: true })
+                );
+
+            for (let round = 1; round <= 3; round++) {
+                click(toExpression);
+                expect(boxes()).toBe(0);
+                expect(rows()).toBe(0);
+
+                click(toEased);
+                expect(boxes()).toBe(1);
+                expect(rows()).toBe(3);
+                // 整块面板 / 框架自己建的分段画布都只能各有一份
+                expect(target.querySelectorAll(".eval").length).toBe(1);
+                expect(target.querySelectorAll("canvas.curve").length).toBe(
+                    1
+                );
+            }
+        }
+    );
+
+    it("缓动种类来回切（普通↔贝塞尔），第二次切回普通只有一份 EasingBox", async () => {
+        const { target } = await mountSheet(false, "normal");
+
+        const boxes = () => target.querySelectorAll("select.pick").length;
+        const curves = () => target.querySelectorAll("canvas.curve").length;
+        const beziers = () => target.querySelectorAll(".stub-canvas").length;
+
+        const button = (label: string) =>
+            [...target.querySelectorAll("button.seg")].find(
+                (b) => b.textContent === label
+            ) as HTMLElement;
+        const click = (b: HTMLElement) =>
+            b.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+        expect(boxes()).toBe(1);
+        expect(curves()).toBe(1);
+
+        for (let round = 1; round <= 3; round++) {
+            click(button("贝塞尔"));
+            expect(boxes()).toBe(0);
+            expect(beziers()).toBe(1);
+
+            click(button("普通"));
+            expect(boxes()).toBe(1);
+            expect(curves()).toBe(1);
+            expect(beziers()).toBe(0);
+        }
+
+        expect(target.querySelectorAll(".eval").length).toBe(1);
+    });
+
+    it("关闭再打开 / children 分支切换后，EasingBox 不出现两份", async () => {
+        const { target } = await mountSheet(true, "normal");
+
+        const boxes = () => target.querySelectorAll("select.pick").length;
+        const evals = () => target.querySelectorAll(".eval").length;
+
+        expect(boxes()).toBe(1);
+        expect(evals()).toBe(1);
+
+        // 关闭面板再打开 —— "第二次进入缓动求值器"
+        (globalThis as any).__setOpen(false);
+        expect(boxes()).toBe(0);
+
+        (globalThis as any).__setOpen(true);
+        expect(boxes()).toBe(1);
+        expect(evals()).toBe(1);
+
+        // children 里 {#if note / event} 来回切
+        (globalThis as any).__setKind("note");
+        expect(boxes()).toBe(0);
+
+        (globalThis as any).__setKind("event");
+        expect(boxes()).toBe(1);
+        expect(evals()).toBe(1);
     });
 });

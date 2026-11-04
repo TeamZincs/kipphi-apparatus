@@ -396,16 +396,21 @@
     let evalRoot: HTMLDivElement | null = null;
 
     /**
-     * 切换求值器种类时，把上一支**命令式**挂上去的 canvas 全部摘掉。
+     * 切换求值器种类时，只摘掉**命令式**挂上去的 canvas。
      *
-     * `BezierEditor` / `EasingCanvas` 是在 `onmount` 里自己 `appendChild` 的，
-     * 这些节点不在编译期生成的分支 `nodes` 快照里 —— 框架换分支时只会删它
-     * 自己建的节点，于是旧画布留在页面上（"删不掉已挂载的元素"）。
+     * `BezierEditor` 在 `onmount` 里自己 `appendChild`，那些节点不在编译期
+     * 生成的分支 `nodes` 快照里，框架换分支不会删 —— 会残留。
+     *
+     * 但模板里的 `<canvas class="curve seg">` 是框架**拥有**的，绝不能手动
+     * `remove()`：它是分支 `nodes` 快照的一员，删掉之后框架复活分支时会把
+     * 剩下的节点再插一遍，EasingBox 就出现两份（第二次切回缓动时尤其明显）。
      */
     function dropStaleCanvases(): void {
         if (!evalRoot) return;
 
-        for (const canvas of [...evalRoot.querySelectorAll("canvas")]) {
+        for (const canvas of [
+            ...evalRoot.querySelectorAll("canvas:not(.curve)")
+        ]) {
             canvas.remove();
         }
 
@@ -873,7 +878,16 @@
         />
     </div>
 
-    {#if evalKind === "expression"}
+    <!--
+        keyed 单元素循环：求值器种类**或**缓动种类一变，整棵子树 dispose / 重建。
+
+        普通 `{#if}` 的分支是缓存复用的：切走时旧分支的组件实例可能和新建的
+        并存，表现就是第二次切回普通缓动时 EasingBox 出现两个。给一个复合
+        key 之后，两种切换都必然先销毁再建一棵新的；改时间 / 值 / 控制点
+        时 key 不变，仍然复用。
+    -->
+    {#for kind of [evalKind] with key = evalKind + ":" + easingKind}
+    {#if kind === "expression"}
         <label class="field">
             <span>表达式</span>
             <input
@@ -933,6 +947,7 @@
             <p class="hint">这个节点的缓动类型还没识别</p>
         {/if}
     {/if}
+    {/for}
 </div>
 
 {#if error}
