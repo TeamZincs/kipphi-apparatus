@@ -495,11 +495,14 @@
         opacity: 0.8;
     }
 
+    /*
+     * 滚动交给 `SheetShell` 的 `.sheet-content` 那一层：这里按内容自然排，
+     * 不再 `flex: 1` + `min-height: 0`（那会在内容超高时被压成 0 高，
+     * 表现为"面板里什么都没有"）。
+     */
     .body {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
+        flex: 0 0 auto;
+        width: 100%;
         display: flex;
         align-items: flex-start;
         gap: 10px;
