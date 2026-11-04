@@ -175,6 +175,24 @@
             const evaluator = node.evaluator;
             const easing =
                 evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+
+            /*
+             * 贝塞尔要画**草稿值**，不是对象上的旧值。
+             *
+             * 拖动过程中操作还没提交（松手才发），如果这里读 `easing.cp1`，
+             * 每帧画的都是上一次提交后的曲线 —— 表现就是"拖了不跟手、
+             * 松手才跳一下"。普通缓动没有草稿，照旧读对象。
+             */
+            const draft = [cp1x, cp1y, cp2x, cp2y].map((text) => Number(text));
+            const useDraft =
+                easing instanceof BezierEasing &&
+                draft.every((value) => Number.isFinite(value));
+            const cp1 = (
+                useDraft ? [draft[0], draft[1]] : easing?.cp1
+            ) as [number, number];
+            const cp2 = (
+                useDraft ? [draft[2], draft[3]] : easing?.cp2
+            ) as [number, number];
             const steps = 48;
 
             context.strokeStyle = "#4c8dff";
@@ -186,12 +204,8 @@
                 let px: number;
                 let py: number;
 
-                if (easing instanceof BezierEasing) {
-                    const [x, y] = bezierAt(
-                        easing.cp1 as [number, number],
-                        easing.cp2 as [number, number],
-                        t
-                    );
+                if (useDraft) {
+                    const [x, y] = bezierAt(cp1, cp2, t);
 
                     px = toX(x);
                     py = toY(y);
@@ -211,15 +225,10 @@
             if (!(easing instanceof BezierEasing)) return;
 
             // 把手：从端点连到控制点的一根线 + 一个圆
+            // 把手也画草稿位置 —— 否则拖的时候圆点不跟着走
             const handles: [[number, number], [number, number]][] = [
-                [
-                    [0, 0],
-                    easing.cp1 as [number, number]
-                ],
-                [
-                    [1, 1],
-                    easing.cp2 as [number, number]
-                ]
+                [[0, 0], cp1],
+                [[1, 1], cp2]
             ];
 
             for (const [anchor, cp] of handles) {
