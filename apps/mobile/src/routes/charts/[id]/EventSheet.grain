@@ -17,6 +17,8 @@
         TemplateEasing
     } from "kipphi";
 
+    import { EasingCanvas as EasingCanvasImpl } from "@kpa/canvas";
+
     import BezierEditor from "#/components/BezierEditor.grain";
     import EasingBox from "#/components/EasingBox.grain";
     import Segmented from "#/components/Segmented.grain";
@@ -336,6 +338,67 @@
     /** 普通缓动当前用的 `easingArray` 下标（预设表是共享的） */
     let normalId = $state(0);
 
+    //#region 普通缓动的分段画布（共享包里的 EasingCanvas）
+    let easeCanvasEl: HTMLCanvasElement | null = null;
+    let easeEditor: any = null;
+
+    /** 当前缓动对象（给画布用） */
+    function currentEasing(): any {
+        const evaluator = node.evaluator;
+
+        return evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+    }
+
+    /** 画布拖完左右边界 → 换成分段缓动 */
+    function commitSegmented(next: any): void {
+        const ops = operationList;
+
+        if (!ops || !next) return;
+
+        if (next instanceof BezierEasing || next instanceof NormalEasing || next instanceof TemplateEasing) {
+            // 拖回 0..1 了，就是普通缓动本身，不用包
+            ops.do(
+                new Op.EventNodeEvaluatorChangeOperation(
+                    node,
+                    new NumericEasedEvaluator(next)
+                )
+            );
+
+            return;
+        }
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(next.easing ?? next)
+            )
+        );
+    }
+
+    /** 建画布（元素挂上去之后才有尺寸） */
+    function mountEasingCanvas(): void {
+        const el = easeCanvasEl;
+
+        if (!el || easeEditor) return;
+
+        const width = el.clientWidth || 320;
+        const height = el.clientHeight || 140;
+
+        // 位图尺寸必须和 CSS 尺寸一致，否则矩阵换算（elementMatrix）会算错
+        el.width = width;
+        el.height = height;
+
+        easeEditor = new EasingCanvasImpl(el, [0, 0, width, height]);
+        easeEditor.addEventListener("change", (event: any) =>
+            commitSegmented(event.detail)
+        );
+
+        const easing = currentEasing();
+
+        if (easing) easeEditor.draw(easing);
+    }
+    //#endregion
+
     /** 换成预设表里的某一条普通缓动 */
     function setNormalId(id: number): void {
         const preset = easingArray[id];
@@ -375,13 +438,22 @@
         }
 
         // 曲线跟着重画（尺寸每次现取，转屏也不会糊）
-        requestAnimationFrame(drawCurve);
+        requestAnimationFrame(() => {
+            drawCurve();
+
+            const easing = currentEasing();
+
+            if (easeEditor && easing) easeEditor.draw(easing);
+        });
     }
 
     pull();
 
-    // 画布要等元素挂上去才有尺寸：下一个宏任务再画一次
-    setTimeout(drawCurve, 0);
+    // 画布要等元素挂上去才有尺寸：下一个宏任务再建/画一次
+    setTimeout(() => {
+        drawCurve();
+        mountEasingCanvas();
+    }, 0);
 
     // 撤销 / 重做 / 别处改了同一个节点 → 回灌
     const onOperation = (): void => pull();
@@ -701,6 +773,9 @@
                 }
             />
         {:else if easingKind === "normal"}
+            <!-- 分段画布：拖左右边界产生 SegmentedEasing（共享包的 EasingCanvas） -->
+            <canvas class="curve" bind:this={easeCanvasEl}></canvas>
+
             <!-- 普通缓动：序号 / 方向 / 函数，和桌面端 EasingBox 同一套数据 -->
             <EasingBox
                 bind:value={
