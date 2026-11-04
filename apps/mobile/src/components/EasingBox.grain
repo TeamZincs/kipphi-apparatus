@@ -1,5 +1,5 @@
 <script>
-    import { easingArray, easingMap } from "kipphi";
+    import { Easing, easingArray, easingMap } from "kipphi";
 
     import Segmented from "#/components/Segmented.grain";
 
@@ -24,43 +24,44 @@
 
     const EASE_KINDS = ["in", "out", "inout"] as const;
 
-    /** 当前 id 对应的三段信息，都从 `value` 现读 */
-    const easeKind = $node({
-        get: () => easingArray[value.get()]?.easeType ?? "in"
-    });
-    const funcKind = $node({
-        get: () => easingArray[value.get()]?.funcType ?? "linear"
-    });
+    /*
+     * 三段信息都做成**函数**，模板每次重算时从 `value.get()` 现读。
+     * 用 `$node` 又没给 `listen` 的话，外部改了 id 它不会重算，
+     * 方向 / 函数会停在旧值上。
+     */
+    const easeKind = (): string =>
+        easingArray[value.get()]?.easeType ?? "in";
+    const funcKind = (): string =>
+        easingArray[value.get()]?.funcType ?? "linear";
+    const funcOptions = (): [number, string][] =>
+        Object.keys(easingMap).map(
+            (name, index) => [index, name] as [number, string]
+        );
 
-    const FUNC_OPTIONS = $node({
-        get: () =>
-            Object.keys(easingMap).map((name, index) => [index, name] as [
-                number,
-                string
-            ])
-    });
+    /** 只把"确实在预设表里"的 id 交出去，避免写出无法反序列化的缓动 */
+    function applyId(id: number): void {
+        if (!Number.isInteger(id) || id < 0 || id >= easingArray.length) return;
+        if (!(easingArray[id] instanceof Easing)) return;
+
+        value.set(id);
+    }
 
     function setEaseKind(kind: number): void {
         const name = EASE_KINDS[kind] ?? "in";
-        const func = funcKind;
-        const target = (easingMap as any)[func]?.[name];
+        const target = (easingMap as any)[funcKind()]?.[name];
 
-        if (target) value.set(target.id);
+        if (target) applyId(target.id);
     }
 
     function setFuncKindByName(name: string): void {
-        const target = (easingMap as any)[name]?.[easeKind];
+        const target = (easingMap as any)[name]?.[easeKind()];
 
-        if (target) value.set(target.id);
+        if (target) applyId(target.id);
     }
 
     /** 直接填 id（0..31），越界就当没输入 */
     function setId(text: string): void {
-        const id = Number(text);
-
-        if (!Number.isInteger(id) || id < 0 || id >= easingArray.length) return;
-
-        value.set(id);
+        applyId(Number(text));
     }
 </script>
 
@@ -70,7 +71,10 @@
         class="num"
         type="text"
         inputmode="numeric"
-        bind:value={ get: () => String(value.get()), set: setId }
+        bind:value={
+            get: () => (Number.isInteger(value.get()) ? String(value.get()) : ""),
+            set: setId
+        }
     />
 </div>
 
@@ -79,7 +83,7 @@
     <Segmented
         options={EASE_OPTIONS}
         bind:value={
-            get: () => EASE_KINDS.indexOf(easeKind as "in" | "out" | "inout"),
+            get: () => EASE_KINDS.indexOf(easeKind() as "in" | "out" | "inout"),
             set: (v: number) => setEaseKind(v)
         }
     />
@@ -91,11 +95,11 @@
     <select
         class="pick"
         bind:value={
-            get: () => funcKind,
+            get: () => funcKind(),
             set: (v: string) => setFuncKindByName(v)
         }
     >
-        {#for option of FUNC_OPTIONS}
+        {#for option of funcOptions()}
             <option value={option[1]}>{option[1]}</option>
         {/for}
     </select>

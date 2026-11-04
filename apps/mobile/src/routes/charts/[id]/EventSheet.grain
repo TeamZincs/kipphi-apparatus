@@ -1,3 +1,52 @@
+<script module>
+    /*
+     * 三种缓动各自的暂存值。
+     *
+     * 放在模块级：面板关掉 / 重开、组件被 `{#if}` 复用都不会丢。
+     * 没有它们，从贝塞尔 / 模板切回普通时 `normalId` 无处取值，输入框显示
+     * `undefined`，再把这个值写进 `easingArray[undefined]` 就会造出一条
+     * 没有合法 rpeId 的缓动 —— 之后反序列化谱面直接报错。
+     */
+    let normalDraft = 1; // `easingArray` 下标，1 = linear
+    let bezierDraft: number[] = [0.25, 0.1, 0.25, 1];
+    /** 模板缓动没法凭空造，只记上次那一支对象本身 */
+    let templateDraft: any = null;
+    /** 切到表达式之前最后一次用的是哪种缓动，切回来照它恢复 */
+    let lastKindDraft: "normal" | "bezier" | "template" = "normal";
+
+    export function getNormalDraft(): number {
+        return normalDraft;
+    }
+
+    export function setNormalDraft(id: number): void {
+        normalDraft = id;
+    }
+
+    export function getBezierDraft(): number[] {
+        return bezierDraft;
+    }
+
+    export function setBezierDraft(points: number[]): void {
+        bezierDraft = [...points];
+    }
+
+    export function getTemplateDraft(): any {
+        return templateDraft;
+    }
+
+    export function setTemplateDraft(easing: any): void {
+        templateDraft = easing;
+    }
+
+    export function getLastKindDraft(): "normal" | "bezier" | "template" {
+        return lastKindDraft;
+    }
+
+    export function setLastKindDraft(kind: "normal" | "bezier" | "template"): void {
+        lastKindDraft = kind;
+    }
+</script>
+
 <script>
     /*
      * 事件节点面板（底部面板的内容部分）。
@@ -86,11 +135,13 @@
      */
     let easingKind = $state("normal");
 
-    /** 贝塞尔控制点草稿：`(x1, y1)` 与 `(x2, y2)` */
-    let cp1x = $state("0.25");
-    let cp1y = $state("0.1");
-    let cp2x = $state("0.25");
-    let cp2y = $state("1");
+    /** 贝塞尔控制点草稿：初值取模块级暂存（面板重开还在） */
+    const initialBezier = getBezierDraft();
+
+    let cp1x = $state(String(initialBezier[0]));
+    let cp1y = $state(String(initialBezier[1]));
+    let cp2x = $state(String(initialBezier[2]));
+    let cp2y = $state(String(initialBezier[3]));
 
     //#region 缓动曲线画布
     let curveCanvas: HTMLCanvasElement | null = null;
@@ -308,8 +359,25 @@
     }
     //#endregion
 
-    /** 从缓动切走时把 easing 记住 —— 切回来还是原来那条曲线 */
-    let savedEasing: any = null;
+    /**
+     * 用模块级暂存值造一条**合法**的缓动。
+     *
+     * 之前这里写 `new NormalEasing(t => t)`：`id` / `rpeId` 都是 undefined，
+     * 序列化时 `identifier: undefined`，再打开谱面就找不到编号而报错。
+     * 现在一律从 `easingArray` / `BezierEasing` / 已存在的模板对象里取。
+     */
+    function easingFromDrafts(kind = getLastKindDraft()): any {
+        if (kind === "bezier") {
+            const [x1, y1, x2, y2] = getBezierDraft();
+
+            return new BezierEasing([x1, y1], [x2, y2]);
+        }
+
+        // 模板缓动只能"记住已有的"，没见过就造不出来
+        if (kind === "template") return getTemplateDraft();
+
+        return easingArray[getNormalDraft()] ?? easingArray[1];
+    }
 
     /** 四个控制点草稿 → 元组（模板里直接写数组字面量会被绑定值解析器拆坏） */
     const cpValue = (): number[] => [
@@ -319,8 +387,8 @@
         Number(cp2y)
     ];
 
-    /** 普通缓动当前用的 `easingArray` 下标（预设表是共享的） */
-    let normalId = $state(0);
+    /** 普通缓动当前用的 `easingArray` 下标（初值取模块级暂存） */
+    let normalId = $state(getNormalDraft());
 
     //#region 普通缓动的分段画布（共享包里的 EasingCanvas）
     let easeCanvasEl: HTMLCanvasElement | null = null;
@@ -400,6 +468,7 @@
         if (!preset || !(preset instanceof Easing)) return;
 
         normalId = id;
+        setNormalDraft(id); // 切走再切回来还是这一条
 
         operationList?.do(
             new Op.EventNodeEvaluatorChangeOperation(
@@ -436,21 +505,39 @@
         // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
         evalKind = evaluator instanceof EasedEvaluator ? "eased" : "expression";
 
-        if (easing instanceof BezierEasing) easingKind = "bezier";
-        else if (easing instanceof NormalEasing) easingKind = "normal";
-        else if (easing instanceof TemplateEasing) easingKind = "template";
-        else easingKind = "other";
-
+        /*
+         * 每次读到对象上的真实缓动，就把对应那一种的暂存值更新一次；
+         * 其它两种保持模块里上次的值 —— 这正是"从贝塞尔切回普通"时
+         * 输入框不再显示 undefined 的关键。
+         */
         if (easing instanceof BezierEasing) {
+            easingKind = "bezier";
+            setLastKindDraft("bezier");
             cp1x = String(easing.cp1[0]);
             cp1y = String(easing.cp1[1]);
             cp2x = String(easing.cp2[0]);
             cp2y = String(easing.cp2[1]);
-        }
+            setBezierDraft([
+                easing.cp1[0],
+                easing.cp1[1],
+                easing.cp2[0],
+                easing.cp2[1]
+            ]);
+        } else if (easing instanceof NormalEasing) {
+            easingKind = "normal";
+            setLastKindDraft("normal");
 
-        // 普通缓动：把当前预设的 id 同步回选择器（撤销 / 换节点之后才不会错位）
-        if (easing instanceof NormalEasing) {
-            normalId = easing.id;
+            // 只认合法下标；undefined 会把 EasingBox / 谱面一起带坏
+            if (Number.isInteger(easing.id) && easingArray[easing.id]) {
+                normalId = easing.id;
+                setNormalDraft(easing.id);
+            }
+        } else if (easing instanceof TemplateEasing) {
+            easingKind = "template";
+            setLastKindDraft("template");
+            setTemplateDraft(easing);
+        } else {
+            easingKind = "other";
         }
 
         // 曲线跟着重画（换分支时元素会变，交给 mount 判断重建）
@@ -549,7 +636,12 @@
         error = null;
 
         if (kind === "eased") {
-            const easing = savedEasing ?? new NormalEasing((t: number) => t);
+            // 切走时 pull() 已经把当前缓动写进对应那一种的暂存值；
+            // 模板那支没有对象可恢复时退回普通预设，绝不给求值器一个空底
+            const easing =
+                easingFromDrafts() ??
+                easingArray[getNormalDraft()] ??
+                easingArray[1];
 
             ops.do(
                 new Op.EventNodeEvaluatorChangeOperation(
@@ -560,8 +652,6 @@
 
             return;
         }
-
-        if (eased) savedEasing = (current as any).easing;
 
         ops.do(
             new Op.EventNodeEvaluatorChangeOperation(
@@ -614,6 +704,8 @@
         }
 
         error = null;
+        setBezierDraft([x1, y1, x2, y2]); // 切走再回来还是这条曲线
+        setLastKindDraft("bezier");
 
         ops.do(
             new Op.EventNodeEvaluatorChangeOperation(
@@ -633,28 +725,24 @@
     }
 
     /**
-     * 切换缓动种类。
-     *
-     * 贝塞尔 / 普通都能凭空造出来（默认控制点、线性），模板不行 ——
-     * 它得引用谱面里的模板缓动，手机上还没做那个管理界面，所以先拒绝并提示。
+     * 切换缓动种类：三种都从模块级暂存值恢复，不重新"凭空造"一条。
+     * 模板没有暂存对象时给提示（它必须引用谱面里已有的模板）。
      */
     function setEasingKind(kind: string): void {
         const ops = operationList;
 
         if (!ops || kind === easingKind) return;
 
-        if (kind === "template") {
+        const easing = easingFromDrafts(kind);
+
+        if (!easing) {
             error = "谱面里还没有可选的模板缓动";
 
             return;
         }
 
         error = null;
-
-        const easing =
-            kind === "bezier"
-                ? new BezierEasing([0.25, 0.1], [0.25, 1])
-                : new NormalEasing((t: number) => t);
+        setLastKindDraft(kind as "normal" | "bezier" | "template");
 
         ops.do(
             new Op.EventNodeEvaluatorChangeOperation(
