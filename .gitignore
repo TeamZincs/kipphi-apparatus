@@ -1,5 +1,8 @@
 ﻿.DS_Store
 node_modules
+
+# 测试时编译出来的 .grain 产物（SheetShell.test.ts 之类）
+.tmp
 /build
 /apps/desktop/build
 /apps/desktop/dist-electron

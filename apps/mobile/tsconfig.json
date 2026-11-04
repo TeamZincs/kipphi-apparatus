@@ -6,5 +6,11 @@
             "#/*": ["./src/*"]
         }
     },
-    "include": ["src", "vite.config.mts"]
+    "include": ["src", "vite.config.mts"],
+    /*
+     * 测试文件用 bun 跑（`Bun.write` / `import.meta.dir` / happy-dom 的 DOM 类型
+     * 都不在应用的 TS 环境里）。`bun test` 自己会做语法与运行期检查，
+     * 这里把它们排除掉，`tsc --noEmit` 才能保持干净。
+     */
+    "exclude": ["src/**/*.test.ts"]
 }
