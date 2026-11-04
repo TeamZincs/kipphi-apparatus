@@ -23,10 +23,10 @@ export const toTime = (beats: number): TimeT => {
 };
 
 /**
- * `TimeT` → 分数文本（`3` / `3+1/4`），和桌面端 FractionInput 的观感一致。
+ * `TimeT` → `拍:分子/分母`（`3:1/4`），整数拍只写 `3`。
  *
- * `TimeT` 的三元组本身就是 `[拍, 分子, 分母]`，直接拿这三项用，
- * 不要绕 `TC.toBeats` 再乘回 960 —— 那会引入无谓的舍入。
+ * 和三个框的视觉保持一致（`[拍]:[子]/[母]`），也是 kipphi 的 `toTimeString`
+ * 那种形状；三元组本身就是 `[拍, 分子, 分母]`，直接拿来用，不绕 `TC.toBeats`。
  */
 export function formatTime(time: TimeT): string {
     const [beat, numerator, denominator] = TC.validateIp([...time]);
@@ -35,19 +35,22 @@ export function formatTime(time: TimeT): string {
 
     if (denominator === 1) return String(beat + numerator);
 
-    return beat === 0
-        ? `${numerator}/${denominator}`
-        : `${beat}+${numerator}/${denominator}`;
+    return `${beat}:${numerator}/${denominator}`;
 }
 
-/** 分数文本 → 拍数；认 `3`、`3+1/4`、`3.25`，认不出就 NaN */
+/**
+ * 分数文本 → 拍数。
+ *
+ * 认这些写法：`3`、`3:1/4`、`3+1/4`、`1/4`、`3.25`（冒号是老写法的补充，
+ * 桌面端 FractionInput 用 `+`，面板的单框现在显示 `:`，两种都吃）。
+ */
 export function parseTime(text: string): number {
     const trimmed = text.trim();
 
     // 空串必须当"没填"，不能让它走到 `Number("") === 0`
     if (trimmed === "") return NaN;
 
-    const mixed = /^(\d+)\s*\+\s*(\d+)\s*\/\s*(\d+)$/.exec(trimmed);
+    const mixed = /^(\d+)\s*[:+]\s*(\d+)\s*\/\s*(\d+)$/.exec(trimmed);
 
     if (mixed) {
         const denominator = Number(mixed[3]);

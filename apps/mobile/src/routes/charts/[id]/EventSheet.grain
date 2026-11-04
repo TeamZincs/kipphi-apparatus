@@ -147,7 +147,7 @@
         <div class="field">
             <span>时间</span>
             {#if timeSingle}
-                <input class="num" type="text" placeholder="3+1/4" bind:value={timeText} />
+                <input class="num" type="text" placeholder="3:1/4" bind:value={timeText} />
             {:else}
                 <div class="triple">
                     <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={beat} />

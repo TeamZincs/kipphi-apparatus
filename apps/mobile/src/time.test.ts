@@ -24,14 +24,14 @@ describe("formatTime", () => {
         expect(formatTime([0, 0, 1])).toBe("0");
     });
 
-    it("带分数显示成 `拍+分子/分母`", () => {
-        expect(formatTime([3, 1, 4])).toBe("3+1/4");
-        expect(formatTime([0, 1, 4])).toBe("1/4");
+    it("带分数显示成 `拍:分子/分母`", () => {
+        expect(formatTime([3, 1, 4])).toBe("3:1/4");
+        expect(formatTime([0, 1, 4])).toBe("0:1/4");
     });
 
     it("约分成最简分数", () => {
-        expect(formatTime([1, 2, 4])).toBe("1+1/2");
-        expect(formatTime([0, 480, 960])).toBe("1/2");
+        expect(formatTime([1, 2, 4])).toBe("1:1/2");
+        expect(formatTime([0, 480, 960])).toBe("0:1/2");
     });
 
     it("分子等于分母时并进拍号", () => {
@@ -44,7 +44,12 @@ describe("parseTime", () => {
         expect(parseTime("3")).toBe(3);
     });
 
-    it("认 `拍+分子/分母`", () => {
+    it("认 `拍:分子/分母`（面板现在的写法）", () => {
+        expect(parseTime("3:1/4")).toBe(3.25);
+        expect(parseTime("3 : 1 / 4")).toBe(3.25);
+    });
+
+    it("也认桌面端的 `拍+分子/分母`", () => {
         expect(parseTime("3+1/4")).toBe(3.25);
         expect(parseTime("3 + 1 / 4")).toBe(3.25);
     });
