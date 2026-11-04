@@ -69,11 +69,11 @@
     /** 表达式求值器的源码草稿（只在表达式模式下可编辑） */
     let exprText = $state("");
 
-    /** 三种缓动并列（和桌面端 tabs 一致） */
-    const EASING_KINDS = ["bezier", "normal", "template"] as const;
+    /** 三种缓动并列（普通在最左，和桌面端 tabs 顺序一致） */
+    const EASING_KINDS = ["normal", "bezier", "template"] as const;
     const EASING_OPTIONS: [number, string][] = [
-        [0, "贝塞尔"],
-        [1, "普通"],
+        [0, "普通"],
+        [1, "贝塞尔"],
         [2, "模板"]
     ];
 
@@ -435,47 +435,40 @@
         </div>
 
         {#if easingKind === "bezier"}
-            <!-- 贝塞尔控制点：上 cp1、下 cp2 -->
-            <div class="field">
-                <span>控制点 1（x, y）</span>
-                <div class="triple">
-                    <input
-                        class="num"
-                        type="text"
-                        inputmode="decimal"
-                        bind:value={cp1x}
-                        onchange={commitBezier}
-                    />
-                    <span class="sep">,</span>
-                    <input
-                        class="num"
-                        type="text"
-                        inputmode="decimal"
-                        bind:value={cp1y}
-                        onchange={commitBezier}
-                    />
-                </div>
-            </div>
-
-            <div class="field">
-                <span>控制点 2（x, y）</span>
-                <div class="triple">
-                    <input
-                        class="num"
-                        type="text"
-                        inputmode="decimal"
-                        bind:value={cp2x}
-                        onchange={commitBezier}
-                    />
-                    <span class="sep">,</span>
-                    <input
-                        class="num"
-                        type="text"
-                        inputmode="decimal"
-                        bind:value={cp2y}
-                        onchange={commitBezier}
-                    />
-                </div>
+            <!-- 四个控制点写在一行：x1 y1 x2 y2 -->
+            <div class="quad">
+                <input
+                    class="num"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="x1"
+                    bind:value={cp1x}
+                    onchange={commitBezier}
+                />
+                <input
+                    class="num"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="y1"
+                    bind:value={cp1y}
+                    onchange={commitBezier}
+                />
+                <input
+                    class="num"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="x2"
+                    bind:value={cp2x}
+                    onchange={commitBezier}
+                />
+                <input
+                    class="num"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="y2"
+                    bind:value={cp2y}
+                    onchange={commitBezier}
+                />
             </div>
         {:else if easingKind === "normal"}
             <p class="hint">普通缓动：目前按线性处理，预设选择还没做</p>
@@ -540,6 +533,19 @@
         margin: 0;
         font-size: 12px;
         color: var(--text-dim);
+    }
+
+    /* 贝塞尔四个控制点：一行四个等宽框 */
+    .quad {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .quad .num {
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: center;
     }
 
     .field {
