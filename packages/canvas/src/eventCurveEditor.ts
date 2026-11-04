@@ -382,6 +382,17 @@ export class EventSequenceEditors extends EventTarget {
                 return;
             }
 
+            // 待粘贴：这一下只用来定位，松手才真的粘（和"放节点"同一套手感）
+            if (this.pendingPaste) {
+                // 先把指针位置交给编辑器（它会更新 pointedTime / pointedValue）
+                this.activatedEditor.moveHandler(event);
+                this.activatedEditor.beginPreview();
+                this.pasting = true;
+                this.draw();
+
+                return;
+            }
+
             this.buttonPressed = false;
             this.activatedEditor.downHandler(event);
 
@@ -419,6 +430,22 @@ export class EventSequenceEditors extends EventTarget {
 
             // 轴向拖动结束
             this.pan = null;
+
+            // 粘贴定位的松手：在 pointer 处落子
+            if (this.pasting) {
+                this.pasting = false;
+                this.pendingPaste = false;
+                this.activatedEditor.clearPreview();
+                // `paste` 同样只在泛型子类上
+                (
+                    this.activatedEditor as unknown as {
+                        paste: (deletesOriginal?: boolean, keepOriginalSeq?: boolean) => void;
+                    }
+                ).paste(false, false);
+                this.draw();
+
+                return;
+            }
 
             // 画布上按下起的预览：松手就在这里落子
             if (this.activatedEditor.previewPoint) {
@@ -506,6 +533,12 @@ export class EventSequenceEditors extends EventTarget {
 
     /** 按住"编辑"按钮拖到画布上放节点 */
     private dragPlaceMode = false;
+
+    /** 点了"粘贴"按钮，等着在曲线上点目标位置 */
+    private pendingPaste = false;
+
+    /** 这一次按下是为了定位粘贴（松手才真的粘） */
+    private pasting = false;
 
     /**
      * 通过「笔」按钮进入 edit 之前的模式。
@@ -679,6 +712,16 @@ export class EventSequenceEditors extends EventTarget {
          */
         if (!this.modesVisible) return buttons;
 
+        /*
+         * 剪贴板相关的成员只存在于泛型子类 `EventSequenceEditor<VT>` 上，
+         * 这里拿到的 `activatedEditor` 是基类类型，收窄一次比给基类加空实现干净。
+         */
+        const editor = this.activatedEditor as unknown as {
+            nodesSelection: Set<unknown>;
+            clipboard: Set<unknown> | null;
+            copy: () => void;
+        };
+
         buttons.push(
             {
                 // 方向箭头直白表示"现在能往哪边拖"
@@ -688,6 +731,26 @@ export class EventSequenceEditors extends EventTarget {
                     : "axisTime") as IconName,
                 onClick: () => {
                     this.panAxis = this.panAxis === "time" ? "x" : "time";
+                    this.draw();
+                }
+            },
+            {
+                // 复制当前选中的节点（粘到别处）
+                id: "copy",
+                icon: "copy" as IconName,
+                disabled: editor.nodesSelection.size === 0,
+                onClick: () => {
+                    editor.copy();
+                    this.draw();
+                }
+            },
+            {
+                // 点一下进入"待粘贴"，之后在曲线上点目标位置即可
+                id: "paste",
+                icon: "paste" as IconName,
+                disabled: (editor.clipboard?.size ?? 0) === 0,
+                onClick: () => {
+                    this.pendingPaste = true;
                     this.draw();
                 }
             },
