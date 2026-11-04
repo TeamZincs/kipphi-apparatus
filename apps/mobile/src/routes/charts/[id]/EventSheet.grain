@@ -501,11 +501,15 @@
         opacity: 0.8;
     }
 
+    /*
+     * 两列不再吃"剩余空间"：面板是 `max-height: 60vh` 的自动高度容器，
+     * `flex: 1` + `min-height: 0` 在内容超高时会把这一块压成 0 高，
+     * 里面的输入框就"看不见"了（不报错，就是高度为 0）。
+     * 现在按内容自然排，超高由下面的 `.eval` 各自滚动。
+     */
     .body {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        overflow-x: hidden;
+        flex: 0 0 auto;
+        width: 100%;
         display: flex;
         align-items: flex-start;
         gap: 10px;
@@ -519,8 +523,9 @@
         gap: 8px;
     }
 
-    /* 求值器通栏：与上面两列分开，占满面板宽度 */
+    /* 求值器通栏：与上面两列分开，占满面板宽度；高度按内容，不参与压缩 */
     .eval {
+        flex: 0 0 auto;
         display: flex;
         flex-direction: column;
         gap: 8px;
