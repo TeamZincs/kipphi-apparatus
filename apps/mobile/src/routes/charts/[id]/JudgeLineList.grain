@@ -5,7 +5,7 @@
      * 每一行都是递归组件 `JudgeLineRow`（含子树），跟桌面端
      * `JudgeLinesManager` → `JudgeLineManager` 的结构一致。
      */
-    import Select from "#/components/Select.grain";
+    import Segmented from "#/components/Segmented.grain";
 
     import { chart, chartLoaded, registerReflow } from "#/store";
 
@@ -17,10 +17,12 @@
     let layout = $state<Layout>("ordered");
     let foldedGroups = $state<string[]>([]);
 
-    const layoutOptions = [
-        { value: "ordered", label: "顺序" },
-        { value: "tree", label: "树形" },
-        { value: "grouped", label: "分组" }
+    /** 三种布局（按钮排：只有三个，直接摆开比下拉框快） */
+    const LAYOUTS: Layout[] = ["ordered", "tree", "grouped"];
+    const layoutOptions: [number, string][] = [
+        [0, "顺序"],
+        [1, "树形"],
+        [2, "分组"]
     ];
 
     /*
@@ -85,7 +87,13 @@
 <div class="pane">
     <div class="toolbar">
         <span class="hint">布局</span>
-        <Select options={layoutOptions} bind:value={layout} />
+        <Segmented
+    options={layoutOptions}
+    bind:value={
+        get: () => Math.max(0, LAYOUTS.indexOf(layout)),
+        set: (v: number) => (layout = LAYOUTS[v] ?? "ordered")
+    }
+/>
     </div>
 
     <div class="list" onclick={onListClick}>

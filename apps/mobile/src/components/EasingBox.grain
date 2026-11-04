@@ -48,11 +48,7 @@
         if (target) value.set(target.id);
     }
 
-    function setFuncKind(index: number): void {
-        const name = FUNC_OPTIONS[index]?.[1];
-
-        if (!name) return;
-
+    function setFuncKindByName(name: string): void {
         const target = (easingMap as any)[name]?.[easeKind];
 
         if (target) value.set(target.id);
@@ -91,13 +87,18 @@
 
 <div class="row">
     <span class="label">函数</span>
-    <Segmented
-        options={FUNC_OPTIONS}
+    <!-- 函数种类太多（linear / ease / quad / …），按钮排塞不下，用圆角下拉框 -->
+    <select
+        class="pick"
         bind:value={
-            get: () => Math.max(0, FUNC_OPTIONS.findIndex((o) => o[1] === funcKind)),
-            set: (v: number) => setFuncKind(v)
+            get: () => funcKind,
+            set: (v: string) => setFuncKindByName(v)
         }
-    />
+    >
+        {#for option of FUNC_OPTIONS}
+            <option value={option[1]}>{option[1]}</option>
+        {/for}
+    </select>
 </div>
 
 <style>
@@ -114,7 +115,8 @@
         color: var(--text-dim);
     }
 
-    .num {
+    .num,
+    .pick {
         flex: 1 1 0;
         min-width: 0;
         box-sizing: border-box;
@@ -125,6 +127,7 @@
         color: var(--text);
         font: inherit;
         appearance: none;
+        -webkit-appearance: none;
     }
 
     .row :global(.segmented) {

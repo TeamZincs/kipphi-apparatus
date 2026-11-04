@@ -61,15 +61,7 @@
      * `evaluator` 是普通对象字段，读它不产生编译期依赖 —— 靠 `operationList`
      * 的通知驱动重算（和 `$lsprop` 同一套）。
      */
-    const evalKind = $node({
-        get: () =>
-            node.evaluator instanceof EasedEvaluator ? "eased" : "expression",
-        listen: (update: () => void) => {
-            operationList?.addEventListener("needsupdate", update);
-
-            return () => operationList?.removeEventListener("needsupdate", update);
-        }
-    });
+    let evalKind = $state<"eased" | "expression">("eased");
 
     /** 表达式求值器的源码草稿（只在表达式模式下可编辑） */
     let exprText = $state("");
@@ -82,25 +74,15 @@
         [2, "模板"]
     ];
 
-    /** 当前缓动属于哪一种（不是缓动求值器时是 `other`） */
-    const easingKind = $node({
-        get: () => {
-            const evaluator = node.evaluator;
-            const easing =
-                evaluator instanceof EasedEvaluator ? evaluator.easing : null;
-
-            if (easing instanceof BezierEasing) return "bezier";
-            if (easing instanceof NormalEasing) return "normal";
-            if (easing instanceof TemplateEasing) return "template";
-
-            return "other";
-        },
-        listen: (update: () => void) => {
-            operationList?.addEventListener("needsupdate", update);
-
-            return () => operationList?.removeEventListener("needsupdate", update);
-        }
-    });
+    /**
+     * 当前缓动属于哪一种（不是缓动求值器时是 `other`）。
+     *
+     * 用 `$state` 而不是 `$node`：这两个值决定模板里 `{#if}` 走哪一支，
+     * `$node` 的通知只刷新它所在的那个槽位，分支切换时旧分支的组件 / 画布
+     * 会留在 DOM 里（"切到表达式，缓动的控件还在"）。改成在 `pull()` 里赋值
+     * 之后，分支切换和其它表单字段走同一条可靠的路径。
+     */
+    let easingKind = $state("normal");
 
     /** 贝塞尔控制点草稿：`(x1, y1)` 与 `(x2, y2)` */
     let cp1x = $state("0.25");
@@ -381,14 +363,12 @@
 
         if (!el || easeEditor) return;
 
-        const width = el.clientWidth || 320;
-        const height = el.clientHeight || 140;
-
-        // 位图尺寸必须和 CSS 尺寸一致，否则矩阵换算（elementMatrix）会算错
-        el.width = width;
-        el.height = height;
-
-        easeEditor = new EasingCanvasImpl(el, [0, 0, width, height]);
+        /*
+         * 和桌面端完全一致：位图固定 300×600，`rect` 也用这个尺寸。
+         * 画布里的坐标（把手位置、`elementMatrix`）全按这套算，
+         * 用 CSS 的显示尺寸去建会把曲线压扁。
+         */
+        easeEditor = new EasingCanvasImpl(el, [0, 0, 300, 600]);
         easeEditor.addEventListener("change", (event: any) =>
             commitSegmented(event.detail)
         );
@@ -429,6 +409,14 @@
         const evaluator = node.evaluator;
         const easing =
             evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+
+        // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
+        evalKind = evaluator instanceof EasedEvaluator ? "eased" : "expression";
+
+        if (easing instanceof BezierEasing) easingKind = "bezier";
+        else if (easing instanceof NormalEasing) easingKind = "normal";
+        else if (easing instanceof TemplateEasing) easingKind = "template";
+        else easingKind = "other";
 
         if (easing instanceof BezierEasing) {
             cp1x = String(easing.cp1[0]);
@@ -774,7 +762,12 @@
             />
         {:else if easingKind === "normal"}
             <!-- 分段画布：拖左右边界产生 SegmentedEasing（共享包的 EasingCanvas） -->
-            <canvas class="curve" bind:this={easeCanvasEl}></canvas>
+            <canvas
+                class="curve seg"
+                width="300"
+                height="600"
+                bind:this={easeCanvasEl}
+            ></canvas>
 
             <!-- 普通缓动：序号 / 方向 / 函数，和桌面端 EasingBox 同一套数据 -->
             <EasingBox
@@ -884,6 +877,16 @@
         border-radius: 8px;
         background: var(--bg);
         touch-action: none;
+    }
+
+    /*
+     * 分段缓动那张：位图是 300×600，**必须按 1:2 显示**，
+     * 用 `width:100%` 会被拉成扁平（曲线和把手都变形）。
+     */
+    .curve.seg {
+        width: 120px;
+        height: 240px;
+        margin: 0 auto;
     }
 
     .field {
