@@ -12,7 +12,8 @@
         NormalEasing,
         NumericEasedEvaluator,
         Op,
-        TC
+        TC,
+        TemplateEasing
     } from "kipphi";
 
     import Segmented from "#/components/Segmented.grain";
@@ -68,15 +69,26 @@
     /** 表达式求值器的源码草稿（只在表达式模式下可编辑） */
     let exprText = $state("");
 
-    /** 缓动是不是贝塞尔（只有贝塞尔能就地编辑控制点） */
-    const isBezier = $node({
+    /** 三种缓动并列（和桌面端 tabs 一致） */
+    const EASING_KINDS = ["bezier", "normal", "template"] as const;
+    const EASING_OPTIONS: [number, string][] = [
+        [0, "贝塞尔"],
+        [1, "普通"],
+        [2, "模板"]
+    ];
+
+    /** 当前缓动属于哪一种（不是缓动求值器时是 `other`） */
+    const easingKind = $node({
         get: () => {
             const evaluator = node.evaluator;
+            const easing =
+                evaluator instanceof EasedEvaluator ? evaluator.easing : null;
 
-            return (
-                evaluator instanceof EasedEvaluator &&
-                evaluator.easing instanceof BezierEasing
-            );
+            if (easing instanceof BezierEasing) return "bezier";
+            if (easing instanceof NormalEasing) return "normal";
+            if (easing instanceof TemplateEasing) return "template";
+
+            return "other";
         },
         listen: (update: () => void) => {
             operationList?.addEventListener("needsupdate", update);
@@ -271,16 +283,34 @@
         );
     }
 
-    /** 把当前缓动换成一条默认的贝塞尔（其余类型没有可就地编辑的参数） */
-    function makeBezier(): void {
-        if (!operationList) return;
+    /**
+     * 切换缓动种类。
+     *
+     * 贝塞尔 / 普通都能凭空造出来（默认控制点、线性），模板不行 ——
+     * 它得引用谱面里的模板缓动，手机上还没做那个管理界面，所以先拒绝并提示。
+     */
+    function setEasingKind(kind: string): void {
+        const ops = operationList;
 
-        operationList.do(
+        if (!ops || kind === easingKind) return;
+
+        if (kind === "template") {
+            error = "谱面里还没有可选的模板缓动";
+
+            return;
+        }
+
+        error = null;
+
+        const easing =
+            kind === "bezier"
+                ? new BezierEasing([0.25, 0.1], [0.25, 1])
+                : new NormalEasing((t: number) => t);
+
+        ops.do(
             new Op.EventNodeEvaluatorChangeOperation(
                 node,
-                new NumericEasedEvaluator(
-                    new BezierEasing([0.25, 0.1], [0.25, 1])
-                )
+                new NumericEasedEvaluator(easing)
             )
         );
     }
@@ -361,34 +391,53 @@
             <span>值</span>
             <input type="text" bind:value={value} />
         </label>
+    </div>
+</div>
 
+<!--
+    求值器通栏：占满面板宽度，不和"时间 / 值"挤在同一列里。
+    里面依次是：求值器种类 → 表达式源码 / 缓动种类 → 贝塞尔控制点。
+-->
+<div class="eval" onchange={commit} onblur={commit}>
+    <div class="field">
+        <span>求值器</span>
+        <Segmented
+            options={EVAL_OPTIONS}
+            bind:value={
+                get: () => (evalKind === "eased" ? 0 : 1),
+                set: (v: number) => setEvalKind(v === 0 ? "eased" : "expression")
+            }
+        />
+    </div>
+
+    {#if evalKind === "expression"}
+        <label class="field">
+            <span>表达式</span>
+            <input
+                class="num"
+                type="text"
+                placeholder="a * b"
+                bind:value={exprText}
+                onchange={commitExpression}
+            />
+        </label>
+    {:else}
         <div class="field">
-            <span>求值器</span>
+            <span>缓动</span>
             <Segmented
-                options={EVAL_OPTIONS}
+                options={EASING_OPTIONS}
                 bind:value={
-                    get: () => (evalKind === "eased" ? 0 : 1),
+                    get: () => EASING_KINDS.indexOf(easingKind),
                     set: (v: number) =>
-                        setEvalKind(v === 0 ? "eased" : "expression")
+                        setEasingKind(EASING_KINDS[v] ?? "other")
                 }
             />
         </div>
 
-        {#if evalKind === "expression"}
-            <label class="field">
-                <span>表达式</span>
-                <input
-                    class="num"
-                    type="text"
-                    placeholder="a * b"
-                    bind:value={exprText}
-                    onchange={commitExpression}
-                />
-            </label>
-        {:else if isBezier}
-            <!-- 贝塞尔控制点：上面一组是 cp1，下面一组是 cp2 -->
+        {#if easingKind === "bezier"}
+            <!-- 贝塞尔控制点：上 cp1、下 cp2 -->
             <div class="field">
-                <span>控制点 1</span>
+                <span>控制点 1（x, y）</span>
                 <div class="triple">
                     <input
                         class="num"
@@ -409,7 +458,7 @@
             </div>
 
             <div class="field">
-                <span>控制点 2</span>
+                <span>控制点 2（x, y）</span>
                 <div class="triple">
                     <input
                         class="num"
@@ -428,10 +477,14 @@
                     />
                 </div>
             </div>
+        {:else if easingKind === "normal"}
+            <p class="hint">普通缓动：目前按线性处理，预设选择还没做</p>
+        {:else if easingKind === "template"}
+            <p class="hint">模板缓动：跟谱面的模板走，只在桌面端编辑</p>
         {:else}
-            <button class="btn" onclick={makeBezier}>改为贝塞尔</button>
+            <p class="hint">这个节点的缓动类型还没识别</p>
         {/if}
-    </div>
+    {/if}
 </div>
 
 {#if error}
@@ -471,6 +524,22 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+    }
+
+    /* 求值器通栏：与上面两列分开，占满面板宽度 */
+    .eval {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+
+    .hint {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-dim);
     }
 
     .field {
