@@ -4,26 +4,22 @@
  * 面板里的时间输入有两种形态：三个框（拍 / 分子 / 分母）和单个分数框
  * （`3+1/4`），两边都要能互相换算，所以抽出来共用。
  */
-import { TC, type TimeT } from "kipphi";
-
-/** 分母基数：能被 2/3/4/8/16 整除，分数显示好看 */
-const DENOMINATOR = 960;
+import { TC, numberToRatio, type TimeT } from "kipphi";
 
 /**
  * 拍数 → `TimeT`。
  *
+ * 小数部分交给 kipphi 的 `numberToRatio`（分母 324324000 = 2⁵·3⁴·5³·7·11·13），
+ * 1/3、1/6、1/16 这类常见分数都能**精确**表示 —— 之前自己用 960 做分母，
+ * 三连音（1/3）会被舍入成 320/960，显示成 1/3 但值已经偏了一点。
+ *
  * 取整用 `Math.trunc`（向 0 取整）而不是 `Math.floor`：后者对负数是往下取，
- * `-1.5` 会拆成 `[-2, -480, 960]`，合回 `TC.toBeats` 变成 **-2.5**。
- * 零前时间是合法的（音符画布能滚到负数），所以这里必须保住符号。
+ * `-1.5` 会拆成 `[-2, -0.5]` 再被判成 -2.5。零前时间是合法的，符号要保住。
  */
 export const toTime = (beats: number): TimeT => {
     const beat = Math.trunc(beats);
 
-    return TC.validateIp([
-        beat,
-        Math.round((beats - beat) * DENOMINATOR),
-        DENOMINATOR
-    ]);
+    return TC.validateIp([beat, ...numberToRatio(beats - beat)]);
 };
 
 /**
@@ -33,17 +29,15 @@ export const toTime = (beats: number): TimeT => {
  * 不要绕 `TC.toBeats` 再乘回 960 —— 那会引入无谓的舍入。
  */
 export function formatTime(time: TimeT): string {
-    const [beat, numerator, denominator] = time;
+    const [beat, numerator, denominator] = TC.validateIp([...time]);
 
     if (numerator === 0) return String(beat);
 
-    const divisor = TC.gcd(numerator, denominator) || 1;
-    const n = numerator / divisor;
-    const d = denominator / divisor;
+    if (denominator === 1) return String(beat + numerator);
 
-    if (d === 1) return String(beat + n);
-
-    return beat === 0 ? `${n}/${d}` : `${beat}+${n}/${d}`;
+    return beat === 0
+        ? `${numerator}/${denominator}`
+        : `${beat}+${numerator}/${denominator}`;
 }
 
 /** 分数文本 → 拍数；认 `3`、`3+1/4`、`3.25`，认不出就 NaN */
@@ -100,14 +94,9 @@ export function beatsOf(
 
 /** `TimeT` → 三个框的文本（`[拍, 分子, 分母]`，约分成最简分数） */
 export function splitTime(time: TimeT): [string, string, string] {
-    const [beat, numerator, denominator] = time;
-    const divisor = numerator === 0 ? 1 : TC.gcd(numerator, denominator) || 1;
+    const [beat, numerator, denominator] = TC.validateIp([...time]);
 
-    return [
-        String(beat),
-        String(numerator / divisor),
-        String(denominator / divisor)
-    ];
+    return [String(beat), String(numerator), String(denominator)];
 }
 
 /** 拍数 → 三个框的文本；只有从文本解析回来的地方才需要它 */

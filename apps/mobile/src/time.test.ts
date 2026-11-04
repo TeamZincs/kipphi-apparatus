@@ -113,12 +113,25 @@ describe("beatsOf", () => {
 });
 
 describe("toTime", () => {
-    it("保留到 1/960 拍", () => {
-        expect(TC.toBeats(toTime(3.25))).toBeCloseTo(3.25, 6);
+    it("整数与四分之一拍是精确的", () => {
+        expect(toTime(3.25)).toEqual([3, 1, 4]);
+        expect(toTime(3)).toEqual([3, 0, 1]);
+    });
+
+    it("三连音（1/3）精确 —— 这是 960 分做不到的", () => {
+        // `numberToRatio` 的分母 324324000 含 3⁴，所以 1/3 不用舍入
+        expect(toTime(1 / 3)).toEqual([0, 1, 3]);
+        expect(toTime(2 / 3)).toEqual([0, 2, 3]);
+    });
+
+    it("1/6、1/16 也精确", () => {
+        expect(toTime(1 / 6)).toEqual([0, 1, 6]);
+        expect(toTime(1 / 16)).toEqual([0, 1, 16]);
     });
 
     it("负数拍也能表示（零前时间合法）", () => {
-        expect(TC.toBeats(toTime(-1.5))).toBeCloseTo(-1.5, 6);
+        expect(TC.toBeats(toTime(-1.5))).toBeCloseTo(-1.5, 8);
+        expect(TC.toBeats(toTime(-1 / 3))).toBeCloseTo(-1 / 3, 8);
     });
 });
 
