@@ -103,6 +103,213 @@
     let cp2x = $state("0.25");
     let cp2y = $state("1");
 
+    //#region 缓动曲线画布
+    let curveCanvas: HTMLCanvasElement | null = null;
+    /** 正在拖哪个把手 */
+    let draggingCurve: "cp1" | "cp2" | null = null;
+    const CURVE_PAD = 12;
+
+    /** 三次贝塞尔：首尾固定 (0,0) / (1,1)，只由两个控制点决定 */
+    function bezierAt(
+        cp1: [number, number],
+        cp2: [number, number],
+        t: number
+    ): [number, number] {
+        const s = 1 - t;
+
+        return [
+            3 * cp1[0] * s * s * t + 3 * cp2[0] * s * t * t + t * t * t,
+            3 * cp1[1] * s * s * t + 3 * cp2[1] * s * t * t + t * t * t
+        ];
+    }
+
+    /**
+     * 重画曲线。
+     *
+     * 整个函数包 try/catch：绘制出错只让画布空着，绝不打断面板渲染
+     *（之前把绘制代码直接塞进面板，一次异常就把整块内容带没了）。
+     */
+    function drawCurve(): void {
+        try {
+            const canvas = curveCanvas;
+
+            if (!canvas) return;
+
+            const context = canvas.getContext("2d");
+
+            if (!context) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const width = Math.max(1, Math.round(rect.width));
+            const height = Math.max(1, Math.round(rect.height));
+            const ratio = window.devicePixelRatio || 1;
+
+            canvas.width = Math.round(width * ratio);
+            canvas.height = Math.round(height * ratio);
+            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+            context.clearRect(0, 0, width, height);
+
+            const left = CURVE_PAD;
+            const right = width - CURVE_PAD;
+            const bottom = height - CURVE_PAD;
+            const top = CURVE_PAD;
+            const toX = (t: number): number => left + t * (right - left);
+            const toY = (v: number): number => bottom - v * (bottom - top);
+
+            // 田字格
+            context.strokeStyle = "rgba(255, 255, 255, 0.08)";
+            context.lineWidth = 1;
+
+            for (let i = 1; i < 4; i += 1) {
+                const gridX = left + ((right - left) * i) / 4;
+                const gridY = top + ((bottom - top) * i) / 4;
+
+                context.beginPath();
+                context.moveTo(gridX, top);
+                context.lineTo(gridX, bottom);
+                context.moveTo(left, gridY);
+                context.lineTo(right, gridY);
+                context.stroke();
+            }
+
+            const evaluator = node.evaluator;
+            const easing =
+                evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+            const steps = 48;
+
+            context.strokeStyle = "#4c8dff";
+            context.lineWidth = 2;
+            context.beginPath();
+
+            for (let i = 0; i <= steps; i += 1) {
+                const t = i / steps;
+                let px: number;
+                let py: number;
+
+                if (easing instanceof BezierEasing) {
+                    const [x, y] = bezierAt(
+                        easing.cp1 as [number, number],
+                        easing.cp2 as [number, number],
+                        t
+                    );
+
+                    px = toX(x);
+                    py = toY(y);
+                } else {
+                    const v = easing ? easing.getValue(t) : t;
+
+                    px = toX(t);
+                    py = toY(v);
+                }
+
+                if (i === 0) context.moveTo(px, py);
+                else context.lineTo(px, py);
+            }
+
+            context.stroke();
+
+            if (!(easing instanceof BezierEasing)) return;
+
+            // 把手：从端点连到控制点的一根线 + 一个圆
+            const handles: [[number, number], [number, number]][] = [
+                [
+                    [0, 0],
+                    easing.cp1 as [number, number]
+                ],
+                [
+                    [1, 1],
+                    easing.cp2 as [number, number]
+                ]
+            ];
+
+            for (const [anchor, cp] of handles) {
+                context.strokeStyle = "rgba(76, 141, 255, 0.5)";
+                context.beginPath();
+                context.moveTo(toX(anchor[0]), toY(anchor[1]));
+                context.lineTo(toX(cp[0]), toY(cp[1]));
+                context.stroke();
+
+                context.fillStyle = "#4c8dff";
+                context.beginPath();
+                context.arc(toX(cp[0]), toY(cp[1]), 6, 0, Math.PI * 2);
+                context.fill();
+            }
+        } catch {
+            // 画不出来就空着，不影响面板本身
+        }
+    }
+
+    /** 画布像素 → 归一化坐标（x 夹在 0..1，y 不夹） */
+    function curvePoint(event: PointerEvent): [number, number] {
+        const canvas = curveCanvas;
+
+        if (!canvas) return [0, 0];
+
+        const rect = canvas.getBoundingClientRect();
+        const left = CURVE_PAD;
+        const right = Math.max(left + 1, rect.width - CURVE_PAD);
+        const bottom = Math.max(CURVE_PAD + 1, rect.height - CURVE_PAD);
+        const top = CURVE_PAD;
+        const x = (event.clientX - rect.left - left) / (right - left);
+        const y = (bottom - (event.clientY - rect.top)) / (bottom - top);
+
+        return [Math.min(1, Math.max(0, x)), y];
+    }
+
+    /** 按下：落在把手 24px 内才开始拖 */
+    function onCurveDown(event: PointerEvent): void {
+        const easing = node.evaluator?.easing;
+
+        if (!(easing instanceof BezierEasing) || !curveCanvas) return;
+
+        const rect = curveCanvas.getBoundingClientRect();
+        const left = CURVE_PAD;
+        const right = Math.max(left + 1, rect.width - CURVE_PAD);
+        const bottom = Math.max(CURVE_PAD + 1, rect.height - CURVE_PAD);
+        const top = CURVE_PAD;
+        const near = (cp: [number, number]): boolean => {
+            const px = left + cp[0] * (right - left);
+            const py = bottom - cp[1] * (bottom - top);
+            const dx = event.clientX - rect.left - px;
+            const dy = event.clientY - rect.top - py;
+
+            return dx * dx + dy * dy <= 24 * 24;
+        };
+
+        if (near(easing.cp1 as [number, number])) draggingCurve = "cp1";
+        else if (near(easing.cp2 as [number, number])) draggingCurve = "cp2";
+        else return;
+
+        curveCanvas.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+    }
+
+    function onCurveMove(event: PointerEvent): void {
+        if (!draggingCurve) return;
+
+        const [x, y] = curvePoint(event);
+        const round = (value: number): string => String(Number(value.toFixed(3)));
+
+        if (draggingCurve === "cp1") {
+            cp1x = round(x);
+            cp1y = round(y);
+        } else {
+            cp2x = round(x);
+            cp2y = round(y);
+        }
+
+        event.preventDefault();
+        drawCurve();
+    }
+
+    function onCurveUp(): void {
+        if (!draggingCurve) return;
+
+        draggingCurve = null;
+        commitBezier();
+    }
+    //#endregion
+
     /** 从缓动切走时把 easing 记住 —— 切回来还是原来那条曲线 */
     let savedEasing: any = null;
 
@@ -127,9 +334,15 @@
             cp2x = String(easing.cp2[0]);
             cp2y = String(easing.cp2[1]);
         }
+
+        // 曲线跟着重画（尺寸每次现取，转屏也不会糊）
+        requestAnimationFrame(drawCurve);
     }
 
     pull();
+
+    // 画布要等元素挂上去才有尺寸：下一个宏任务再画一次
+    setTimeout(drawCurve, 0);
 
     // 撤销 / 重做 / 别处改了同一个节点 → 回灌
     const onOperation = (): void => pull();
@@ -434,6 +647,18 @@
             />
         </div>
 
+        {#if easingKind === "bezier" || easingKind === "normal"}
+            <!-- 缓动曲线：贝塞尔的把手可以直接拖，普通缓动只画 -->
+            <canvas
+                class="curve"
+                bind:this={curveCanvas}
+                onpointerdown={onCurveDown}
+                onpointermove={onCurveMove}
+                onpointerup={onCurveUp}
+                onpointercancel={onCurveUp}
+            ></canvas>
+        {/if}
+
         {#if easingKind === "bezier"}
             <!-- 四个控制点写在一行：x1 y1 x2 y2 -->
             <div class="quad">
@@ -547,10 +772,32 @@
         min-width: 0;
     }
 
+    /* 四个控制点不在 `.field` 里，样式要自己写一份（和 `.field input` 一致） */
     .quad .num {
         flex: 1 1 0;
         min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 6px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
         text-align: center;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    /* 缓动曲线画布 */
+    .curve {
+        display: block;
+        width: 100%;
+        height: 140px;
+        box-sizing: border-box;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        touch-action: none;
     }
 
     .field {
