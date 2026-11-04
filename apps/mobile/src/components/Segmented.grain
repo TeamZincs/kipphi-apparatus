@@ -35,13 +35,17 @@
     .seg {
         flex: 1 1 0;
         min-width: 0;
-        padding: 8px 0;
+        padding: 8px 12px;
         border: none;
         border-right: 1px solid var(--border);
         background: var(--bg);
         color: var(--text-dim);
         font: inherit;
         font-size: 12px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         cursor: pointer;
     }
 

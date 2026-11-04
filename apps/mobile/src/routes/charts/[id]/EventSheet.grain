@@ -7,6 +7,7 @@
      */
     import {
         BezierEasing,
+        Easing,
         EasedEvaluator,
         easingArray,
         ExpressionEvaluator,
@@ -337,22 +338,20 @@
 
         if (!ops || !next) return;
 
-        if (next instanceof BezierEasing || next instanceof NormalEasing || next instanceof TemplateEasing) {
-            // 拖回 0..1 了，就是普通缓动本身，不用包
-            ops.do(
-                new Op.EventNodeEvaluatorChangeOperation(
-                    node,
-                    new NumericEasedEvaluator(next)
-                )
-            );
-
-            return;
-        }
+        /*
+         * 只有真正的 `Easing` 才能当求值器的底。
+         *
+         * 这里曾经把 `SegmentedEasing` 拆成 `.easing` 再包一层 `NumericEasedEvaluator`
+         * —— 区间丢了不说，如果 `next` 不是缓动对象（比如画布还没画过、`detail`
+         * 是空），就会把 `undefined` 写进 `node.evaluator`，
+         * 后面 `getValueAt` 里 `this.evaluator.eval` 直接炸。
+         */
+        if (!(next instanceof Easing)) return;
 
         ops.do(
             new Op.EventNodeEvaluatorChangeOperation(
                 node,
-                new NumericEasedEvaluator(next.easing ?? next)
+                new NumericEasedEvaluator(next)
             )
         );
     }
@@ -383,14 +382,15 @@
     function setNormalId(id: number): void {
         const preset = easingArray[id];
 
-        if (!preset) return;
+        // 预设表里得真的是个 `Easing`，否则求值器会拿到空底
+        if (!preset || !(preset instanceof Easing)) return;
 
         normalId = id;
 
         operationList?.do(
             new Op.EventNodeEvaluatorChangeOperation(
                 node,
-                new NumericEasedEvaluator(preset as any)
+                new NumericEasedEvaluator(preset)
             )
         );
     }
