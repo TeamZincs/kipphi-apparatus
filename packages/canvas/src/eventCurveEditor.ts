@@ -371,7 +371,8 @@ export class EventSequenceEditors extends EventTarget {
             if (
                 (this.modesVisible && this.modeButtons.press(point.x, point.y)) ||
                 this.navButtons.press(point.x, point.y) ||
-                this.scopeButtons.press(point.x, point.y)
+                // 总览里框选按钮不画，也不能被点中
+                (this.modesVisible && this.scopeButtons.press(point.x, point.y))
             ) {
                 // 记住这次按下属于按钮：松手时**不能**再交给编辑器，
                 // 否则它的 upHandler 会把刚切好的模式又改回去（表现为"切了没用"）
@@ -664,10 +665,21 @@ export class EventSequenceEditors extends EventTarget {
     }
 
     private navButtonList(): CanvasButton[] {
-        return [
+        const buttons: CanvasButton[] = [
             { id: "prev-line", icon: "previousLine", onClick: () => this.stepLine(-1) },
             { id: "current-line", label: `#${this.targetLine?.id ?? "-"}` },
-            { id: "next-line", icon: "nextLine", onClick: () => this.stepLine(1) },
+            { id: "next-line", icon: "nextLine", onClick: () => this.stepLine(1) }
+        ];
+
+        /*
+         * 总览（`general`）只负责"选层 / 进序列"，下面这两样在那里没有意义：
+         *   · 轴向锁定 —— 总览不拖动时间轴
+         *   · 详细信息 —— 总览里没有"选中节点"
+         * 所以只在具体序列的编辑器里追加。
+         */
+        if (!this.modesVisible) return buttons;
+
+        buttons.push(
             {
                 // 方向箭头直白表示"现在能往哪边拖"
                 id: "axis-lock",
@@ -686,7 +698,9 @@ export class EventSequenceEditors extends EventTarget {
                 disabled: !this.activatedEditor.selectedNode,
                 onClick: () => this.dispatchEvent(new Event("inspect"))
             }
-        ];
+        );
+
+        return buttons;
     }
 
     /** 第三排：三种范围选择方式（点一下就进 selectScope） */
@@ -758,7 +772,12 @@ export class EventSequenceEditors extends EventTarget {
         }
 
         this.navButtons.draw(context, this.navButtonList());
-        this.scopeButtons.draw(context, this.scopeButtonList());
+
+        // 框选在总览里也没意义：那里选的是"层"，不是节点
+        if (this.modesVisible) {
+            this.scopeButtons.draw(context, this.scopeButtonList());
+        }
+
         context.restore();
     }
 

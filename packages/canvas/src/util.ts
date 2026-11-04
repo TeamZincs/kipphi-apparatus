@@ -26,7 +26,9 @@ export const computeAttach = (sortedAttachable: number[], value: number) => {
             return value - cur < next - value ? cur : next;
         }
     }
-    if (value > sortedAttachable[len - 1]) {
+    // `>=` 不是 `>`：正好等于最后一个值时，循环里那个 `value < next` 走不到，
+    // 用 `>` 会掉到函数末尾返回 undefined，调用方拿它算坐标就成了 NaN
+    if (value >= sortedAttachable[len - 1]) {
         return sortedAttachable[len - 1];
     }
 };
