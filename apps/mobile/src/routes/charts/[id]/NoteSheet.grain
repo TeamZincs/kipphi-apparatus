@@ -155,6 +155,21 @@
 
     operationList?.addEventListener("needsupdate", onOperation);
 
+    /**
+     * 是不是 hold 类型 —— 只有 hold 才有"结束时间"，别的类型那两格要禁用。
+     *
+     * 用 `$node` + `listen`：`note.type` 是普通对象字段，读它不产生编译期依赖，
+     * 靠 `operationList` 的通知驱动重算（和 `$lsprop` 同一套思路）。
+     */
+    const isHold = $node({
+        get: () => note.type === NoteType.hold,
+        listen: (update: () => void) => {
+            operationList?.addEventListener("needsupdate", update);
+
+            return () => operationList?.removeEventListener("needsupdate", update);
+        },
+    });
+
     /** 三个框 ↔ 单个框，互相换算，切来切去不丢输入 */
     function toggleTimeMode(): void {
         timeSingle = !timeSingle;
@@ -491,16 +506,17 @@
                     class="num"
                     type="text"
                     placeholder="4"
+                    disabled={!isHold}
                     bind:value={endText}
                     onchange={() => commitField("end")}
                 />
             {:else}
                 <div class="triple">
-                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={endB} onchange={() => commitField("end")} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" disabled={!isHold} bind:value={endB} onchange={() => commitField("end")} />
                     <span class="sep">:</span>
-                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={endN} onchange={() => commitField("end")} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" disabled={!isHold} bind:value={endN} onchange={() => commitField("end")} />
                     <span class="sep">/</span>
-                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={endD} onchange={() => commitField("end")} />
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" disabled={!isHold} bind:value={endD} onchange={() => commitField("end")} />
                 </div>
             {/if}
         </div>
@@ -640,6 +656,12 @@
         /* 自实现的数字框：不要浏览器那对上下箭头 */
         appearance: none;
         -webkit-appearance: none;
+    }
+
+    /* 非 hold 没有结束时间：禁用态要一眼看出来，别让人以为输入坏了 */
+    .field input:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
     }
 
     /* 三个时间框：`[拍:子/母]` */
