@@ -17,26 +17,24 @@ export const toTime = (beats: number): TimeT =>
         DENOMINATOR
     ]);
 
-/** `TimeT` → 分数文本（`3` / `3+1/4`），和桌面端 FractionInput 的观感一致 */
+/**
+ * `TimeT` → 分数文本（`3` / `3+1/4`），和桌面端 FractionInput 的观感一致。
+ *
+ * `TimeT` 的三元组本身就是 `[拍, 分子, 分母]`，直接拿这三项用，
+ * 不要绕 `TC.toBeats` 再乘回 960 —— 那会引入无谓的舍入。
+ */
 export function formatTime(time: TimeT): string {
-    const beat = Math.floor(TC.toBeats(time));
-    const rest = TC.toBeats(time) - beat;
+    const [beat, numerator, denominator] = time;
 
-    if (rest <= 1e-6) return String(beat);
+    if (numerator === 0) return String(beat);
 
-    let numerator = Math.round(rest * DENOMINATOR);
-    let denominator = DENOMINATOR;
-    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-    const divisor = gcd(numerator, denominator);
+    const divisor = TC.gcd(numerator, denominator) || 1;
+    const n = numerator / divisor;
+    const d = denominator / divisor;
 
-    numerator /= divisor;
-    denominator /= divisor;
+    if (d === 1) return String(beat + n);
 
-    if (denominator === 1) return String(beat + numerator);
-
-    return beat === 0
-        ? `${numerator}/${denominator}`
-        : `${beat}+${numerator}/${denominator}`;
+    return beat === 0 ? `${n}/${d}` : `${beat}+${n}/${d}`;
 }
 
 /** 分数文本 → 拍数；认 `3`、`3+1/4`、`3.25`，认不出就 NaN */
@@ -87,16 +85,18 @@ export function beatsOf(
     return b + n / d;
 }
 
-/** 拍数 → 三个框的文本（约分成最简分数） */
-export function splitBeats(beats: number): [string, string, string] {
-    const beat = Math.floor(beats);
-    let numerator = Math.round((beats - beat) * DENOMINATOR);
-    let denominator = DENOMINATOR;
-    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-    const divisor = numerator === 0 ? 1 : gcd(numerator, denominator);
+/** `TimeT` → 三个框的文本（`[拍, 分子, 分母]`，约分成最简分数） */
+export function splitTime(time: TimeT): [string, string, string] {
+    const [beat, numerator, denominator] = time;
+    const divisor = numerator === 0 ? 1 : TC.gcd(numerator, denominator) || 1;
 
-    numerator /= divisor;
-    denominator /= divisor;
-
-    return [String(beat), String(numerator), String(denominator)];
+    return [
+        String(beat),
+        String(numerator / divisor),
+        String(denominator / divisor)
+    ];
 }
+
+/** 拍数 → 三个框的文本；只有从文本解析回来的地方才需要它 */
+export const splitBeats = (beats: number): [string, string, string] =>
+    splitTime(toTime(beats));
