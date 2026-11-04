@@ -421,8 +421,17 @@
                 : "";
 
         const evaluator = node.evaluator;
-        const easing =
+        const rawEasing =
             evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+
+        /*
+         * 分段缓动（`SegmentedEasing`）只是给内层缓动裁了个区间，
+         * **类型要看内层**：桌面的 `getEasingId()` 也是这么拆的
+         *（`easing instanceof SegmentedEasing ? easing.easing : easing`）。
+         * 不拆的话分段后会被判成 "other"，面板只剩一句"未识别"。
+         */
+        const easing =
+            rawEasing instanceof SegmentedEasing ? rawEasing.easing : rawEasing;
 
         // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
         evalKind = evaluator instanceof EasedEvaluator ? "eased" : "expression";
@@ -440,11 +449,8 @@
         }
 
         // 普通缓动：把当前预设的 id 同步回选择器（撤销 / 换节点之后才不会错位）
-        const innerEasing =
-            easing instanceof SegmentedEasing ? easing.easing : easing;
-
-        if (innerEasing instanceof NormalEasing) {
-            normalId = innerEasing.id;
+        if (easing instanceof NormalEasing) {
+            normalId = easing.id;
         }
 
         // 曲线跟着重画（换分支时元素会变，交给 mount 判断重建）
@@ -593,13 +599,16 @@
         }
 
         const current = node.evaluator?.easing;
+        // 分段缓动：改控制点不该把区间丢掉，改完再包回去
+        const inner =
+            current instanceof SegmentedEasing ? current.easing : current;
 
-        if (current instanceof BezierEasing) {
+        if (inner instanceof BezierEasing) {
             const same =
-                current.cp1[0] === x1 &&
-                current.cp1[1] === y1 &&
-                current.cp2[0] === x2 &&
-                current.cp2[1] === y2;
+                inner.cp1[0] === x1 &&
+                inner.cp1[1] === y1 &&
+                inner.cp2[0] === x2 &&
+                inner.cp2[1] === y2;
 
             if (same) return;
         }
@@ -609,7 +618,16 @@
         ops.do(
             new Op.EventNodeEvaluatorChangeOperation(
                 node,
-                new NumericEasedEvaluator(new BezierEasing([x1, y1], [x2, y2]))
+                new NumericEasedEvaluator(
+                    // 原来有区间就带着走（改控制点不等于取消分段）
+                    current instanceof SegmentedEasing
+                        ? new SegmentedEasing(
+                              new BezierEasing([x1, y1], [x2, y2]),
+                              current.left,
+                              current.right
+                          )
+                        : new BezierEasing([x1, y1], [x2, y2])
+                )
             )
         );
     }
