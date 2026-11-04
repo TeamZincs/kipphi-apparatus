@@ -5,8 +5,16 @@
      * 只给最常用的两项：时间、值。缓动 / 求值器 / 宏那一套桌面端才有完整 UI，
      * 手机上塞不下，先不做。
      */
-    import { Op, TC } from "kipphi";
+    import {
+        EasedEvaluator,
+        ExpressionEvaluator,
+        NormalEasing,
+        NumericEasedEvaluator,
+        Op,
+        TC
+    } from "kipphi";
 
+    import Segmented from "#/components/Segmented.grain";
     import Switch from "#/components/Switch.grain";
 
     import { operationList } from "#/store";
@@ -34,12 +42,44 @@
     let timeText = $state("");
     let value = $state("");
 
+    /** 求值器只有两种：缓动 / 表达式（宏求值器留给桌面端） */
+    const EVAL_OPTIONS: [number, string][] = [
+        [0, "缓动"],
+        [1, "表达式"]
+    ];
+
+    /**
+     * 当前节点的求值器种类。
+     *
+     * `evaluator` 是普通对象字段，读它不产生编译期依赖 —— 靠 `operationList`
+     * 的通知驱动重算（和 `$lsprop` 同一套）。
+     */
+    const evalKind = $node({
+        get: () =>
+            node.evaluator instanceof EasedEvaluator ? "eased" : "expression",
+        listen: (update: () => void) => {
+            operationList?.addEventListener("needsupdate", update);
+
+            return () => operationList?.removeEventListener("needsupdate", update);
+        }
+    });
+
+    /** 表达式求值器的源码草稿（只在表达式模式下可编辑） */
+    let exprText = $state("");
+
+    /** 从缓动切走时把 easing 记住 —— 切回来还是原来那条曲线 */
+    let savedEasing: any = null;
+
     function pull(): void {
         beat = String(node.time[0]);
         numerator = String(node.time[1]);
         denominator = String(node.time[2]);
         timeText = formatTime(node.time);
         value = String(node.value);
+        exprText =
+            node.evaluator instanceof ExpressionEvaluator
+                ? node.evaluator.jsExpr
+                : "";
     }
 
     pull();
@@ -111,6 +151,64 @@
         );
     }
 
+    /** 切换求值器：缓动 ↔ 表达式（各自保留已有配置） */
+    function setEvalKind(kind: string): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const current = node.evaluator;
+        const eased = current instanceof EasedEvaluator;
+
+        if ((kind === "eased") === eased) return;
+
+        error = null;
+
+        if (kind === "eased") {
+            const easing = savedEasing ?? new NormalEasing((t: number) => t);
+
+            ops.do(
+                new Op.EventNodeEvaluatorChangeOperation(
+                    node,
+                    new NumericEasedEvaluator(easing)
+                )
+            );
+
+            return;
+        }
+
+        if (eased) savedEasing = (current as any).easing;
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new ExpressionEvaluator(exprText.trim() || "1")
+            )
+        );
+    }
+
+    /** 表达式源码写回（只有表达式求值器才有这回事） */
+    function commitExpression(): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const current = node.evaluator;
+
+        if (!(current instanceof ExpressionEvaluator)) return;
+
+        const next = exprText.trim() || "1";
+
+        if (next === current.jsExpr) return;
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new ExpressionEvaluator(next)
+            )
+        );
+    }
+
     function remove(): void {
         if (!operationList) return;
 
@@ -165,6 +263,31 @@
             <span>值</span>
             <input type="text" bind:value={value} />
         </label>
+
+        <div class="field">
+            <span>求值器</span>
+            <Segmented
+                options={EVAL_OPTIONS}
+                bind:value={
+                    get: () => (evalKind === "eased" ? 0 : 1),
+                    set: (v: number) =>
+                        setEvalKind(v === 0 ? "eased" : "expression")
+                }
+            />
+        </div>
+
+        {#if evalKind === "expression"}
+            <label class="field">
+                <span>表达式</span>
+                <input
+                    class="num"
+                    type="text"
+                    placeholder="a * b"
+                    bind:value={exprText}
+                    onchange={commitExpression}
+                />
+            </label>
+        {/if}
     </div>
 </div>
 
