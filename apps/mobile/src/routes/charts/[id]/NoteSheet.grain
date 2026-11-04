@@ -45,6 +45,48 @@
             '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
         ];
     }
+
+    /**
+     * 数值字段（`positionX` / `alpha` / `size` / `judgeSize`）：
+     * 输入框给过来的是**字符串**，这里转成数字、校验、只发自己那一条操作。
+     *
+     * `get` 也返回字符串（`NumField` 的文本就是字符串），值仍然从对象上现读。
+     */
+    function $lsnum(target: string, field: string) {
+        return [
+            'get',
+            ':',
+            `() => String(${target}.${field})`,
+            ',',
+            'set',
+            ':',
+            `(v) => { const __n = Number(v); if (!Number.isFinite(__n) || __n === ${target}.${field}) return; operationList.do(new Op.NotePropChangeOperation(${target}, "${field}", __n)); }`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
+
+    /**
+     * 需要判定线参与的操作（`speed` / `yOffset`）：操作类从 `line` 上取，所以
+     * 多一步"从对象反查所属判定线"，拿不到就静默放弃。
+     */
+    function $lsmove(target: string, field: string, operation: string) {
+        return [
+            'get',
+            ':',
+            `() => String(${target}.${field})`,
+            ',',
+            'set',
+            ':',
+            `(v) => { const __n = Number(v); if (!Number.isFinite(__n) || __n === ${target}.${field}) return; const __line = ${target}.parentNode?.parentSeq?.parentLine; if (!__line) return; operationList.do(new Op.${operation}(${target}, __n, __line)); }`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
 </script>
 
 <script>
@@ -523,13 +565,7 @@
 
         <label class="field">
             <span>X</span>
-            <NumField
-                bind:value={
-                    get: () => positionX,
-                    set: (v: string) => (positionX = v)
-                }
-                oncommit={() => commitField("positionX")}
-            />
+            <NumField bind:value={$lsnum(note, "positionX")} />
         </label>
 
         <div class="field">
@@ -546,47 +582,30 @@
     <div class="col">
         <label class="field">
             <span>大小</span>
-            <NumField
-                bind:value={ get: () => size, set: (v: string) => (size = v) }
-                oncommit={() => commitField("size")}
-            />
+            <NumField bind:value={$lsnum(note, "size")} />
         </label>
 
         <label class="field">
             <span>判定大小</span>
-            <NumField
-                bind:value={
-                    get: () => judgeSize,
-                    set: (v: string) => (judgeSize = v)
-                }
-                oncommit={() => commitField("judgeSize")}
-            />
+            <NumField bind:value={$lsnum(note, "judgeSize")} />
         </label>
 
         <label class="field">
             <span>透明度</span>
-            <NumField
-                bind:value={ get: () => alpha, set: (v: string) => (alpha = v) }
-                oncommit={() => commitField("alpha")}
-            />
+            <NumField bind:value={$lsnum(note, "alpha")} />
         </label>
 
         <label class="field">
             <span>Y 偏移</span>
             <NumField
-                bind:value={
-                    get: () => yOffset,
-                    set: (v: string) => (yOffset = v)
-                }
-                oncommit={() => commitField("yOffset")}
+                bind:value={$lsmove(note, "yOffset", "NoteYOffsetChangeOperation")}
             />
         </label>
 
         <label class="field">
             <span>速度</span>
             <NumField
-                bind:value={ get: () => speed, set: (v: string) => (speed = v) }
-                oncommit={() => commitField("speed")}
+                bind:value={$lsmove(note, "speed", "NoteSpeedChangeOperation")}
             />
         </label>
     </div>
