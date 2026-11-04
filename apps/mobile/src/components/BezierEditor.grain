@@ -83,11 +83,15 @@
         touch-action: none;
     }
 
-    /* 共享包的画布自己给 canvas 定了尺寸，这里只负责铺满 */
+    /*
+     * 共享包把位图设成 300×300（正方形），所以显示也必须保持 1:1。
+     * 只给宽度、height 用 auto：浏览器按位图比例算高度，画布就不会被压扁。
+     */
     .bezier :global(canvas) {
         display: block;
         width: 100% !important;
-        height: 140px !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1;
     }
 
     .quad {

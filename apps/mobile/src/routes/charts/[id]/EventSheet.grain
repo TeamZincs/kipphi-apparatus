@@ -392,6 +392,27 @@
 
     //#region 普通缓动的分段画布（共享包里的 EasingCanvas）
     let easeCanvasEl: HTMLCanvasElement | null = null;
+    /** 求值器整块的容器（用来清理命令式挂载、框架不认识的画布） */
+    let evalRoot: HTMLDivElement | null = null;
+
+    /**
+     * 切换求值器种类时，把上一支**命令式**挂上去的 canvas 全部摘掉。
+     *
+     * `BezierEditor` / `EasingCanvas` 是在 `onmount` 里自己 `appendChild` 的，
+     * 这些节点不在编译期生成的分支 `nodes` 快照里 —— 框架换分支时只会删它
+     * 自己建的节点，于是旧画布留在页面上（"删不掉已挂载的元素"）。
+     */
+    function dropStaleCanvases(): void {
+        if (!evalRoot) return;
+
+        for (const canvas of [...evalRoot.querySelectorAll("canvas")]) {
+            canvas.remove();
+        }
+
+        // 编辑器实例还指着已卸载的画布，下次要重建
+        easeEditorEl = null;
+        easeEditor = null;
+    }
     let easeEditor: any = null;
 
     /** 当前缓动对象（给画布用） */
@@ -503,7 +524,12 @@
             rawEasing instanceof SegmentedEasing ? rawEasing.easing : rawEasing;
 
         // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
-        evalKind = evaluator instanceof EasedEvaluator ? "eased" : "expression";
+        const nextEvalKind =
+            evaluator instanceof EasedEvaluator ? "eased" : "expression";
+
+        if (nextEvalKind !== evalKind) dropStaleCanvases();
+
+        evalKind = nextEvalKind;
 
         /*
          * 每次读到对象上的真实缓动，就把对应那一种的暂存值更新一次；
@@ -835,7 +861,7 @@
     求值器通栏：占满面板宽度，不和"时间 / 值"挤在同一列里。
     里面依次是：求值器种类 → 表达式源码 / 缓动种类 → 贝塞尔控制点。
 -->
-<div class="eval" onchange={commit} onblur={commit}>
+<div class="eval" bind:this={evalRoot} onchange={commit} onblur={commit}>
     <div class="field">
         <span>求值器</span>
         <Segmented
