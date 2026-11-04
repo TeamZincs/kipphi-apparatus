@@ -9,13 +9,22 @@ import { TC, type TimeT } from "kipphi";
 /** 分母基数：能被 2/3/4/8/16 整除，分数显示好看 */
 const DENOMINATOR = 960;
 
-/** 拍数 → `TimeT` */
-export const toTime = (beats: number): TimeT =>
-    TC.validateIp([
-        Math.floor(beats),
-        Math.round((beats % 1) * DENOMINATOR),
+/**
+ * 拍数 → `TimeT`。
+ *
+ * 取整用 `Math.trunc`（向 0 取整）而不是 `Math.floor`：后者对负数是往下取，
+ * `-1.5` 会拆成 `[-2, -480, 960]`，合回 `TC.toBeats` 变成 **-2.5**。
+ * 零前时间是合法的（音符画布能滚到负数），所以这里必须保住符号。
+ */
+export const toTime = (beats: number): TimeT => {
+    const beat = Math.trunc(beats);
+
+    return TC.validateIp([
+        beat,
+        Math.round((beats - beat) * DENOMINATOR),
         DENOMINATOR
     ]);
+};
 
 /**
  * `TimeT` → 分数文本（`3` / `3+1/4`），和桌面端 FractionInput 的观感一致。
@@ -40,6 +49,10 @@ export function formatTime(time: TimeT): string {
 /** 分数文本 → 拍数；认 `3`、`3+1/4`、`3.25`，认不出就 NaN */
 export function parseTime(text: string): number {
     const trimmed = text.trim();
+
+    // 空串必须当"没填"，不能让它走到 `Number("") === 0`
+    if (trimmed === "") return NaN;
+
     const mixed = /^(\d+)\s*\+\s*(\d+)\s*\/\s*(\d+)$/.exec(trimmed);
 
     if (mixed) {

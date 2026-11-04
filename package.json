@@ -17,6 +17,7 @@
         "locales": "cd apps/desktop && bun run locales",
         "watchLocales": "cd apps/desktop && bun run watchLocales",
         "build:electron": "cd apps/desktop && bun run build:electron",
+        "test": "bun test",
         "fix:bom": "bun scripts/fix-bom.ts"
     },
     "license": "MIT",
