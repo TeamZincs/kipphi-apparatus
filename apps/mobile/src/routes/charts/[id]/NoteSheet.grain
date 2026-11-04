@@ -126,7 +126,7 @@
     let error = $state<string | null>(null);
 
     // 草稿：数值一律存字符串（输入过程中允许 `-`、`.` 这种中间态）
-    let type = $state(note.type);
+
     let startB = $state("0");
     let startN = $state("0");
     let startD = $state("1");
@@ -135,14 +135,10 @@
     let endD = $state("1");
     let startText = $state("");
     let endText = $state("");
-    let positionX = $state("");
-    let speed = $state("");
-    let yOffset = $state("");
-    let alpha = $state("");
-    let size = $state("");
-    let judgeSize = $state("");
-    let above = $state(false);
-    let fake = $state(false);
+    /*
+     * 数值 / 布尔 / 类型字段不再有本地草稿：`$lsnum` / `$lsprop` / `$lstype`
+     * 直接读写对象本身（`operationList` 是唯一真相），输入框中转由 `NumField` 自己管。
+     */
 
     const TYPE_OPTIONS: [number, string][] = [
         [NoteType.tap, "Tap"],
@@ -152,7 +148,6 @@
     ];
 
     function pull(): void {
-        type = note.type;
         startB = String(note.startTime[0]);
         startN = String(note.startTime[1]);
         startD = String(note.startTime[2]);
@@ -161,15 +156,6 @@
         endD = String(note.endTime[2]);
         startText = formatTime(note.startTime);
         endText = formatTime(note.endTime);
-        positionX = String(note.positionX);
-        speed = String(note.speed);
-        yOffset = String(note.yOffset);
-        alpha = String(note.alpha);
-        size = String(note.size);
-        judgeSize = String(note.judgeSize);
-        // 运行时是 boolean（不是 0/1）—— 之前拿 `=== 1` 比，所以开关永远是关的
-        above = note.above;
-        fake = note.isFake;
     }
 
     /*
@@ -264,130 +250,6 @@
         error = null;
 
         switch (field) {
-            case "type":
-                if (type === note.type) return;
-
-                ops.do(new Op.NoteTypeChangeOperation(note, type));
-
-                return;
-
-            case "above":
-                if (above === note.above) return;
-
-                ops.do(new Op.NotePropChangeOperation(note, "above", above));
-
-                return;
-
-            case "fake":
-                if (fake === note.isFake) return;
-
-                ops.do(
-                    new Op.NotePropChangeOperation(note, "isFake", fake)
-                );
-
-                return;
-
-            case "positionX": {
-                const value = num(positionX);
-
-                if (!Number.isFinite(value)) {
-                    error = "X 必须是数字";
-
-                    return;
-                }
-
-                if (value === note.positionX) return;
-
-                ops.do(
-                    new Op.NotePropChangeOperation(note, "positionX", value)
-                );
-
-                return;
-            }
-
-            case "alpha": {
-                const value = num(alpha);
-
-                if (!Number.isFinite(value)) {
-                    error = "透明度必须是数字";
-
-                    return;
-                }
-
-                if (value === note.alpha) return;
-
-                ops.do(new Op.NotePropChangeOperation(note, "alpha", value));
-
-                return;
-            }
-
-            case "size": {
-                const value = num(size);
-
-                if (!Number.isFinite(value)) {
-                    error = "大小必须是数字";
-
-                    return;
-                }
-
-                if (value === note.size) return;
-
-                ops.do(new Op.NotePropChangeOperation(note, "size", value));
-
-                return;
-            }
-
-            case "judgeSize": {
-                const value = num(judgeSize);
-
-                if (!Number.isFinite(value)) {
-                    error = "判定大小必须是数字";
-
-                    return;
-                }
-
-                if (value === note.judgeSize) return;
-
-                ops.do(
-                    new Op.NotePropChangeOperation(note, "judgeSize", value)
-                );
-
-                return;
-            }
-
-            case "speed":
-            case "yOffset": {
-                const line = note.parentNode?.parentSeq?.parentLine;
-
-                if (!line) {
-                    error = "这个音符还没挂在判定线上";
-
-                    return;
-                }
-
-                const value = num(field === "speed" ? speed : yOffset);
-
-                if (!Number.isFinite(value)) {
-                    error = "值必须是数字";
-
-                    return;
-                }
-
-                if (field === "speed") {
-                    if (value === note.speed) return;
-
-                    ops.do(new Op.NoteSpeedChangeOperation(note, value, line));
-                } else {
-                    if (value === note.yOffset) return;
-
-                    ops.do(
-                        new Op.NoteYOffsetChangeOperation(note, value, line)
-                    );
-                }
-
-                return;
-            }
-
             case "start":
             case "end": {
                 const seq = note.parentNode?.parentSeq;
