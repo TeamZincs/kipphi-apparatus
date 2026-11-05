@@ -903,10 +903,17 @@
         </div>
 
         {#if easingKind === "bezier"}
-            <!-- 画布与四个控制点都在组件里（画布本体来自 `@kpa/canvas`） -->
+            <!--
+                画布与四个控制点都在组件里（画布本体来自 `@kpa/canvas`）。
+
+                `listen` 不能省：`cpValue()` 是个普通函数调用，编译器看不见它
+                读了 `cp1x..cp2y` —— 节点被改（撤销 / 画布拖动 / 手输）之后
+                props 更新器不会重算，四个输入框就停在旧值上。订阅操作列表，
+                运行时会把通知接到子组件的 `setProps`。
+            -->
             <BezierEditor
                 bind:value={
-                    get: () => cpValue(),
+                    get: () => (cp1x, cp1y, cp2x, cp2y, cpValue()),
                     set: (v: number[]) => {
                         cp1x = String(v[0]);
                         cp1y = String(v[1]);

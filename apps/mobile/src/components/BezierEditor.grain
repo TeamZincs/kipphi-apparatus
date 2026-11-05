@@ -31,6 +31,8 @@
         value: {
             get: () => number[];
             set: (v: number[]) => void;
+            /** 值由外部源驱动时由运行时接线（见 `ShellImpl.wireProps`） */
+            listen?: (update: () => void) => unknown;
         };
     }>();
 

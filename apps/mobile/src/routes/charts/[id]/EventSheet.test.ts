@@ -27,6 +27,15 @@ const RUNTIME = resolve(
 let window: Window;
 let document: Document;
 
+/**
+ * 当前用例的操作列表。
+ *
+ * `store` 桩导出的是**转发代理**，每次调用都读这个全局 —— 所以每个用例
+ * 换一个新的 ops 就够了，不需要给每个用例换一份编译产物（换文件名会让
+ * Bun 首次解析新文件时偶尔报 "Cannot find module"）。
+ */
+let currentOps: FakeOperationList;
+
 beforeAll(() => {
     window = new Window();
     document = window.document as unknown as Document;
@@ -47,6 +56,11 @@ beforeAll(() => {
 
 beforeEach(() => {
     document.body.innerHTML = "";
+
+    // 每个用例一份新的操作列表：上一个用例的组件仍挂着监听，但挂在旧对象上
+    currentOps = new FakeOperationList();
+    (globalThis as unknown as Record<string, unknown>).__eventSheetOps =
+        currentOps;
 });
 
 const norm = (path: string): string => path.replace(/\\/g, "/");
@@ -128,14 +142,20 @@ async function mountSheet(
     throughShell = false,
     initial: "bezier" | "normal" = "bezier"
 ): Promise<Mounted> {
-    const ops = new FakeOperationList();
+    const ops = currentOps;
 
-    // `<script module>` 的草稿是模块级的，测试之间必须加载**不同的模块实例**
+    // 不同参数组合用不同产物，隔离 `<script module>` 里的草稿
     const tag = `${initial}-${throughShell ? "shell" : "direct"}`;
 
+    // 转发代理：每次调用都读当前用例的 ops，同一个模块实例可以复用到多个用例
     const storeStub = await stub(
         `event-sheet-store-${tag}`,
-        `export const operationList = (globalThis as any).__eventSheetOps;`
+        `const ops = () => (globalThis as any).__eventSheetOps;
+        export const operationList = {
+            addEventListener: (type: string, fn: EventListener) => ops()?.addEventListener(type, fn),
+            removeEventListener: (type: string, fn: EventListener) => ops()?.removeEventListener(type, fn),
+            do: (operation: any) => ops()?.do(operation)
+        };`
     );
 
     const canvasStub = await stub(
@@ -165,8 +185,6 @@ async function mountSheet(
             setValue() {}
         }`
     );
-
-    (globalThis as any).__eventSheetOps = ops;
 
     const segmented = await build(
         join(MOBILE_SRC, "components", "Segmented.grain"),
@@ -476,6 +494,23 @@ describe("EventSheet 求值器分支", () => {
                 (b) => b.textContent === "普通"
             )
         ).toBe(false);
+    });
+
+    it("节点上的贝塞尔值变了，组件里的四个控制点输入框要跟着更新", async () => {
+        const { target, ops, setEvaluator } = await mountSheet(false, "bezier");
+
+        const inputs = () =>
+            [...target.querySelectorAll(".quad input")] as HTMLInputElement[];
+
+        expect(inputs().map((i) => i.value)).toEqual(["0.25", "0.1", "0.25", "1"]);
+
+        // 模拟"节点被改"：数据变了 + 操作列表通知
+        setEvaluator(
+            new NumericEasedEvaluator(new BezierEasing([0.4, 0.2], [0.6, 0.9]))
+        );
+        ops.dispatchEvent(new Event("needsupdate"));
+
+        expect(inputs().map((i) => i.value)).toEqual(["0.4", "0.2", "0.6", "0.9"]);
     });
 
     it("关闭再打开 / children 分支切换后，EasingBox 不出现两份", async () => {
