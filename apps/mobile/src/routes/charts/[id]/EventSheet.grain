@@ -878,16 +878,7 @@
         />
     </div>
 
-    <!--
-        keyed 单元素循环：求值器种类**或**缓动种类一变，整棵子树 dispose / 重建。
-
-        普通 `{#if}` 的分支是缓存复用的：切走时旧分支的组件实例可能和新建的
-        并存，表现就是第二次切回普通缓动时 EasingBox 出现两个。给一个复合
-        key 之后，两种切换都必然先销毁再建一棵新的；改时间 / 值 / 控制点
-        时 key 不变，仍然复用。
-    -->
-    {#for kind of [evalKind] with key = evalKind + ":" + easingKind}
-    {#if kind === "expression"}
+    {#if evalKind === "expression"}
         <label class="field">
             <span>表达式</span>
             <input
@@ -947,7 +938,6 @@
             <p class="hint">这个节点的缓动类型还没识别</p>
         {/if}
     {/if}
-    {/for}
 </div>
 
 {#if error}
