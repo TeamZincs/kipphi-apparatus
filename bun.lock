@@ -8,7 +8,7 @@
         "lucide": "^1.66.0",
       },
       "devDependencies": {
-        "@graints/compiler": "file:../grain/packages/compiler",
+        "@graints/compiler": "link:../grain/packages/compiler",
         "happy-dom": "^21.0.4",
       },
     },
@@ -107,7 +107,7 @@
 
     "@electron/windows-sign": ["@electron/windows-sign@1.2.2", "https://registry.npmmirror.com/@electron/windows-sign/-/windows-sign-1.2.2.tgz", { "dependencies": { "cross-dirname": "^0.1.0", "debug": "^4.3.4", "fs-extra": "^11.1.1", "minimist": "^1.2.8", "postject": "^1.0.0-alpha.6" }, "bin": { "electron-windows-sign": "bin/electron-windows-sign.js" } }, "sha512-dfZeox66AvdPtb2lD8OsIIQh12Tp0GNCRUDfBHIKGpbmopZto2/A8nSpYYLoedPIHpqkeblZ/k8OV0Gy7PYuyQ=="],
 
-    "@graints/compiler": ["@graints/compiler@file:../grain/packages/compiler", {}],
+    "@graints/compiler": ["@graints/compiler@link:../grain/packages/compiler", {}],
 
     "@graints/runtime": ["@graints/runtime@link:@graints/runtime", {}],
 

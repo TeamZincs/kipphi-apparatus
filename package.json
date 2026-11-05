@@ -25,7 +25,7 @@
         "lucide": "^1.66.0"
     },
     "devDependencies": {
-        "@graints/compiler": "file:../grain/packages/compiler",
+        "@graints/compiler": "link:../grain/packages/compiler",
         "happy-dom": "^21.0.4"
     }
 }
