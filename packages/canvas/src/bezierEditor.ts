@@ -1,4 +1,4 @@
-import { Coordinate, identity, Images, Matrix33 } from "kipphi-player";
+import { Coordinate, identity, Matrix33 } from "kipphi-player";
 import { SelectionManager } from "./selectionManager";
 import {
     drawBezierCurve,
@@ -113,20 +113,41 @@ export class BezierEditor extends EventTarget {
             [startPoint.x, startPoint.y],
             [endPoint.x, endPoint.y],
         );
-        context.drawImage(
-            Images.START_NODE,
-            sx - HALF_BEZIER_POINT_SIZE,
-            sy - HALF_BEZIER_POINT_SIZE,
-            BEZIER_POINT_SIZE,
-            BEZIER_POINT_SIZE,
-        );
-        context.drawImage(
-            Images.END_NODE,
-            ex - HALF_BEZIER_POINT_SIZE,
-            ey - HALF_BEZIER_POINT_SIZE,
-            BEZIER_POINT_SIZE,
-            BEZIER_POINT_SIZE,
-        );
+        /*
+         * 控制点画成圆球 + 到锚点的连线，不再用贴图按钮：
+         * 蓝色是控制点 1（对应左下角 (0,0)），红色是控制点 2（右上角 (1,1)）。
+         * 连线用同色半透明，既表明"从哪个角拉出来的"，又不抢曲线的视觉。
+         */
+        const radius = HALF_BEZIER_POINT_SIZE - 3;
+
+        context.lineWidth = 2;
+
+        context.strokeStyle = "rgba(76, 141, 255, 0.5)";
+        context.beginPath();
+        context.moveTo(0, size);
+        context.lineTo(sx, sy);
+        context.stroke();
+
+        context.strokeStyle = "rgba(242, 84, 91, 0.5)";
+        context.beginPath();
+        context.moveTo(size, 0);
+        context.lineTo(ex, ey);
+        context.stroke();
+
+        const ball = (x: number, y: number, color: string): void => {
+            context.beginPath();
+            context.arc(x, y, radius, 0, Math.PI * 2);
+            context.fillStyle = color;
+            context.fill();
+
+            // 一圈浅描边，深色背景上边缘更清楚，也方便看清压在哪里
+            context.lineWidth = 2;
+            context.strokeStyle = "rgba(255, 255, 255, 0.85)";
+            context.stroke();
+        };
+
+        ball(sx, sy, "#4c8dff");
+        ball(ex, ey, "#f2545b");
         selectionManager.add({
             centerX: sx,
             centerY: sy,
