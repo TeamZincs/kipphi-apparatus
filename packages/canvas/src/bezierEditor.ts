@@ -27,6 +27,8 @@ export class BezierEditor extends EventTarget {
     state = BezierEditorState.select;
     drawn = false;
     private observer: ResizeObserver;
+    /** 挂载时给的回调，比 addEventListener 好处是「只留最后一个」 */
+    private onChange: (() => void) | null = null;
     constructor() {
         super();
         this.canvas.width = this.canvas.height = this.size;
@@ -53,13 +55,31 @@ export class BezierEditor extends EventTarget {
             this.elementMatrixInverted = this.elementMatrix.invert();
         });
     }
-    addTo(element: HTMLElement) {
+    /**
+     * 挂到某个容器上
+     *
+     * 这是个**单例**：每挂一次就 `observer.observe(容器)`，解挂时没人摘，
+     * 于是 ResizeObserver 会一直攥着历次挂载过的容器（及其子树），元素再也回收不掉。
+     * 所以这里先 {@linkcode removeFrom} 再挂 —— 重复挂载等于「搬家」，不会累积。
+     *
+     * @param onChange 值变了要通知谁。同样只保留最后一个，避免监听器在单例上越攒越多
+     */
+    addTo(element: HTMLElement, onChange?: () => void) {
+        this.removeFrom();
+        this.onChange = onChange ?? null;
         element.appendChild(this.canvas);
         this.observer.observe(element);
         const width = element.clientWidth;
         const ratio = width / this.size;
         this.elementMatrix = identity.scale(ratio, ratio);
         this.elementMatrixInverted = this.elementMatrix.invert();
+    }
+
+    /** 从容器上摘下来：断开观察、丢掉回调、把画布移出 DOM */
+    removeFrom() {
+        this.observer.disconnect();
+        this.onChange = null;
+        this.canvas.remove();
     }
     update() {
         this.updateMatrix();
@@ -169,6 +189,7 @@ export class BezierEditor extends EventTarget {
             this.state === BezierEditorState.selectingEnd
         ) {
             this.dispatchEvent(new KPAEvent("change"));
+            this.onChange?.();
         }
         this.state = BezierEditorState.select;
     }

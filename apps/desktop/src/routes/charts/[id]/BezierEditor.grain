@@ -15,8 +15,9 @@
 
 <script onmount>
     canvasEditor.setValue(...value);
-    canvasEditor.addTo(container);
-    canvasEditor.addEventListener('change', onCanvasChange);
+    // 回调式注册：单例上的监听器只留最后一个。
+    // 以前是 addEventListener，每切一次「贝塞尔」就多留一份组件闭包和容器元素（回收不掉）
+    canvasEditor.addTo(container, onCanvasChange);
 </script>
 
 <style global>
