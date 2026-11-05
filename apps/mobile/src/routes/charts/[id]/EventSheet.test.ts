@@ -442,6 +442,42 @@ describe("EventSheet 求值器分支", () => {
         expect(target.querySelectorAll(".eval").length).toBe(1);
     });
 
+    it("普通 → 贝塞尔 → 普通 → 表达式，缓动分支必须整块消失", async () => {
+        const { target } = await mountSheet(false, "normal");
+
+        const boxes = () => target.querySelectorAll("select.pick").length;
+        const curves = () => target.querySelectorAll("canvas.curve").length;
+
+        const button = (label: string) =>
+            [...target.querySelectorAll("button.seg")].find(
+                (b) => b.textContent === label
+            ) as HTMLElement;
+        const click = (b: HTMLElement) =>
+            b.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+
+        expect(boxes()).toBe(1);
+        expect(curves()).toBe(1);
+
+        // 用户报的顺序：先切贝塞尔，再回普通，最后切表达式
+        click(button("贝塞尔"));
+        expect(boxes()).toBe(0);
+
+        click(button("普通"));
+        expect(boxes()).toBe(1);
+        expect(curves()).toBe(1);
+
+        click(button("表达式"));
+
+        // 到这一步缓动那一支必须整块没了
+        expect(boxes()).toBe(0);
+        expect(curves()).toBe(0);
+        expect(
+            [...target.querySelectorAll("button.seg")].some(
+                (b) => b.textContent === "普通"
+            )
+        ).toBe(false);
+    });
+
     it("关闭再打开 / children 分支切换后，EasingBox 不出现两份", async () => {
         const { target } = await mountSheet(true, "normal");
 
