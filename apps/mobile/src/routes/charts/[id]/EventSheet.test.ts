@@ -5,7 +5,12 @@ import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { compile } from "@graints/compiler";
-import { BezierEasing, easingArray, NumericEasedEvaluator } from "kipphi";
+import {
+    BezierEasing,
+    easingArray,
+    NumericEasedEvaluator,
+    TemplateEasing
+} from "kipphi";
 
 /**
  * 事件面板「表达式 ↔ 缓动求值器」切换的**集成**回归。
@@ -36,6 +41,16 @@ let document: Document;
  */
 let currentOps: FakeOperationList;
 
+/**
+ * 假的 `chart`（`store` 桩导出它）。
+ *
+ * 引用**固定不变**，用例改它的字段（比如往 `templateEasingLib.easings`
+ * 里塞模板）就够了 —— 换对象会让模块缓存里的旧引用失效。
+ */
+const fakeChart = {
+    templateEasingLib: { easings: new Map<string, unknown>() }
+};
+
 beforeAll(() => {
     window = new Window();
     document = window.document as unknown as Document;
@@ -52,10 +67,12 @@ beforeAll(() => {
         disconnect() {}
     };
     globals.CustomEvent = window.CustomEvent;
+    globals.__eventSheetChart = fakeChart;
 });
 
 beforeEach(() => {
     document.body.innerHTML = "";
+    fakeChart.templateEasingLib.easings.clear();
 
     // 每个用例一份新的操作列表：上一个用例的组件仍挂着监听，但挂在旧对象上
     currentOps = new FakeOperationList();
@@ -151,6 +168,7 @@ async function mountSheet(
     const storeStub = await stub(
         `event-sheet-store-${tag}`,
         `const ops = () => (globalThis as any).__eventSheetOps;
+        export const chart = (globalThis as any).__eventSheetChart;
         export const operationList = {
             addEventListener: (type: string, fn: EventListener) => ops()?.addEventListener(type, fn),
             removeEventListener: (type: string, fn: EventListener) => ops()?.removeEventListener(type, fn),
@@ -511,6 +529,39 @@ describe("EventSheet 求值器分支", () => {
         ops.dispatchEvent(new Event("needsupdate"));
 
         expect(inputs().map((i) => i.value)).toEqual(["0.4", "0.2", "0.6", "0.9"]);
+    });
+
+    it("模板缓动：列出谱面里的模板，选中后写成求值器", async () => {
+        fakeChart.templateEasingLib.easings.set(
+            "ease1",
+            new TemplateEasing("ease1", {} as never)
+        );
+        fakeChart.templateEasingLib.easings.set(
+            "ease2",
+            new TemplateEasing("ease2", {} as never)
+        );
+
+        const { target, evaluator } = await mountSheet(false, "normal");
+
+        const button = (label: string) =>
+            [...target.querySelectorAll("button.seg")].find(
+                (b) => b.textContent === label
+            ) as HTMLElement;
+
+        button("模板").dispatchEvent(
+            new window.MouseEvent("click", { bubbles: true })
+        );
+
+        const options = [
+            ...target.querySelectorAll("select.pick option")
+        ] as HTMLOptionElement[];
+
+        expect(options.map((o) => o.textContent)).toEqual(["ease1", "ease2"]);
+
+        // 切过来要自动落到第一个模板上（暂存为空时也总得有个能用的）
+        expect(
+            (evaluator() as { easing?: { name?: string } }).easing?.name
+        ).toBe("ease1");
     });
 
     it("关闭再打开 / children 分支切换后，EasingBox 不出现两份", async () => {

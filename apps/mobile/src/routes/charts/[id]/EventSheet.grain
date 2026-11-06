@@ -75,7 +75,7 @@
     import Segmented from "#/components/Segmented.grain";
     import Switch from "#/components/Switch.grain";
 
-    import { operationList } from "#/store";
+    import { chart, operationList } from "#/store";
     import {
         beatsOf,
         formatTime,
@@ -390,6 +390,30 @@
     /** 普通缓动当前用的 `easingArray` 下标（初值取模块级暂存） */
     let normalId = $state(getNormalDraft());
 
+    /** 谱面里可选的模板缓动名（`chart.templateEasingLib`） */
+    let templateNames = $state<string[]>([]);
+    /** 当前节点用的模板缓动名 */
+    let templateName = $state("");
+
+    /** 换模板缓动 */
+    function setTemplateName(name: string): void {
+        const template = chart?.templateEasingLib.easings.get(name);
+
+        if (!template) return;
+
+        templateName = name;
+        setTemplateDraft(template);
+        setLastKindDraft("template");
+        error = null;
+
+        operationList?.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(template)
+            )
+        );
+    }
+
     //#region 普通缓动的分段画布（共享包里的 EasingCanvas）
     let easeCanvasEl: HTMLCanvasElement | null = null;
     /** 求值器整块的容器（用来清理命令式挂载、框架不认识的画布） */
@@ -528,6 +552,11 @@
         const easing =
             rawEasing instanceof SegmentedEasing ? rawEasing.easing : rawEasing;
 
+        // 模板缓动下拉框的选项：谱面里现有的那些（模板库可能被桌面端改过）
+        const templateLib = chart?.templateEasingLib;
+
+        templateNames = templateLib ? [...templateLib.easings.keys()] : [];
+
         // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
         const nextEvalKind =
             evaluator instanceof EasedEvaluator ? "eased" : "expression";
@@ -567,6 +596,7 @@
             easingKind = "template";
             setLastKindDraft("template");
             setTemplateDraft(easing);
+            templateName = easing.name;
         } else {
             easingKind = "other";
         }
@@ -764,7 +794,19 @@
 
         if (!ops || kind === easingKind) return;
 
-        const easing = easingFromDrafts(kind);
+        let easing = easingFromDrafts(kind);
+
+        /*
+         * 模板缓动只能引用谱面里已有的。切过来时如果暂存为空，
+         * 就直接用列表里的第一个 —— 总比"切过去什么都不显示"好。
+         */
+        if (!easing && kind === "template") {
+            const first = templateNames[0];
+
+            easing = first
+                ? chart?.templateEasingLib.easings.get(first) ?? null
+                : null;
+        }
 
         if (!easing) {
             error = "谱面里还没有可选的模板缓动";
@@ -940,7 +982,26 @@
                 bind:this={easeCanvasEl}
             ></canvas>
         {:else if easingKind === "template"}
-            <p class="hint">模板缓动：跟谱面的模板走，只在桌面端编辑</p>
+            {#if templateNames.length === 0}
+                <p class="hint">
+                    谱面里还没有模板缓动：先在桌面端建一个，这里会列出来
+                </p>
+            {:else}
+                <div class="field">
+                    <span>模板</span>
+                    <select
+                        class="pick"
+                        bind:value={
+                            get: () => templateName,
+                            set: (v: string) => setTemplateName(v)
+                        }
+                    >
+                        {#for name of templateNames}
+                            <option value={name}>{name}</option>
+                        {/for}
+                    </select>
+                </div>
+            {/if}
         {:else}
             <p class="hint">这个节点的缓动类型还没识别</p>
         {/if}
@@ -1065,7 +1126,8 @@
         color: var(--text-dim);
     }
 
-    .field input {
+    .field input,
+    .field .pick {
         width: 100%;
         min-width: 0;
         box-sizing: border-box;
