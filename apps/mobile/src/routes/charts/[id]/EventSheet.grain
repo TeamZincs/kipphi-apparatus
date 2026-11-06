@@ -395,6 +395,46 @@
     /** 当前节点用的模板缓动名 */
     let templateName = $state("");
 
+    //#region 宏（值宏绑在节点上，时间宏绑在起始节点上）
+    /** 谱面宏库里的宏（`chart.macroLib`） */
+    let valueMacros = $state<any[]>([]);
+    let timeMacros = $state<any[]>([]);
+    /** 当前绑的宏 id，空串表示"无" */
+    let valueMacroId = $state("");
+    let timeMacroId = $state("");
+
+    /** 绑定 / 切换 / 解绑值宏 */
+    function setValueMacro(id: string): void {
+        const ops = operationList;
+        const macro = id ? chart?.macroLib?.valueMacros.get(id) : null;
+
+        // id 非空但库里找不到：不动（可能是桌面端刚删掉）
+        if (!ops || (id && !macro)) return;
+        if ((macro ?? null) === (node.macro ?? null)) return;
+
+        ops.do(
+            macro
+                ? new Op.MacroValueAssignOperation(macro, node)
+                : new Op.MacroValueDeassginOperation(node)
+        );
+    }
+
+    /** 绑定 / 切换 / 解绑时间宏 */
+    function setTimeMacro(id: string): void {
+        const ops = operationList;
+        const macro = id ? chart?.macroLib?.timeMacros.get(id) : null;
+
+        if (!ops || (id && !macro)) return;
+        if ((macro ?? null) === (node.macroTime ?? null)) return;
+
+        ops.do(
+            macro
+                ? new Op.MacroTimeAssignOperation(macro, node)
+                : new Op.MacroTimeDeassginOperation(node)
+        );
+    }
+    //#endregion
+
     /** 换模板缓动 */
     function setTemplateName(name: string): void {
         const template = chart?.templateEasingLib.easings.get(name);
@@ -556,6 +596,14 @@
         const templateLib = chart?.templateEasingLib;
 
         templateNames = templateLib ? [...templateLib.easings.keys()] : [];
+
+        // 宏：库在 `chart.macroLib`，绑在节点上的引用用来回显当前选项
+        const macroLib = chart?.macroLib;
+
+        valueMacros = macroLib ? [...macroLib.valueMacros.values()] : [];
+        timeMacros = macroLib ? [...macroLib.timeMacros.values()] : [];
+        valueMacroId = node.macro?.id ?? "";
+        timeMacroId = node.macroTime?.id ?? "";
 
         // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
         const nextEvalKind =
@@ -1008,6 +1056,50 @@
     {/if}
 </div>
 
+<!--
+    宏：值和时间的宏都从 `chart.macroLib` 里选，选「无」就是解绑。
+    谱面一个宏都没有时不占地方。
+-->
+{#if valueMacros.length > 0 || timeMacros.length > 0}
+    <div class="macro">
+        {#if valueMacros.length > 0}
+            <label class="field">
+                <span>值宏</span>
+                <select
+                    class="pick"
+                    bind:value={
+                        get: () => valueMacroId,
+                        set: (v: string) => setValueMacro(v)
+                    }
+                >
+                    <option value="">（无）</option>
+                    {#for macro of valueMacros}
+                        <option value={macro.id}>{macro.id}</option>
+                    {/for}
+                </select>
+            </label>
+        {/if}
+
+        {#if timeMacros.length > 0}
+            <label class="field">
+                <span>时间宏</span>
+                <select
+                    class="pick"
+                    bind:value={
+                        get: () => timeMacroId,
+                        set: (v: string) => setTimeMacro(v)
+                    }
+                >
+                    <option value="">（无）</option>
+                    {#for macro of timeMacros}
+                        <option value={macro.id}>{macro.id}</option>
+                    {/for}
+                </select>
+            </label>
+        {/if}
+    </div>
+{/if}
+
 {#if error}
     <p class="error">{error}</p>
 {/if}
@@ -1053,6 +1145,17 @@
 
     /* 求值器通栏：与上面两列分开，占满面板宽度；高度按内容，不参与压缩 */
     .eval {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* 宏：和求值器一样通栏，两个下拉框各占一行 */
+    .macro {
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;

@@ -48,7 +48,11 @@ let currentOps: FakeOperationList;
  * 里塞模板）就够了 —— 换对象会让模块缓存里的旧引用失效。
  */
 const fakeChart = {
-    templateEasingLib: { easings: new Map<string, unknown>() }
+    templateEasingLib: { easings: new Map<string, unknown>() },
+    macroLib: {
+        valueMacros: new Map<string, unknown>(),
+        timeMacros: new Map<string, unknown>()
+    }
 };
 
 beforeAll(() => {
@@ -73,6 +77,8 @@ beforeAll(() => {
 beforeEach(() => {
     document.body.innerHTML = "";
     fakeChart.templateEasingLib.easings.clear();
+    fakeChart.macroLib.valueMacros.clear();
+    fakeChart.macroLib.timeMacros.clear();
 
     // 每个用例一份新的操作列表：上一个用例的组件仍挂着监听，但挂在旧对象上
     currentOps = new FakeOperationList();
@@ -562,6 +568,31 @@ describe("EventSheet 求值器分支", () => {
         expect(
             (evaluator() as { easing?: { name?: string } }).easing?.name
         ).toBe("ease1");
+    });
+
+    it("宏：谱面里有值宏 / 时间宏时列出，没有时不占地方", async () => {
+        const { target } = await mountSheet(false, "normal");
+
+        // 谱面里没有宏：整块不渲染
+        expect(target.querySelectorAll(".macro").length).toBe(0);
+
+        fakeChart.macroLib.valueMacros.set("val1", { id: "val1" });
+        fakeChart.macroLib.timeMacros.set("time1", { id: "time1" });
+
+        currentOps.dispatchEvent(new Event("needsupdate"));
+
+        const selects = [
+            ...target.querySelectorAll(".macro select.pick")
+        ] as HTMLSelectElement[];
+
+        expect(selects.length).toBe(2);
+
+        const values = (select: HTMLSelectElement) =>
+            [...select.options].map((option) => option.value);
+
+        // 第一项是「无」，对应解绑
+        expect(values(selects[0])).toEqual(["", "val1"]);
+        expect(values(selects[1])).toEqual(["", "time1"]);
     });
 
     it("关闭再打开 / children 分支切换后，EasingBox 不出现两份", async () => {
