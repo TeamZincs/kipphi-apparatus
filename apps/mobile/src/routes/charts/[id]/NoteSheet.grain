@@ -105,7 +105,7 @@
     import Segmented from "#/components/Segmented.grain";
     import Switch from "#/components/Switch.grain";
 
-    import { operationList } from "#/store";
+    import { chart, operationList } from "#/store";
     import {
         beatsOf,
         formatTime,
@@ -147,6 +147,31 @@
         [NoteType.hold, "Hold"]
     ];
 
+    //#region 宏（和桌面 NoteEditor 同一套 `chart.macroLib.noteMacros`）
+    /** 谱面里的音符宏 */
+    let noteMacros = $state<any[]>([]);
+    /** 当前音符绑的宏 id，空串表示"无" */
+    let noteMacroId = $state("");
+    /** 这个音符被哪些宏关联（只读展示） */
+    let linkedMacros = $state<any[]>([]);
+
+    /** 绑定 / 切换 / 解绑音符宏 */
+    function setNoteMacro(id: string): void {
+        const ops = operationList;
+        const macro = id ? chart?.macroLib?.noteMacros.get(id) : null;
+
+        // id 非空但库里找不到：不动（可能是桌面端刚删掉）
+        if (!ops || (id && !macro)) return;
+        if ((macro ?? null) === ((note as any).macro ?? null)) return;
+
+        ops.do(
+            macro
+                ? new Op.NoteMacroAssignOperation(macro, note)
+                : new Op.NoteMacroDeassginOperation(note)
+        );
+    }
+    //#endregion
+
     function pull(): void {
         startB = String(note.startTime[0]);
         startN = String(note.startTime[1]);
@@ -156,6 +181,13 @@
         endD = String(note.endTime[2]);
         startText = formatTime(note.startTime);
         endText = formatTime(note.endTime);
+
+        // 宏：列表可能被桌面端改过，每次重取；当前绑的引用用来回显
+        const macroLib = chart?.macroLib;
+
+        noteMacros = macroLib ? [...macroLib.noteMacros.values()] : [];
+        noteMacroId = (note as any).macro?.id ?? "";
+        linkedMacros = [...((note as any).linkedMacros ?? [])];
     }
 
     /*
@@ -473,6 +505,42 @@
     </div>
 </div>
 
+<!--
+    宏：音符宏从 `chart.macroLib.noteMacros` 里选，「（无）」是解绑；
+    关联宏只读展示（这个音符被哪些宏引用着）。
+-->
+{#if noteMacros.length > 0 || linkedMacros.length > 0}
+    <div class="macro">
+        {#if noteMacros.length > 0}
+            <label class="field">
+                <span>音符宏</span>
+                <select
+                    bind:value={
+                        get: () => noteMacroId,
+                        set: (v: string) => setNoteMacro(v)
+                    }
+                >
+                    <option value="">（无）</option>
+                    {#for macro of noteMacros}
+                        <option value={macro.id}>{macro.id}</option>
+                    {/for}
+                </select>
+            </label>
+        {/if}
+
+        {#if linkedMacros.length > 0}
+            <div class="field">
+                <span>关联宏</span>
+                <div class="chips">
+                    {#for macro of linkedMacros}
+                        <span class="chip">{macro.id}</span>
+                    {/for}
+                </div>
+            </div>
+        {/if}
+    </div>
+{/if}
+
 {#if error}
     <p class="error">{error}</p>
 {/if}
@@ -524,6 +592,33 @@
         min-width: 0;
         font-size: 12px;
         color: var(--text-dim);
+    }
+
+    /* 宏：和上面的属性列一样宽，中间一条分隔线 */
+    .macro {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* 关联宏：只读的小标签，排不下就换行 */
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 3px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 11px;
     }
 
     .field input,

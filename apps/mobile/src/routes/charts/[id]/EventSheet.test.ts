@@ -157,6 +157,7 @@ async function stub(name: string, source: string): Promise<string> {
 type Mounted = {
     target: HTMLElement;
     ops: FakeOperationList;
+    node: Record<string, unknown>;
     evaluator: () => unknown;
     setEvaluator: (next: unknown) => void;
 };
@@ -240,9 +241,12 @@ async function mountSheet(
         "#/time": join(MOBILE_SRC, "time.ts")
     });
 
-    const node = {
+    const node: Record<string, unknown> = {
         time: [0, 0, 1] as [number, number, number],
         value: 0,
+        macro: null,
+        macroTime: null,
+        linkedMacros: [],
         // 两种起步：贝塞尔测命令式画布，普通测 EasingBox 的残留 / 重复
         evaluator: new NumericEasedEvaluator(
             initial === "bezier"
@@ -306,6 +310,7 @@ async function mountSheet(
     return {
         target,
         ops,
+        node,
         evaluator: () => node.evaluator,
         setEvaluator: (next: unknown) => {
             (node as any).evaluator = next;
@@ -593,6 +598,21 @@ describe("EventSheet 求值器分支", () => {
         // 第一项是「无」，对应解绑
         expect(values(selects[0])).toEqual(["", "val1"]);
         expect(values(selects[1])).toEqual(["", "time1"]);
+    });
+
+    it("关联宏：节点被哪些宏引用着，以标签形式列出来", async () => {
+        const { target, node, ops } = await mountSheet(false, "normal");
+
+        expect(target.querySelectorAll(".chip").length).toBe(0);
+
+        node.linkedMacros = [{ id: "parent1" }, { id: "parent2" }];
+        ops.dispatchEvent(new Event("needsupdate"));
+
+        const chips = [...target.querySelectorAll(".chip")].map(
+            (chip) => chip.textContent
+        );
+
+        expect(chips).toEqual(["parent1", "parent2"]);
     });
 
     it("关闭再打开 / children 分支切换后，EasingBox 不出现两份", async () => {

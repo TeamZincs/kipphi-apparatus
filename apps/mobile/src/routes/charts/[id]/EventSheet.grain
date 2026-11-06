@@ -402,6 +402,8 @@
     /** 当前绑的宏 id，空串表示"无" */
     let valueMacroId = $state("");
     let timeMacroId = $state("");
+    /** 这个节点被哪些宏关联（只读展示） */
+    let linkedMacros = $state<any[]>([]);
 
     /** 绑定 / 切换 / 解绑值宏 */
     function setValueMacro(id: string): void {
@@ -604,6 +606,7 @@
         timeMacros = macroLib ? [...macroLib.timeMacros.values()] : [];
         valueMacroId = node.macro?.id ?? "";
         timeMacroId = node.macroTime?.id ?? "";
+        linkedMacros = [...(node.linkedMacros ?? [])];
 
         // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
         const nextEvalKind =
@@ -1060,7 +1063,7 @@
     宏：值和时间的宏都从 `chart.macroLib` 里选，选「无」就是解绑。
     谱面一个宏都没有时不占地方。
 -->
-{#if valueMacros.length > 0 || timeMacros.length > 0}
+{#if valueMacros.length > 0 || timeMacros.length > 0 || linkedMacros.length > 0}
     <div class="macro">
         {#if valueMacros.length > 0}
             <label class="field">
@@ -1096,6 +1099,17 @@
                     {/for}
                 </select>
             </label>
+        {/if}
+
+        {#if linkedMacros.length > 0}
+            <div class="field">
+                <span>关联宏</span>
+                <div class="chips">
+                    {#for macro of linkedMacros}
+                        <span class="chip">{macro.id}</span>
+                    {/for}
+                </div>
+            </div>
         {/if}
     </div>
 {/if}
@@ -1163,6 +1177,22 @@
         width: 100%;
         padding-top: 8px;
         border-top: 1px solid var(--border);
+    }
+
+    /* 关联宏：只读的小标签，排不下就换行 */
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 3px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 11px;
     }
 
     .hint {
