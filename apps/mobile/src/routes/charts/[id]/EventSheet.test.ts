@@ -610,7 +610,7 @@ describe("EventSheet 求值器分支", () => {
         ops.dispatchEvent(new Event("needsupdate"));
 
         const chips = [...target.querySelectorAll(".chip")].map(
-            (chip) => chip.textContent
+            (chip) => chip.textContent?.trim()
         );
 
         expect(chips).toEqual(["parent1", "parent2"]);

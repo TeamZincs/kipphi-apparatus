@@ -423,21 +423,6 @@
         );
     }
 
-    /**
-     * 点关联宏标签 → 让页面打开宏面板（事件委托）。
-     *
-     * 监听挂在**循环外面**的容器上：条件块里的循环块中写 `onclick`（哪怕是
-     * 标识符）时，编译器会把处理器改名成 `xxx_$1` 却不生成定义，点了直接
-     * `ReferenceError`。委托只挂一个，也省得每行一个闭包。
-     */
-    function onMacroChipClick(event: Event): void {
-        const chip = (event.target as HTMLElement | null)?.closest(".chip");
-        const id = (chip as HTMLElement | null)?.dataset?.id;
-        const macro = linkedMacros.find((item) => item.id === id);
-
-        if (macro) onmacro?.(macro);
-    }
-
     /** 绑定 / 切换 / 解绑时间宏 */
     function setTimeMacro(id: string): void {
         const ops = operationList;
@@ -1121,9 +1106,11 @@
         {#if linkedMacros.length > 0}
             <div class="field">
                 <span>关联宏</span>
-                <div class="chips" onclick={onMacroChipClick}>
+                <div class="chips">
                     {#for item of linkedMacros}
-                        <button class="chip" data-id={item.id}>{item.id}</button>
+                        <button class="chip" onclick={() => onmacro?.(item)}>
+                            {item.id}
+                        </button>
                     {/for}
                 </div>
             </div>

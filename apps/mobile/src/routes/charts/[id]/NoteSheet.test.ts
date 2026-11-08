@@ -179,7 +179,9 @@ describe("NoteSheet 宏", () => {
         expect(select.value).toBe("n1");
 
         expect(
-            [...target.querySelectorAll(".chip")].map((c) => c.textContent)
+            [...target.querySelectorAll(".chip")].map((c) =>
+                c.textContent?.trim()
+            )
         ).toEqual(["parent"]);
     });
 });

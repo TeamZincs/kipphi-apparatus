@@ -78,33 +78,10 @@
         }
     }
 
-    /**
-     * 列表项的点击（事件委托）。
-     *
-     * 两点讲究：
-     * 1. 监听挂在**循环外面**的容器上 —— 条件块里的循环块中写 `onclick`
-     *    时，编译器会把处理器改名成 `xxx_$1` 却不生成定义；
-     * 2. 这里**直接给 `$state` 赋值**，不调 `selectMacro()` 之类的辅助函数 ——
-     *    刷新逻辑在外层 wrapper 里，嵌套调用的函数只改值、不会触发重渲染
-     *    （点了没反应就是这么来的）。
-     */
-    function onMacroItemClick(event: Event): void {
-        const item = (event.target as HTMLElement | null)?.closest(".item");
-        const id = (item as HTMLElement | null)?.dataset?.id;
-        const macro = [...noteMacroList, ...eventMacroList].find(
-            (entry) => entry.id === id
-        );
-
-        if (!macro) return;
-
+    /** 列表里点一个宏：切过去并把表达式 / 语法状态拉过来 */
+    function selectMacro(macro: any): void {
         selected = macro;
-        expression =
-            macro instanceof MacroEvaluator ? macro.expression : macro.macro;
-        syntaxError =
-            macro instanceof MacroEvaluator
-                ? null
-                : (macro.checkSyntax()?.message ?? null);
-        error = null;
+        pull();
     }
 
     function backToList(): void {
@@ -164,18 +141,22 @@
     {:else}
         {#if noteMacroList.length > 0}
             <div class="group">音符宏</div>
-            <div class="list" onclick={onMacroItemClick}>
+            <div class="list">
                 {#for item of noteMacroList}
-                    <button class="item" data-id={item.id}>{item.id}</button>
+                    <button class="item" onclick={() => selectMacro(item)}>
+                        {item.id}
+                    </button>
                 {/for}
             </div>
         {/if}
 
         {#if eventMacroList.length > 0}
             <div class="group">事件宏</div>
-            <div class="list" onclick={onMacroItemClick}>
+            <div class="list">
                 {#for item of eventMacroList}
-                    <button class="item" data-id={item.id}>{item.id}</button>
+                    <button class="item" onclick={() => selectMacro(item)}>
+                        {item.id}
+                    </button>
                 {/for}
             </div>
         {/if}
