@@ -71,6 +71,7 @@ beforeAll(() => {
         disconnect() {}
     };
     globals.CustomEvent = window.CustomEvent;
+    globals.HTMLElement = window.HTMLElement;
     globals.__eventSheetChart = fakeChart;
 });
 

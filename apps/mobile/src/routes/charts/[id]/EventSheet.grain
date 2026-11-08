@@ -85,10 +85,12 @@
         toTime
     } from "#/time";
 
-    let { node, editor, onclose } = $props<{
+    let { node, editor, onclose, onmacro } = $props<{
         node: any;
         editor: any;
         onclose: () => void;
+        /** 点关联宏标签时，把宏交给页面去开宏面板 */
+        onmacro?: (macro: any) => void;
     }>();
 
     let timeSingle = $state(false);
@@ -419,6 +421,21 @@
                 ? new Op.MacroValueAssignOperation(macro, node)
                 : new Op.MacroValueDeassginOperation(node)
         );
+    }
+
+    /**
+     * 点关联宏标签 → 让页面打开宏面板（事件委托）。
+     *
+     * 监听挂在**循环外面**的容器上：条件块里的循环块中写 `onclick`（哪怕是
+     * 标识符）时，编译器会把处理器改名成 `xxx_$1` 却不生成定义，点了直接
+     * `ReferenceError`。委托只挂一个，也省得每行一个闭包。
+     */
+    function onMacroChipClick(event: Event): void {
+        const chip = (event.target as HTMLElement | null)?.closest(".chip");
+        const id = (chip as HTMLElement | null)?.dataset?.id;
+        const macro = linkedMacros.find((item) => item.id === id);
+
+        if (macro) onmacro?.(macro);
     }
 
     /** 绑定 / 切换 / 解绑时间宏 */
@@ -1104,9 +1121,9 @@
         {#if linkedMacros.length > 0}
             <div class="field">
                 <span>关联宏</span>
-                <div class="chips">
-                    {#for macro of linkedMacros}
-                        <span class="chip">{macro.id}</span>
+                <div class="chips" onclick={onMacroChipClick}>
+                    {#for item of linkedMacros}
+                        <button class="chip" data-id={item.id}>{item.id}</button>
                     {/for}
                 </div>
             </div>
@@ -1119,6 +1136,7 @@
 {/if}
 
 <div class="actions">
+    <button class="btn" onclick={() => onmacro?.(null)}>宏</button>
     <button class="btn danger" onclick={remove}>删除</button>
 </div>
 
@@ -1192,7 +1210,9 @@
         border-radius: 999px;
         background: var(--bg);
         color: var(--text);
+        font: inherit;
         font-size: 11px;
+        cursor: pointer;
     }
 
     .hint {

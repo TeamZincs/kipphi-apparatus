@@ -24,6 +24,7 @@
 
     import JudgeLineList from "./JudgeLineList.grain";
     import EventSheet from "./EventSheet.grain";
+import MacroSheet from "./MacroSheet.grain";
     import NoteSheet from "./NoteSheet.grain";
     import SheetShell from "./SheetShell.grain";
 
@@ -851,7 +852,7 @@
      * 它们各自持有自己需要的状态，页面不再掺和。
      */
     let sheetOpen = $state(false);
-    let sheetKind = $state<"note" | "node">("note");
+    let sheetKind = $state<"note" | "node" | "macro">("note");
     /*
      * 这两个必须是 `$state`：`SheetShell` 的 children 闭包会捕获它们，
      * 普通变量在闭包里就是一份快照 —— 第二次打开面板时传进去的是 `null`，
@@ -859,6 +860,8 @@
      */
     let editingNote = $state<Note | null>(null);
     let editingNode = $state<any>(null);
+    /** 宏面板要看的那一个；`null` 就是列表页 */
+    let editingMacro = $state<any>(null);
 
     /**
      * 真正卸载面板。
@@ -870,6 +873,7 @@
         sheetOpen = false;
         editingNote = null;
         editingNode = null;
+        editingMacro = null;
         notesCanvas?.focus?.();
     }
 
@@ -880,7 +884,17 @@
 
         sheetKind = "note";
         editingNode = null;
+        editingMacro = null;
         editingNote = note;
+        sheetOpen = true;
+    }
+
+    /** 打开宏面板；传 `null` 就是列表面 */
+    function openMacroSheet(macro: any = null): void {
+        sheetKind = "macro";
+        editingNote = null;
+        editingNode = null;
+        editingMacro = macro;
         sheetOpen = true;
     }
 
@@ -891,6 +905,7 @@
 
         sheetKind = "node";
         editingNote = null;
+        editingMacro = null;
         editingNode = node;
         sheetOpen = true;
     }
@@ -1150,20 +1165,24 @@
         （表单在初始化时就读 `note.type`，一抛错整棵子树渲染中断，
         只剩下遮罩 + 凸起，还把页面挡住 —— 就是"点哪儿都没反应"）。
     -->
-    {#if sheetOpen && (editingNote || editingNode)}
+    {#if sheetOpen && (editingNote || editingNode || sheetKind === "macro")}
         <SheetShell onclose={closeSheetNow}>
             {#if sheetKind === "note" && editingNote}
                 <NoteSheet
                     note={editingNote}
                     editor={notesEditor}
                     onclose={closeSheetNow}
+                    onmacro={openMacroSheet}
                 />
-            {:else if editingNode}
+            {:else if sheetKind === "node" && editingNode}
                 <EventSheet
                     node={editingNode}
                     editor={eventEditors}
                     onclose={closeSheetNow}
+                    onmacro={openMacroSheet}
                 />
+            {:else if sheetKind === "macro"}
+                <MacroSheet macro={editingMacro} onclose={closeSheetNow} />
             {/if}
         </SheetShell>
     {/if}
