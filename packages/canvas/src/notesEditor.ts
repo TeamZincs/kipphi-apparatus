@@ -35,6 +35,7 @@ import {
     on,
 } from "./util";
 import { ButtonManager, type CanvasButton } from "./buttonManager";
+import { insetRect, Magnifier, ZOOM_LEVELS } from "./magnifier";
 import { scaleFont } from "./ui";
 
 const DRAWS_NN = true;
@@ -221,7 +222,13 @@ export class NotesEditor extends EventTarget {
     /** 剪切板 */
     clipboard: Set<Note>;
     /** 当前选中的Note */
-    selectedNote: Note = null; // 取消弱引用的使用
+    selectedNote: Note = null;
+
+    /** 放大镜：按住音符时放大主视图 + 侧边局部视图 */
+    readonly magnifier = new Magnifier();
+
+    /** 进放大镜之前的横向朝向（松手还原） */
+    private zoomBaseline: number | null = null; // 取消弱引用的使用
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -369,6 +376,19 @@ export class NotesEditor extends EventTarget {
             this.draw();
             return;
         }
+        // 桌面端：D 放大一级、A 缩小一级（焦点不在画布时上面已经 return 了）
+        if (e.key.toLowerCase() === "d") {
+            this.stepZoom(1);
+
+            return;
+        }
+
+        if (e.key.toLowerCase() === "a") {
+            this.stepZoom(-1);
+
+            return;
+        }
+
         switch (e.key.toLowerCase()) {
             case "v":
                 this.paste(false, e.ctrlKey);
@@ -551,6 +571,52 @@ export class NotesEditor extends EventTarget {
         this.draw(this.lastBeats);
     }
 
+    /** 档位切换的 0.4s 动画：逐帧重绘直到插值结束 */
+    private animateZoom(): void {
+        if (!this.magnifier.animatingNow) return;
+        if (typeof requestAnimationFrame !== "function") return;
+
+        requestAnimationFrame(() => {
+            if (!this.magnifier.animatingNow) return;
+
+            this.draw(this.lastBeats);
+            this.animateZoom();
+        });
+    }
+
+    /**
+     * 桌面端 D / A：放大 / 缩小一级。
+     *
+     * 没有"按住"这个概念，所以先拿当前选中的音符当中心；一个都没选就不动。
+     */
+    private stepZoom(delta: number): void {
+        if (!this.magnifier.anchor && this.selectedNote) {
+            this.focusMagnifier();
+        }
+
+        if (!this.magnifier.anchor) return;
+
+        this.magnifier.step(delta);
+        this.animateZoom();
+        this.draw(this.lastBeats);
+    }
+
+    /** 按住音符 → 定住放大镜中心；没有选中就收起 */
+    private focusMagnifier(): void {
+        const note = this.selectedNote;
+
+        if (!note) {
+            this.magnifier.reset();
+
+            return;
+        }
+
+        this.magnifier.focus({
+            x: note.positionX,
+            y: TC.toBeats(note.startTime),
+        });
+    }
+
     /** 第二排按钮表 */
     private navButtonList(): CanvasButton[] {
         return [
@@ -636,7 +702,38 @@ export class NotesEditor extends EventTarget {
                     this.dispatchEvent(new Event("inspect"));
                 },
             },
+            // 放大镜档位：按住元素时才出现；点第 N 个就到 N 档
+            ...this.magnifierButtons(),
         ];
+    }
+
+    /**
+     * 放大镜的排形按钮。
+     *
+     * 只在按住元素（`anchor` 有值）时出现；当前档位是 N，就列出 2x…N×2 的
+     * 下一档，和 TODO 里"2x 上方多出一个 4x"一致。
+     */
+    private magnifierButtons(): CanvasButton[] {
+        if (!this.magnifier.anchor) return [];
+
+        const buttons: CanvasButton[] = [];
+
+        for (let level = 1; level <= this.magnifier.levelIndex + 1; level += 1) {
+            if (level >= ZOOM_LEVELS.length) break;
+
+            buttons.push({
+                id: `zoom-${ZOOM_LEVELS[level]}x`,
+                label: `${ZOOM_LEVELS[level]}x`,
+                active: this.magnifier.levelIndex === level,
+                onClick: () => {
+                    this.magnifier.setIndex(level);
+                    this.animateZoom();
+                    this.draw(this.lastBeats);
+                },
+            });
+        }
+
+        return buttons;
     }
 
     /** 第三排：三种范围选择方式（点一下就进 selectScope） */
@@ -1196,6 +1293,8 @@ export class NotesEditor extends EventTarget {
                     const isTail = (this.selectingTail =
                         tar instanceof HoldTail);
                     this.selectedNote = isTail ? tar.note : tar;
+                    // 放大镜以这个音符为中心（松手才收起）
+                    this.focusMagnifier();
                     this.dispatchEvent(
                         new KPANoteSelectedEvent(this.selectedNote),
                     );
@@ -1256,6 +1355,9 @@ export class NotesEditor extends EventTarget {
 
         // 轴向拖动结束
         this.pan = null;
+
+        // 松手：放大镜回到 1x（选中状态保留）
+        this.magnifier.reset();
 
         const canvasCoord = getCanvasCoordFromEvent(
             event,
@@ -1326,8 +1428,11 @@ export class NotesEditor extends EventTarget {
             clippingRect,
         } = this;
         const [left, top, width, height] = clippingRect;
-        this.positionRatio = width / this.positionSpan;
-        this.timeRatio = height / this.timeSpan;
+        // 放大镜：只临时乘倍率，不改 `timeSpan` / `positionSpan` 本身
+        //（那两个是用户的视野设置，松手要还原）
+        const zoom = this.magnifier.active ? this.magnifier.zoom : 1;
+        this.positionRatio = (width * zoom) / this.positionSpan;
+        this.timeRatio = (height * zoom) / this.timeSpan;
         this.context.resetTransform();
         this.context.translate(left + width / 2, top + height - this.padding);
         this.matrix = identity
@@ -1508,6 +1613,21 @@ export class NotesEditor extends EventTarget {
     }
     draw(beats?: number) {
         beats = beats || this.lastBeats || 0;
+
+        // 放大镜：推进 0.4s 动画，并在放大时把按住的那个音符摆到中心
+        this.magnifier.tick();
+
+        const magnified = this.magnifier.anchor;
+
+        if (magnified && this.magnifier.zoom > 1) {
+            this.zoomBaseline ??= this.positionBasis;
+            this.positionBasis = -magnified.x;
+            beats = magnified.y - this.timeSpan / (2 * this.magnifier.zoom);
+        } else if (this.zoomBaseline !== null) {
+            this.positionBasis = this.zoomBaseline;
+            this.zoomBaseline = null;
+        }
+
         this.updateMatrix();
         this.selectionManager.refresh();
         const { context } = this;
@@ -1698,12 +1818,82 @@ export class NotesEditor extends EventTarget {
         }
 
         this.drawn = false;
-        this.lastBeats = beats;
+        // 放大时 `beats` 是为了居中算出来的临时值，不能写回视野
+        if (!this.magnifier.active) this.lastBeats = beats;
         // 预览画在音符之上、按钮之下（这里还带着相机变换，和 drawNote 同一个空间）
         this.drawPreview(beats);
 
+        // 局部放大视图盖在内容上、按钮下面
+        this.drawMagnifier();
+
         // 画在最后：编辑器自己的背景填充会把前面画的盖住
         this.drawToolbar();
+    }
+
+    /** 侧边局部放大视图（按住元素时才有） */
+    private drawMagnifier(): void {
+        if (!this.magnifier.active) return;
+
+        const [left, top, width, height] = this.clippingRect;
+        const rect = insetRect(width, height, this.padding);
+
+        this.magnifier.drawInset(
+            this.context,
+            rect,
+            (context, scale, anchor) =>
+                this.paintMagnified(context, scale, anchor, rect[2])
+        );
+    }
+
+    /**
+     * 局部视图内容：网格 + 选中音符。
+     *
+     * 调用时坐标系原点已在框中心，`scale` 是相对主视图的倍率
+     *（局部始终比主视图高一档）。
+     */
+    private paintMagnified(
+        context: CanvasRenderingContext2D,
+        scale: number,
+        anchor: { x: number; y: number },
+        size: number
+    ): void {
+        const unitX = this.positionRatio * scale;
+        const unitT = this.timeRatio * scale;
+        const half = size / 2;
+
+        // 网格：和主视图同样的间距，只是按倍率放大
+        context.strokeStyle = "rgba(255, 255, 255, 0.14)";
+        context.lineWidth = 1;
+
+        const gridX = this.positionGridSpan * unitX;
+        const gridT = this.timeGridSpan * unitT;
+        const steps = 6;
+
+        for (let i = -steps; i <= steps; i += 1) {
+            if (gridX > 2) {
+                context.beginPath();
+                context.moveTo(i * gridX, -half);
+                context.lineTo(i * gridX, half);
+                context.stroke();
+            }
+
+            if (gridT > 2) {
+                context.beginPath();
+                context.moveTo(-half, i * gridT);
+                context.lineTo(half, i * gridT);
+                context.stroke();
+            }
+        }
+
+        // 选中音符：画在中心（anchor 就是它）
+        const note = this.selectedNote;
+
+        if (!note) return;
+
+        context.fillStyle = "#4c8dff";
+        context.beginPath();
+        context.arc(0, 0, Math.max(6, size * 0.08), 0, Math.PI * 2);
+        context.fill();
     }
     /**
      *
