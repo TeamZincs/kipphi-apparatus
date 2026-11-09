@@ -2358,11 +2358,13 @@ export abstract class EventSequenceEditor<
     clipboard: Set<EventStartNode<VT>> = new Set();
 
     /**
-     * 该节点是否属于「同值背靠背组」（组内至少两个节点）。
+     * 该节点是否有「背靠背」的同值伙伴（交界处的 `end` 与下一个 `start`）。
      *
      * 基类不做判断；{@linkcode NumericEventCurveEditor} 按 `value` 实现。
      */
-    protected isSameValueLinked(_node: EventStartNode<VT>): boolean {
+    protected isSameValueLinked(
+        _node: EventStartNode<VT> | EventEndNode<VT>,
+    ): boolean {
         return false;
     }
 
@@ -3017,16 +3019,15 @@ export abstract class EventSequenceEditor<
 
             const selected = this.nodesSelection.has(startNode);
             /*
-             * 同值联动：只有这一组的节点变紫，线本身保持原色。
+             * 背靠背联动：**交界处**成对的那两个才变紫，线本身保持原色。
              *
-             * 链表头部的**第一个** start 节点不染紫 —— 它是序列的初始值，
-             * 跟着"同值"走会让用户分不清哪条是真正被绑定的。
+             * 一段内部的 `start → end` 隔着整段时间（面对面），各自判断；
+             * 序列第一个 start 左边没有 end，天然配不上对，也就不会紫。
              */
-            const isSequenceStart = startNode.previous?.type === NodeType.HEAD;
-            const linked =
-                !isSequenceStart &&
-                this.sameValueLinked &&
-                this.isSameValueLinked(startNode);
+            const linkedStart =
+                this.sameValueLinked && this.isSameValueLinked(startNode);
+            const linkedEnd =
+                this.sameValueLinked && this.isSameValueLinked(endNode);
 
             if (selected) {
                 context.save();
@@ -3045,14 +3046,14 @@ export abstract class EventSequenceEditor<
                 context.restore();
             }
 
-            // 节点用 canvas 直接画（不再用贴图）：开始蓝、结束红、同值组紫
+            // 节点用 canvas 直接画（不再用贴图）：开始蓝、结束红、成对的紫
             this.paintNode(
                 context,
                 leftX,
                 topY - sheight,
                 swidth,
                 sheight,
-                linked ? NODE_LINKED_COLOR : NODE_START_COLOR,
+                linkedStart ? NODE_LINKED_COLOR : NODE_START_COLOR,
             );
             this.paintNode(
                 context,
@@ -3060,7 +3061,7 @@ export abstract class EventSequenceEditor<
                 topEndY,
                 ewidth,
                 eheight,
-                linked ? NODE_LINKED_COLOR : NODE_END_COLOR,
+                linkedEnd ? NODE_LINKED_COLOR : NODE_END_COLOR,
             );
             // console.log(this.type, EventType.speed)
             if (this.type === EventType.speed) {
@@ -3080,11 +3081,9 @@ export abstract class EventSequenceEditor<
             const [startX, startY] = startXY;
             const topY = startY - NODE_HEIGHT;
             const selected = this.nodesSelection.has(lastStart);
-            const isSequenceStart = lastStart.previous?.type === NodeType.HEAD;
+            // 末段起点同样只看左边的交界处（第一个 start 天然没有伙伴）
             const linked =
-                !isSequenceStart &&
-                this.sameValueLinked &&
-                this.isSameValueLinked(lastStart);
+                this.sameValueLinked && this.isSameValueLinked(lastStart);
 
             if (selected) {
                 context.save();
@@ -3282,71 +3281,57 @@ export abstract class EventSequenceEditor<
 const isReturn = (e: { target: any }) => e && e.target === "return";
 
 /**
- * 与 `node` 同值、且在时间上首尾相接的整组节点（含自己）。
+ * 与 `node` **背靠背**的那个节点。
  *
- * 链的形状是 `start → end → start → end …`：
- *   · 向左看 `previous.previous`（上一个 start）；
- *   · 向右看 `next.next`（下一个 start），且当前这一段必须水平
- *     （`next.value === value`），否则中间是斜线，画面上不是一条同值线。
+ * 链是 `start₁ → end₁ → start₂ → end₂ …`：
+ *   · 一段内部 `startₖ → endₖ` 之间隔着一整段时间，是"面对面"，**不绑**；
+ *   · **交界处**的 `endₖ` 和 `startₖ₊₁` 同一时刻贴身站着，才是"背靠背"。
+ *
+ * 两者值相同就是一对同值绑定 —— 一起变紫、一起拖。
+ * 序列第一个 `start` 左边没有 `end`，配不上对，所以它永远不紫。
  *
  * 单独抽出来是为了能直接测（编辑器实例要 canvas / operationList，太重）。
  */
-export function collectSameValueGroup(
-    node: EventStartNode<number>,
-): EventStartNode<number>[] {
-    const value = node.value;
-    const group: EventStartNode<number>[] = [node];
+export function sameValuePartner(
+    node: EventStartNode<number> | EventEndNode<number>,
+): EventStartNode<number> | EventEndNode<number> | null {
+    // 起点看左边、终点看右边：交界处的那一个
+    const partner =
+        node instanceof EventStartNode ? node.previous : node.next;
 
-    let cursor: any = node;
-
-    // 向左：上一个 start 同值就连上（不看那一段是斜是平 —— 中间有几段
-    // 不同值只影响分组边界，不会让同值的邻居也不紫）
-    while (cursor?.previous?.previous) {
-        const prevStart = cursor.previous.previous;
-
-        if (!(prevStart instanceof EventStartNode)) break;
-        if (prevStart.value !== value) break;
-
-        group.unshift(prevStart);
-        cursor = prevStart;
+    if (!partner) return null;
+    // HEAD / TAIL 是哨兵，不是真节点
+    if (partner.type === NodeType.HEAD || partner.type === NodeType.TAIL) {
+        return null;
     }
+    if ((partner as EventStartNode<number>).value !== node.value) return null;
 
-    // 向右：下一个 start 同值就连上
-    cursor = node;
-
-    while (cursor?.next?.next) {
-        const nextStart = cursor.next.next;
-
-        if (!(nextStart instanceof EventStartNode)) break;
-        if (nextStart.value !== value) break;
-
-        group.push(nextStart);
-        cursor = nextStart;
-    }
-
-    return group;
+    return partner as EventStartNode<number> | EventEndNode<number>;
 }
 
 /**
- * 一整组同值节点一起改值。
+ * 一对「背靠背」节点一起改值和时刻。
  *
- * 拖动时每帧都会发一条，`rewrite` 把同一组的后续修改合并进第一条 ——
- * 一次拖动只留一条撤销记录。
+ * 两个节点在交界处贴在一起，只改其中一项就会裂开，所以值和时刻都跟着走。
  *
- * 逐节点发 `EventNodeValueChangeOperation` 不行：那个的 `rewrite` 只合并
- * **同一个节点**，一组 N 个节点每帧会新增 N 条操作，撤销栈直接爆掉。
+ * 拖动时每帧都会发一条，`rewrite` 把同一对的后续修改合并进第一条 ——
+ * 一次拖动只留一条撤销记录。逐节点发单节点操作不行：那个的 `rewrite`
+ * 只合并**同一个节点**，一对节点每帧会新增两条，撤销栈很快就撑爆。
  */
-class SameValueGroupValueChangeOperation extends O.Operation {
+class BackToBackChangeOperation extends O.Operation {
     updatesEditor = true;
-    readonly nodes: EventStartNode<number>[];
-    private readonly changes: O.EventNodeValueChangeOperation<number>[];
+    private readonly changes: any[];
 
-    constructor(nodes: EventStartNode<number>[], value: number) {
+    constructor(
+        nodes: (EventStartNode<number> | EventEndNode<number>)[],
+        value: number,
+        time: any,
+    ) {
         super();
-        this.nodes = nodes;
-        this.changes = nodes.map(
-            (node) => new O.EventNodeValueChangeOperation(node, value)
-        );
+        this.changes = nodes.flatMap((node) => [
+            new O.EventNodeValueChangeOperation(node, value),
+            new O.EventNodeTimeChangeOperation(node, time),
+        ]);
     }
 
     do(chart: any): void {
@@ -3360,7 +3345,7 @@ class SameValueGroupValueChangeOperation extends O.Operation {
     rewrite(next: this, chart: any): boolean {
         if (next.changes.length !== this.changes.length) return false;
 
-        // 只有节点集合完全一致才能合并（拖动开始时锁定的那一组，不会变）
+        // 只有节点集合完全一致才能合并（拖动开始时锁定的那一对，不会变）
         for (let index = 0; index < this.changes.length; index += 1) {
             if (this.changes[index].node !== next.changes[index].node) {
                 return false;
@@ -3386,10 +3371,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
      * 不能在拖动过程中重算：值会被改成同一个数，组会越并越大，把原本
      * 不同值的邻居也卷进来。
      */
-    private dragGroup: EventStartNode<number>[] | null = null;
+    private dragGroup:
+        | (EventStartNode<number> | EventEndNode<number>)[]
+        | null = null;
 
-    protected override isSameValueLinked(node: EventStartNode<number>): boolean {
-        return collectSameValueGroup(node).length > 1;
+    protected override isSameValueLinked(
+        node: EventStartNode<number> | EventEndNode<number>,
+    ): boolean {
+        return sameValuePartner(node) !== null;
     }
 
     /** 局部视图：值网格 + 时间网格（密度跟着倍率走） */
@@ -3545,32 +3534,35 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         switch (this.state) {
             case EventCurveEditorState.selecting: {
                 /*
-                 * 同值联动：按下时锁定的那一组一起改值。
+                 * 背靠背联动：按下时锁定的那一对一起改**值和时刻**。
                  *
-                 * 逐个发操作而不是造一个复合操作 —— `rewrite` 会把同节点的
-                 * 连续修改合并成一条，撤销步数 = 组成员数，可以接受。
-                 * 时间只动被直接拖的那个（同组节点时间各不相同）。
+                 * 只改值不改时刻的话，交界处的两个节点会被拉开，"背靠背"
+                 * 当场就散了，所以两个都要跟。
                  */
                 const targets = this.dragGroup ?? [this.selectedNode];
 
-                this.operationList.do(
-                    targets.length > 1
-                        ? new SameValueGroupValueChangeOperation(
-                              targets,
-                              this.pointedValue,
-                          )
-                        : new O.EventNodeValueChangeOperation(
-                              this.selectedNode,
-                              this.pointedValue,
-                          ),
-                );
-
-                this.operationList.do(
-                    new O.EventNodeTimeChangeOperation(
-                        this.selectedNode,
-                        this.pointedTime,
-                    ),
-                );
+                if (targets.length > 1) {
+                    this.operationList.do(
+                        new BackToBackChangeOperation(
+                            targets,
+                            this.pointedValue,
+                            this.pointedTime,
+                        ),
+                    );
+                } else {
+                    this.operationList.do(
+                        new O.EventNodeValueChangeOperation(
+                            this.selectedNode,
+                            this.pointedValue,
+                        ),
+                    );
+                    this.operationList.do(
+                        new O.EventNodeTimeChangeOperation(
+                            this.selectedNode,
+                            this.pointedTime,
+                        ),
+                    );
+                }
             }
         }
     }
@@ -3604,15 +3596,23 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 if (snode && snode.target instanceof EventNode) {
                     this.selectedNode = snode.target;
                     /*
-                     * 同值联动：在这里就把整组定下来。
-                     * 拖动过程中值会变成同一个数，组会越并越大 —— 每帧重算
-                     * 会把原本不同值的邻居也卷进来。
+                     * 背靠背联动：在这里就把伙伴定下来。
+                     *
+                     * 只有交界处那一个（`end` ↔ 下一个 `start`）才算 —— 一段
+                     * 内部的 `start → end` 之间隔着一整段时间，那是"面对面"。
+                     * 拖动过程中值会变，每帧重算会把新同值的节点也卷进来。
                      */
-                    this.dragGroup =
-                        this.sameValueLinked &&
-                        this.selectedNode instanceof EventStartNode
-                            ? collectSameValueGroup(this.selectedNode)
-                            : null;
+                    const partner = this.sameValueLinked
+                        ? sameValuePartner(
+                              this.selectedNode as
+                                  | EventStartNode<number>
+                                  | EventEndNode<number>,
+                          )
+                        : null;
+
+                    this.dragGroup = partner
+                        ? [this.selectedNode as any, partner]
+                        : null;
                     // 放大镜以这个节点为中心（松手才收起）
                     this.focusMagnifier();
                     this.dispatchEvent(

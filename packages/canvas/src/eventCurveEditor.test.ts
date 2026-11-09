@@ -2,25 +2,21 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import { Window } from "happy-dom";
 
 /**
- * 「同值联动」的分组判定。
+ * 「背靠背同值绑定」的配对判定。
  *
- * 事件序列的链是 `start → end → start → end …`，一段由 start 和它自己的
- * next（end）组成。这里只测分组算法，不碰 canvas 实例。
+ * 链是 `start₁ → end₁ → start₂ → end₂ …`：
+ *   · 一段内部的 `startₖ → endₖ` 隔着整段时间，是"面对面"，不绑；
+ *   · **交界处**的 `endₖ` 和 `startₖ₊₁` 同一时刻贴身站着，值相同才绑。
  *
  * `./eventCurveEditor` 会间接 import `kpp/polyfill`，那个模块在**顶层**就读
  * `window`，所以要先铺好 DOM 再动态 import。
  */
 
-type StartNode = {
-    value: number;
-    next: unknown;
-    previous: unknown;
-};
-type Node = { value: number; next: unknown; previous: unknown };
+type AnyNode = { value: number; next: unknown; previous: unknown };
 
 let EventStartNode: any;
 let EventEndNode: any;
-let collectSameValueGroup: (node: StartNode) => StartNode[];
+let sameValuePartner: (node: AnyNode) => AnyNode | null;
 
 beforeAll(async () => {
     const window = new Window();
@@ -36,16 +32,16 @@ beforeAll(async () => {
     };
 
     ({ EventStartNode, EventEndNode } = await import("kipphi"));
-    ({ collectSameValueGroup } = await import("./eventCurveEditor"));
+    ({ sameValuePartner } = await import("./eventCurveEditor"));
 });
 
 /** 用原型造节点，`instanceof` 判断能过；只需要 value / next / previous */
-function make(type: any, value: number): Node {
+function make(type: any, value: number): AnyNode {
     return Object.assign(Object.create(type.prototype), {
         value,
         next: null,
         previous: null
-    }) as Node;
+    }) as AnyNode;
 }
 
 /**
@@ -53,9 +49,9 @@ function make(type: any, value: number): Node {
  *
  * 每段：`start.value → end.value`；相邻两段之间 `end.next = 下一个 start`。
  */
-function chain(segments: [number, number][]): StartNode[] {
-    const starts: StartNode[] = [];
-    let previous: Node | null = null;
+function chain(segments: [number, number][]): AnyNode[] {
+    const starts: AnyNode[] = [];
+    let previous: AnyNode | null = null;
 
     for (const [from, to] of segments) {
         const start = make(EventStartNode, from);
@@ -76,61 +72,65 @@ function chain(segments: [number, number][]): StartNode[] {
     return starts;
 }
 
-describe("collectSameValueGroup", () => {
-    it("连续水平的同值段会并成一组", () => {
-        const starts = chain([
-            [1, 1],
+describe("sameValuePartner", () => {
+    it("交界处同值的 end 和 start 互为伙伴", () => {
+        const [start1, start2] = chain([
             [1, 1],
             [1, 1]
         ]);
+        const end1 = start1.next as AnyNode;
 
-        expect(collectSameValueGroup(starts[0]).length).toBe(3);
-        expect(collectSameValueGroup(starts[1]).length).toBe(3);
-        expect(collectSameValueGroup(starts[2]).length).toBe(3);
+        expect(sameValuePartner(end1)).toBe(start2);
+        expect(sameValuePartner(start2)).toBe(end1);
     });
 
-    it("中间出现不同值就断开", () => {
-        const starts = chain([
+    it("一段内部的 start 和 end 是面对面，不配对", () => {
+        const [start1] = chain([[1, 1]]);
+
+        // 左边是 head（这里是 null），右边是 tail（也是 null）
+        expect(sameValuePartner(start1)).toBeNull();
+        expect(sameValuePartner(start1.next as AnyNode)).toBeNull();
+    });
+
+    it("序列第一个 start 永远没有伙伴", () => {
+        const [start1] = chain([
+            [5, 5],
+            [5, 5]
+        ]);
+
+        expect(sameValuePartner(start1)).toBeNull();
+    });
+
+    it("交界处值不同就不绑", () => {
+        const [start1, start2] = chain([
             [1, 1],
-            [1, 1],
-            [2, 2],
             [2, 2]
         ]);
 
-        expect(collectSameValueGroup(starts[0]).length).toBe(2);
-        expect(collectSameValueGroup(starts[1]).length).toBe(2);
-        expect(collectSameValueGroup(starts[2]).length).toBe(2);
-        expect(collectSameValueGroup(starts[3]).length).toBe(2);
+        expect(sameValuePartner(start1.next as AnyNode)).toBeNull();
+        expect(sameValuePartner(start2)).toBeNull();
     });
 
-    it("起点值不同就断开（和这一段平不平无关）", () => {
-        const starts = chain([
-            [0, 1],
-            [1, 1]
-        ]);
-
-        expect(collectSameValueGroup(starts[0]).length).toBe(1);
-        expect(collectSameValueGroup(starts[1]).length).toBe(1);
-    });
-
-    it("只有一个节点时组里只有它自己", () => {
-        const starts = chain([[3, 3]]);
-
-        expect(collectSameValueGroup(starts[0]).length).toBe(1);
-    });
-
-    it("中间夹着斜段也不影响同值的邻居绑定", () => {
-        // 起点值：1、1、2 —— 前两段同值，第三段不同。
-        // 斜段只说明"这一段不是平的"，不该让同值的前两段散伙。
-        const starts = chain([
-            [1, 1],
+    it("段是斜的也不影响交界处配对", () => {
+        // 第一段 1 → 2，下一段从 2 开始：交界处都是 2
+        const [start1, start2] = chain([
             [1, 2],
             [2, 2]
         ]);
 
-        expect(collectSameValueGroup(starts[0]).length).toBe(2);
-        expect(collectSameValueGroup(starts[1]).length).toBe(2);
-        // 第三个起点值是 2，不和前面同值
-        expect(collectSameValueGroup(starts[2]).length).toBe(1);
+        expect(sameValuePartner(start1.next as AnyNode)).toBe(start2);
+    });
+
+    it("连续三段同值时，中间交界处的两对都成立", () => {
+        const [start1, start2, start3] = chain([
+            [1, 1],
+            [1, 1],
+            [1, 1]
+        ]);
+
+        expect(sameValuePartner(start1.next as AnyNode)).toBe(start2);
+        expect(sameValuePartner(start2.next as AnyNode)).toBe(start3);
+        // 第一个 start 依然不参与
+        expect(sameValuePartner(start1)).toBeNull();
     });
 });
