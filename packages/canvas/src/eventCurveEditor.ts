@@ -3494,7 +3494,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                     // 一对节点一起动：值 + 时刻，事务性由 kipphi 的
                     // `ComplexOperation` 保证（无效子操作会被跳过）
                     this.operationList.do(
-                        new O.EventNodeBackToBackChangeOperation(
+                        new O.EventNodePairChangeOperation(
                             targets,
                             this.pointedValue,
                             this.pointedTime,
@@ -3508,7 +3508,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                         ),
                     );
                     this.operationList.do(
-                        new O.EventNodeTimeChangeOperation(
+                        new O.EventNodePairTimeChangeOperation(
                             this.selectedNode,
                             this.pointedTime,
                         ),
@@ -3910,7 +3910,7 @@ export class TextEventSequenceEditor extends EventSequenceEditor<string> {
             case EventCurveEditorState.selecting:
                 // console.log("det")
                 this.operationList.do(
-                    new O.EventNodeTimeChangeOperation(
+                    new O.EventNodePairTimeChangeOperation(
                         this.selectedNode,
                         this.pointedTime,
                     ),
@@ -4116,7 +4116,7 @@ export class ColorEventSequenceEditor extends EventSequenceEditor<RGB> {
             case EventCurveEditorState.selecting:
                 // console.log("det")
                 this.operationList.do(
-                    new O.EventNodeTimeChangeOperation(
+                    new O.EventNodePairTimeChangeOperation(
                         this.selectedNode,
                         this.pointedTime,
                     ),

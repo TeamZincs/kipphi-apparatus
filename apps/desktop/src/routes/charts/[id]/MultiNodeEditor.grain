@@ -112,7 +112,7 @@ function executeCode() {
     const operations = sortedNodes.map((node: EventStartNode | EventEndNode) => {
         return propOption === "value"
             ? new Op.EventNodeValueChangeOperation(node, fn(node.value, node))
-            : new Op.EventNodeTimeChangeOperation(node, fn(node.time, node));
+            : new Op.EventNodePairTimeChangeOperation(node, fn(node.time, node));
     });
 
     operationList.do(new Op.ComplexOperation(...operations));

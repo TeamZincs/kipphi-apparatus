@@ -228,7 +228,7 @@
         disabled={values.isFirst}
         bind:value={ get: () => values.time, set: (newTime) => {
                 operationList.do(
-                    new Op.EventNodeTimeChangeOperation(target, newTime),
+                    new Op.EventNodePairTimeChangeOperation(target, newTime),
                 );
             }
         }

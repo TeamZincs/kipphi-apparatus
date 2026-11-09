@@ -725,7 +725,7 @@
         const queue: any[] = [];
 
         if (Math.abs(beats - TC.toBeats(node.time)) > 1e-6)
-            queue.push(new Op.EventNodeTimeChangeOperation(node, toTime(beats)));
+            queue.push(new Op.EventNodePairTimeChangeOperation(node, toTime(beats)));
         if (next !== node.value)
             queue.push(new Op.EventNodeValueChangeOperation(node, next));
 
