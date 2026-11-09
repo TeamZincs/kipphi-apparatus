@@ -1180,8 +1180,6 @@ import MacroSheet from "./MacroSheet.grain";
 
             <span class="time">{format(currentTime)}</span>
 
-            <!-- 历史版本：独立页面，数据层和桌面端同一份 -->
-            <button class="ctrl" onclick={goHistory} aria-label="历史版本">↺</button>
             <button class="ctrl" onclick={onToggleFullscreen}>⛶</button>
         </div>
 
@@ -1207,6 +1205,14 @@ import MacroSheet from "./MacroSheet.grain";
                 {item.label}
             </button>
         {/for}
+
+        <!--
+            历史版本入口：常驻在 tab 栏最右。
+            放播放器控制条里的话，不点画面根本看不到（几秒后自动隐藏）。
+        -->
+        <button class="tab history-tab" onclick={goHistory} aria-label="历史版本">
+            ↺
+        </button>
     </nav>
 
     <!-- 三块内容始终存活：切页只平移轨道 + 切 visibility，不销毁 DOM -->
@@ -1690,6 +1696,16 @@ import MacroSheet from "./MacroSheet.grain";
     color: var(--accent);
     font-weight: 600;
     box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* 历史版本入口：不参与等分，固定贴在 tab 栏最右 */
+.history-tab {
+    flex: none;
+    width: 44px;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--text);
+    border-left: 1px solid var(--border);
 }
 
 /* ---------- 内容区 ---------- */
