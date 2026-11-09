@@ -230,6 +230,11 @@ type LayerID = "0" | "1" | "2" | "3" | "ex" | "glb" | "eff";
     eventSequenceEditors.changeTarget({ judgeLine: chart.judgeLines[0] });
     // 注意这句，不然容易出错
  */
+/** 事件节点颜色：开始蓝、结束红、同值联动组紫 */
+const NODE_START_COLOR = "#4c8dff";
+const NODE_END_COLOR = "#f2545b";
+const NODE_LINKED_COLOR = "#a855f7";
+
 export class EventSequenceEditors extends EventTarget {
     selectState: SelectState;
     timeDivisor: number = 4;
@@ -763,13 +768,46 @@ export class EventSequenceEditors extends EventTarget {
             },
             {
                 /*
-                 * 同值联动：连续同值的节点画成紫色，拖其中一个整组一起动。
+                 * 同值联动：连续同值的节点变紫，拖其中一个整组一起动。
                  * 只有数值事件有"同值"语义（文本 / 颜色没有），基类的判断
                  * 默认返回 false，所以这里不需要按类型分支。
+                 *
+                 * 图标是手画的：绑定 = 实心圆，未绑定 = 空心圆 + 中间一条实线。
                  */
                 id: "same-value",
-                icon: "sameValue" as IconName,
-                active: this.activatedEditor.sameValueLinked,
+                // 靠图标区分状态就够了（active 会让底色变蓝，和实心圆叠在一起太花）
+                paint: (context, x, y, size, color) => {
+                    const radius = size / 2;
+                    const lineWidth = Math.max(1.5, size * 0.09);
+
+                    context.save();
+                    context.strokeStyle = color;
+                    context.fillStyle = color;
+                    context.lineWidth = lineWidth;
+
+                    if (this.activatedEditor.sameValueLinked) {
+                        context.beginPath();
+                        context.arc(x, y, radius, 0, Math.PI * 2);
+                        context.fill();
+                    } else {
+                        context.beginPath();
+                        context.arc(
+                            x,
+                            y,
+                            radius - lineWidth / 2,
+                            0,
+                            Math.PI * 2
+                        );
+                        context.stroke();
+
+                        context.beginPath();
+                        context.moveTo(x - radius, y);
+                        context.lineTo(x + radius, y);
+                        context.stroke();
+                    }
+
+                    context.restore();
+                },
                 onClick: () => {
                     this.activatedEditor.sameValueLinked =
                         !this.activatedEditor.sameValueLinked;
@@ -1664,6 +1702,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
 import {
     DEFAULT_PALETTE,
     drawButton,
+    roundRectPath,
     scaleFont,
     type ButtonPalette,
     type IconName,
@@ -2884,6 +2923,34 @@ export abstract class EventSequenceEditor<
             priority: 10,
         });
     }
+    /**
+     * 画一个节点方块。
+     *
+     * 用 canvas 直接画（圆角矩形），不再用贴图 —— 贴图没法按状态换色，
+     * 而"同值联动"需要把整组节点染紫。
+     */
+    private paintNode(
+        context: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        color: string,
+    ): void {
+        context.save();
+        roundRectPath(
+            context,
+            x,
+            y,
+            width,
+            height,
+            Math.min(width, height) * 0.28,
+        );
+        context.fillStyle = color;
+        context.fill();
+        context.restore();
+    }
+
     drawSequence(
         sequence: EventNodeSequence<VT>,
         beats: number,
@@ -2895,8 +2962,6 @@ export abstract class EventSequenceEditor<
         const { selectionManager, context } = this;
         const NODE_HEIGHT = this.nodeHeight;
         const NODE_WIDTH = this.nodeWidth;
-        const START_NODE_IMG = Images.START_NODE;
-        const END_NODE_IMG = Images.END_NODE;
 
         let previousEndNode:
             EventEndNode<VT> | EventNodeLike<NodeType.HEAD, VT> =
@@ -2951,13 +3016,13 @@ export abstract class EventSequenceEditor<
             });
 
             const selected = this.nodesSelection.has(startNode);
-            // 同值联动：整组画紫色，一眼看出哪些节点会一起动
+            // 同值联动：只有这一组的节点变紫，线本身保持原色
             const linked =
                 this.sameValueLinked && this.isSameValueLinked(startNode);
 
-            if (selected || linked) {
+            if (selected) {
                 context.save();
-                context.strokeStyle = selected ? "cyan" : "purple";
+                context.strokeStyle = "cyan";
             }
 
             this.strokeCurve(
@@ -2968,17 +3033,27 @@ export abstract class EventSequenceEditor<
                 endXY,
                 beats,
             );
-            if (selected || linked) {
+            if (selected) {
                 context.restore();
             }
-            context.drawImage(
-                START_NODE_IMG,
+
+            // 节点用 canvas 直接画（不再用贴图）：开始蓝、结束红、同值组紫
+            this.paintNode(
+                context,
                 leftX,
                 topY - sheight,
                 swidth,
                 sheight,
+                linked ? NODE_LINKED_COLOR : NODE_START_COLOR,
             );
-            context.drawImage(END_NODE_IMG, leftEndX, topEndY, ewidth, eheight);
+            this.paintNode(
+                context,
+                leftEndX,
+                topEndY,
+                ewidth,
+                eheight,
+                linked ? NODE_LINKED_COLOR : NODE_END_COLOR,
+            );
             // console.log(this.type, EventType.speed)
             if (this.type === EventType.speed) {
                 // console.log(startNode)
@@ -3000,20 +3075,21 @@ export abstract class EventSequenceEditor<
             const linked =
                 this.sameValueLinked && this.isSameValueLinked(lastStart);
 
-            if (selected || linked) {
+            if (selected) {
                 context.save();
-                context.strokeStyle = selected ? "cyan" : "purple";
+                context.strokeStyle = "cyan";
             }
             this.strokeLastLineSegment(context, lastStart, startXY);
-            if (selected || linked) {
+            if (selected) {
                 context.restore();
             }
-            context.drawImage(
-                START_NODE_IMG,
+            this.paintNode(
+                context,
                 startX - NODE_WIDTH / 2,
                 startY - NODE_HEIGHT,
                 NODE_WIDTH,
                 NODE_HEIGHT,
+                linked ? NODE_LINKED_COLOR : NODE_START_COLOR,
             );
             selectionManager.add({
                 target: lastStart,
@@ -3390,14 +3466,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         super.updateMatrix();
 
         // 放大镜：只临时乘倍率，不改用户设置的 timeSpan / valueRange
-        const zoom = this.magnifier.active ? this.magnifier.zoom : 1;
+        const zoom = this.magnifier.zooming ? this.magnifier.zoom : 1;
 
         // 扩展：值维度
         this.valueRatio = (this.innerWidth * zoom) / lengthOf(this.valueRange);
         this.timeRatio = (this.innerHeight * zoom) / this.timeSpan;
 
         // 放大时把按住节点的值摆到画布中心（纵向在 `applyMagnifier` 里换算）
-        const anchor = this.magnifier.active ? this.magnifier.anchor : null;
+        const anchor = this.magnifier.zooming ? this.magnifier.anchor : null;
         const centerValue = anchor ? anchor.x : medianOf(this.valueRange);
 
         this.matrix = identity

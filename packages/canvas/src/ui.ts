@@ -91,9 +91,7 @@ export const ICONS = {
     axisX: "ArrowLeftRight",
     /** 复制 / 粘贴 */
     copy: "Copy",
-    paste: "ClipboardPaste",
-    /** 同值联动：连续同值的节点合并成一组一起拖 */
-    sameValue: "Merge"
+    paste: "ClipboardPaste"
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -243,6 +241,19 @@ export interface ButtonSpec {
     disabled?: boolean;
     /** 组内占几格宽（排形按钮里不等宽的情况） */
     span?: number;
+    /**
+     * 自定义绘制，优先于 `icon` / `label`。
+     *
+     * 有些语义（"同值绑定"这种）lucide 里没有合适的图标，与其硬凑一个，
+     * 不如让调用方直接画。坐标是按钮中心，`color` 已经按 active/disabled 算好。
+     */
+    paint?: (
+        context: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        size: number,
+        color: string
+    ) => void;
 }
 
 export interface ButtonBox {
@@ -454,7 +465,11 @@ export function drawButton(
     const centerX = box.x + box.width / 2;
     const centerY = box.y + box.height / 2;
 
-    if (box.spec.icon) {
+    if (box.spec.paint) {
+        const size = Math.min(box.height * 0.56, box.width * 0.56);
+
+        box.spec.paint(context, centerX, centerY, size, color);
+    } else if (box.spec.icon) {
         const size = Math.min(box.height * 0.56, box.width * 0.56);
 
         drawIcon(context, box.spec.icon, centerX, centerY, size, color);

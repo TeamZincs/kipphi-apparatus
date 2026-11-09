@@ -74,9 +74,19 @@ export class Magnifier {
         return this.index;
     }
 
-    /** 是否处于放大状态（用于决定要不要画局部视图） */
+    /**
+     * 是否画局部视图。
+     *
+     * 只要按住元素就显示（此时局部是主视图的 2x，主视图本身不动）——
+     * 档位是"让主视图也放大"的另一回事。
+     */
     get active(): boolean {
-        return this.anchor !== null && this.index > 0;
+        return this.anchor !== null;
+    }
+
+    /** 主视图是否真的在放大（决定要不要改矩阵 / 居中） */
+    get zooming(): boolean {
+        return this.anchor !== null && this.value > 1;
     }
 
     /** 是否还在播动画（调用方据此继续请求重绘） */

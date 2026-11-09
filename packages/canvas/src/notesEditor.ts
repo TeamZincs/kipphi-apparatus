@@ -1430,7 +1430,7 @@ export class NotesEditor extends EventTarget {
         const [left, top, width, height] = clippingRect;
         // 放大镜：只临时乘倍率，不改 `timeSpan` / `positionSpan` 本身
         //（那两个是用户的视野设置，松手要还原）
-        const zoom = this.magnifier.active ? this.magnifier.zoom : 1;
+        const zoom = this.magnifier.zooming ? this.magnifier.zoom : 1;
         this.positionRatio = (width * zoom) / this.positionSpan;
         this.timeRatio = (height * zoom) / this.timeSpan;
         this.context.resetTransform();
@@ -1619,7 +1619,7 @@ export class NotesEditor extends EventTarget {
 
         const magnified = this.magnifier.anchor;
 
-        if (magnified && this.magnifier.zoom > 1) {
+        if (magnified && this.magnifier.zooming) {
             this.zoomBaseline ??= this.positionBasis;
             this.positionBasis = -magnified.x;
             beats = magnified.y - this.timeSpan / (2 * this.magnifier.zoom);
@@ -1819,7 +1819,7 @@ export class NotesEditor extends EventTarget {
 
         this.drawn = false;
         // 放大时 `beats` 是为了居中算出来的临时值，不能写回视野
-        if (!this.magnifier.active) this.lastBeats = beats;
+        if (!this.magnifier.zooming) this.lastBeats = beats;
         // 预览画在音符之上、按钮之下（这里还带着相机变换，和 drawNote 同一个空间）
         this.drawPreview(beats);
 

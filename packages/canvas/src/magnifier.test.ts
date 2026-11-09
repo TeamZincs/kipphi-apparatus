@@ -11,7 +11,7 @@ describe("Magnifier", () => {
         expect(magnifier.active).toBe(false);
     });
 
-    it("按下元素只定住中心，还没放大", () => {
+    it("按下元素只定住中心：主视图不动，但局部视图已经出来", () => {
         const magnifier = new Magnifier();
 
         magnifier.focus({ x: 12, y: 4 });
@@ -19,7 +19,10 @@ describe("Magnifier", () => {
         expect(magnifier.anchor).toEqual({ x: 12, y: 4 });
         // 没点档位之前主视图不动
         expect(magnifier.zoom).toBe(1);
-        expect(magnifier.active).toBe(false);
+        expect(magnifier.zooming).toBe(false);
+        // 局部视图是"按住就有"，此时是主视图的 2x
+        expect(magnifier.active).toBe(true);
+        expect(magnifier.localZoom).toBeCloseTo(2, 5);
     });
 
     it("切档后有 0.4s 动画，结束后倍率到位、局部高一档", () => {

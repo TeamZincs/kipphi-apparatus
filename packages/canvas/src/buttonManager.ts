@@ -42,6 +42,19 @@ export interface CanvasButton {
     onClick?: () => void;
     /** 按住状态下从别的按钮滑进这个按钮（放大镜切档、音符拖出） */
     onDragEnter?: () => void;
+    /**
+     * 自定义绘制，优先于 `icon` / `label`。
+     *
+     * 语义上找不到合适的 lucide 图标时（比如"同值绑定"），直接画更准确。
+     * 坐标是按钮中心，`color` 已按 active / disabled 算好。
+     */
+    paint?: (
+        context: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        size: number,
+        color: string
+    ) => void;
 }
 
 export type ButtonLayout =
@@ -172,7 +185,8 @@ export class ButtonManager {
             label: button.label ?? "",
             icon: button.icon,
             active: button.active,
-            disabled: button.disabled
+            disabled: button.disabled,
+            paint: button.paint
         };
     }
 
