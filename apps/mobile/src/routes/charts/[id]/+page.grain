@@ -944,6 +944,9 @@ import MacroSheet from "./MacroSheet.grain";
      */
     const showError = (message: string): void => {
         runtimeError = message;
+
+        // 屏幕上只有一行，完整信息（含栈）走控制台
+        console.error("[运行时错误]", message);
     };
 
     const onWindowError = (event: ErrorEvent): void => {
@@ -1004,6 +1007,9 @@ import MacroSheet from "./MacroSheet.grain";
                     : String(error);
 
             loadError = message || "未知错误";
+
+            // 屏幕上只放一行摘要，原始对象（带栈）交给控制台
+            console.error("[打开谱面失败]", error);
 
             // `ready` 在 try 里可能已经置 true 了（`bootEditors` 那一步失败），
             // 退回占位符态，否则错误照样被主 UI 盖住
