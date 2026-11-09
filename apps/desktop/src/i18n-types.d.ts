@@ -287,6 +287,12 @@ export interface I18nMapping {
 "main.script.run": never;
 "main.script.close": never;
 "main.script.open": never;
+"history.title": never;
+"history.loading": never;
+"history.empty": never;
+"history.restore": never;
+"history.restoring": never;
+"history.restored": never;
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;
@@ -296,6 +302,7 @@ export interface I18nMapping {
 "about.canvasEditor": never;
 "about.apparatus": never;
 "about.kipphi": never;
+"about.webdemuxer": never;
 "general.pixel": never;
 "general.preservesPitch": never;
 "general.eventTypes.moveX": never;

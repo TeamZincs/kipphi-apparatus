@@ -379,6 +379,14 @@
       "open": "打開編輯器"
     }
   },
+  "history": {
+    "title": "歷史版本",
+    "loading": "正在讀取歷史…",
+    "empty": "還沒有儲存過版本。",
+    "restore": "還原",
+    "restoring": "還原中…",
+    "restored": "已還原到所選版本。"
+  },
   "export": {
     "convertToRPEJSONOnly": "僅轉譜為RPEJSON",
     "exportPEZ": "導出PEZ文檔",

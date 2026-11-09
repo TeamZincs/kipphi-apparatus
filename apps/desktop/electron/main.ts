@@ -172,6 +172,16 @@ ipcMain.handle("fs:saveChartMeta", async (_, chartId, metadata) => {
     await fs.writeFile(filePath, JSON.stringify(metadata, null, 2), "utf-8");
 });
 
+/** 每次保存都新建一个带时间戳的文件名，历史里靠它区分版本 */
+function historyFileName(date) {
+    const dateStr = date.toISOString()
+        .replace(/:/g, "-")
+        .replace(/\./g, "_")
+        .replace(/T/g, " ")
+        .replace(/Z/g, "");
+    return `chart.${dateStr}.kpa2.json`;
+}
+
 // 保存谱面（包含历史记录）
 ipcMain.handle("fs:saveChart", async (_, chartId, chartData, summary, beutify = false) => {
     const { CHART_DIR } = getAppDataDir();
@@ -179,12 +189,7 @@ ipcMain.handle("fs:saveChart", async (_, chartId, chartData, summary, beutify = 
     const chartStr = beutify ? JSON.stringify(chartData, null, 2) : JSON.stringify(chartData);
 
     const date = new Date();
-    const dateStr = date.toISOString()
-        .replace(/:/g, "-")
-        .replace(/\./g, "_")
-        .replace(/T/g, " ")
-        .replace(/Z/g, "");
-    const chartPath = `chart.${dateStr}.kpa2.json`;
+    const chartPath = historyFileName(date);
     chartMeta.chart = chartPath;
     if (chartMeta.type !== "KPA2") chartMeta.type = "KPA2";
 
@@ -201,6 +206,41 @@ ipcMain.handle("fs:saveChart", async (_, chartId, chartData, summary, beutify = 
     // 保存元数据和谱面
     await fs.writeFile(path.join(CHART_DIR, chartId, "metadata.json"), JSON.stringify(chartMeta, null, 2), "utf-8");
     await fs.writeFile(path.join(CHART_DIR, chartId, chartPath), chartStr, "utf-8");
+});
+
+/**
+ * 还原到某个历史版本。
+ *
+ * 和 Tauri 实现保持同一套语义：**复制**成新版本（原文件不动、历史链完整），
+ * 并在 `history.json` 里留一条"还原到 xxx"的记录。
+ */
+ipcMain.handle("fs:restoreChartVersion", async (_, chartId, filename) => {
+    const { CHART_DIR } = getAppDataDir();
+    const dir = path.join(CHART_DIR, chartId);
+    const source = path.join(dir, filename);
+
+    if (!await pathExists(source)) {
+        throw new Error(`版本文件不存在：${filename}`);
+    }
+
+    const content = await fs.readFile(source, "utf-8");
+    const date = new Date();
+    const chartPath = historyFileName(date);
+
+    const chartMeta = JSON.parse(await fs.readFile(path.join(dir, "metadata.json"), "utf-8"));
+    chartMeta.chart = chartPath;
+    chartMeta.type = "KPA2";
+
+    const history = await queryChartHistory(chartId) || [];
+    history.push({
+        summary: `还原到 ${filename}`,
+        filename: chartPath,
+        time: date.getTime(),
+    });
+
+    await fs.writeFile(path.join(dir, "history.json"), JSON.stringify(history, null, 2), "utf-8");
+    await fs.writeFile(path.join(dir, "metadata.json"), JSON.stringify(chartMeta, null, 2), "utf-8");
+    await fs.writeFile(path.join(dir, chartPath), content, "utf-8");
 });
 
 // 获取谱面数据（JSON）

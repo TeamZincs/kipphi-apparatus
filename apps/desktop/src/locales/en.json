@@ -379,6 +379,14 @@
       "open": "Open Editor"
     }
   },
+  "history": {
+    "title": "History",
+    "loading": "Loading history…",
+    "empty": "No saved versions yet.",
+    "restore": "Restore",
+    "restoring": "Restoring…",
+    "restored": "Restored to the selected version."
+  },
   "export": {
     "convertToRPEJSONOnly": "Convert to RPEJSON Only",
     "exportPEZ": "Export PEZ File",

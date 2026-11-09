@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
         queryChartHistory: (chartId) => ipcRenderer.invoke("fs:queryChartHistory", chartId),
         saveChartMeta: (chartId, metadata) => ipcRenderer.invoke("fs:saveChartMeta", chartId, metadata),
         saveChart: (chartId, chart, summary, beutify) => ipcRenderer.invoke("fs:saveChart", chartId, chart, summary, beutify),
+        restoreChartVersion: (chartId, filename) => ipcRenderer.invoke("fs:restoreChartVersion", chartId, filename),
         getChartData: (chartId) => ipcRenderer.invoke("fs:getChartData", chartId),
         getChartProjectData: (chartId) => ipcRenderer.invoke("fs:getChartProjectData", chartId),
         readChart: (identifier, filename) => ipcRenderer.invoke("fs:readChart", identifier, filename),
@@ -84,6 +85,7 @@ declare global {
                 queryChartHistory: (chartId: string) => Promise<any[]>;
                 saveChartMeta: (chartId: string, metadata: any) => Promise<void>;
                 saveChart: (chartId: string, chart: any, summary: string, beutify?: boolean) => Promise<void>;
+                restoreChartVersion: (chartId: string, filename: string) => Promise<void>;
                 getChartData: (chartId: string) => Promise<any>;
                 getChartProjectData: (chartId: string) => Promise<any>;
                 readChart: (identifier: string, filename: string) => Promise<any>;

@@ -132,6 +132,11 @@ export async function saveChart(chartId: string, chart: Chart, summary: string, 
     return ipcCall<void>("saveChart", chartId, chart.dumpKPA(), summary, beutify);
 }
 
+/** 还原到某个历史版本（复制成新版本，历史链不断；语义与 Tauri 实现一致） */
+export async function restoreChartVersion(chartId: string, filename: string): Promise<void> {
+    return ipcCall<void>("restoreChartVersion", chartId, filename);
+}
+
 export async function getChartProject<RT extends NonImageReturnType = _ReturnType.blob>(
     chartId: string,
     returning?: RT

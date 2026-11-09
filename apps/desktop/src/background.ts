@@ -41,6 +41,7 @@ export const queryChartMeta = impl.queryChartMeta;
 export const queryChartHistory = impl.queryChartHistory;
 export const saveChartMeta = impl.saveChartMeta;
 export const saveChart = impl.saveChart;
+export const restoreChartVersion = impl.restoreChartVersion;
 export const getChartProject = impl.getChartProject;
 export const getChart = impl.getChart;
 export const readAFileInChart = impl.readAFileInChart;

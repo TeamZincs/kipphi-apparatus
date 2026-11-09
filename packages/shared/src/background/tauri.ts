@@ -174,18 +174,23 @@ async function saveChartHistoryEntry(chartId: string, entry: ChartHistoryEntry) 
     await writeTextFile(filePath, JSON.stringify(history, null, 2));
 }
 
+/** 每次保存都新建一个带时间戳的文件名，历史里靠它区分版本 */
+function historyFilename(date: Date): string {
+    const dateStr = date.toISOString()
+        .replace(/\:/g, "-")
+        .replace(/\./g, "_")
+        .replace(/T/g, " ")
+        .replace(/Z/g, "");
+    return `chart.${dateStr}.kpa2.json`;
+}
+
 export async function saveChart(chartId: string, chart: Chart, summary: string, beutify = false) {
     const chartMeta = await queryChartMeta(chartId);
     const CHART_DIRECTORY = CHART_DIR || (await queryMeta()).CHART_DIR;
     const chartStr = beutify ? JSON.stringify(chart.dumpKPA(), null, 2) : JSON.stringify(chart.dumpKPA());
 
     const date = new Date();
-    const dateStr = date.toISOString()
-        .replace(/\:/g, "-")
-        .replace(/\./g, "_")
-        .replace(/T/g, " ")
-        .replace(/Z/g, "");
-    const chartPath = `chart.${dateStr}.kpa2.json`;
+    const chartPath = historyFilename(date);
     chartMeta.chart = chartPath;
 
     if (chartMeta.type !== "KPA2") {
@@ -202,6 +207,46 @@ export async function saveChart(chartId: string, chart: Chart, summary: string, 
     const filePath = await join(CHART_DIRECTORY, chartId, chartPath);
     console.log("Chart saved to", filePath);
     await writeTextFile(filePath, chartStr);
+}
+
+/**
+ * 把历史里的某个版本还原成当前版本。
+ *
+ * 做法是**复制**成一个新版本，而不是把 `metadata.chart` 指回去：
+ *   · 原文件一份不动，历史链完整；
+ *   · 「还原」本身也会在 `history.json` 里留一条，事后能看出来做过什么。
+ *
+ * @param chartId 谱面 ID（目录名）
+ * @param filename 历史条目里的 `filename`，即那次保存产生的文件名
+ */
+export async function restoreChartVersion(
+    chartId: string,
+    filename: string
+): Promise<void> {
+    const chartDir = (await queryMeta()).CHART_DIR;
+    const dir = await join(chartDir, chartId);
+    const source = await join(dir, filename);
+
+    if (!await exists(source)) {
+        throw new Error(`版本文件不存在：${filename}`);
+    }
+
+    const content = await readTextFile(source);
+    const date = new Date();
+    const chartPath = historyFilename(date);
+
+    const chartMeta = await queryChartMeta(chartId);
+    chartMeta.chart = chartPath;
+    chartMeta.type = "KPA2";
+
+    await saveChartHistoryEntry(chartId, {
+        summary: `还原到 ${filename}`,
+        filename: chartPath,
+        time: date.getTime()
+    });
+
+    await saveChartMeta(chartId, chartMeta);
+    await writeTextFile(await join(dir, chartPath), content);
 }
 
 interface ChartStruct<RT extends NonImageReturnType = _ReturnType.blob> {

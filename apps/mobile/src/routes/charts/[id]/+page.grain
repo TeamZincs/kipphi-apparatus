@@ -970,6 +970,13 @@ import MacroSheet from "./MacroSheet.grain";
 
         back();
     }
+
+    /** 跳到历史版本页（数据层和桌面端同一份，见 `#/background`） */
+    function goHistory(): void {
+        const id = route.get().params.id;
+
+        if (id) navigate(`/charts/${id}/history`);
+    }
     //#endregion
 </script>
 
@@ -1173,6 +1180,8 @@ import MacroSheet from "./MacroSheet.grain";
 
             <span class="time">{format(currentTime)}</span>
 
+            <!-- 历史版本：独立页面，数据层和桌面端同一份 -->
+            <button class="ctrl" onclick={goHistory} aria-label="历史版本">↺</button>
             <button class="ctrl" onclick={onToggleFullscreen}>⛶</button>
         </div>
 
