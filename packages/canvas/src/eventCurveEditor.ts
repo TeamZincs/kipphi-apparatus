@@ -3315,14 +3315,12 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     public pointedValue: number;
 
     /**
-     * 拖动开始时锁定的「同值组」。
+     * 按下时锁定的「这次拖动是否成对联动」。
      *
-     * 不能在拖动过程中重算：值会被改成同一个数，组会越并越大，把原本
-     * 不同值的邻居也卷进来。
+     * 不能在拖动过程中重算：值会被改成同一个数，原本不同值的邻居也会
+     * 变成"同值"，把不该动的一起卷进来。
      */
-    private dragGroup:
-        | (EventStartNode<number> | EventEndNode<number>)[]
-        | null = null;
+    private linkedDrag = false;
 
     protected override isSameValueLinked(
         node: EventStartNode<number> | EventEndNode<number>,
@@ -3488,30 +3486,28 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                  * 只改值不改时刻的话，交界处的两个节点会被拉开，"背靠背"
                  * 当场就散了，所以两个都要跟。
                  */
-                const targets = this.dragGroup ?? [this.selectedNode];
-
-                if (targets.length > 1) {
-                    // 一对节点一起动：值 + 时刻，事务性由 kipphi 的
-                    // `ComplexOperation` 保证（无效子操作会被跳过）
+                if (this.linkedDrag) {
+                    // 只传选中的那个，另一个由操作自己 `getEndStart` 取；
+                    // 事务性交给 `ComplexOperation`（无效子操作会被跳过）
                     this.operationList.do(
                         new O.EventNodePairChangeOperation(
-                            targets,
+                            this.selectedNode,
                             this.pointedValue,
                             this.pointedTime,
-                        ),
+                        )
                     );
                 } else {
                     this.operationList.do(
                         new O.EventNodeValueChangeOperation(
                             this.selectedNode,
-                            this.pointedValue,
-                        ),
+                            this.pointedValue
+                        )
                     );
                     this.operationList.do(
                         new O.EventNodePairTimeChangeOperation(
                             this.selectedNode,
-                            this.pointedTime,
-                        ),
+                            this.pointedTime
+                        )
                     );
                 }
             }
@@ -3541,29 +3537,28 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 this.state = !snode
                     ? EventCurveEditorState.select
                     : EventCurveEditorState.selecting;
-                // 每次按下都重新算，避免上一次的组残留
-                this.dragGroup = null;
+                // 每次按下都重新算，避免上一次的联动状态残留
+                this.linkedDrag = false;
 
                 if (snode && snode.target instanceof EventNode) {
                     this.selectedNode = snode.target;
                     /*
-                     * 背靠背联动：在这里就把伙伴定下来。
+                     * 背靠背联动：在这里就把"这次拖要不要带伙伴"定下来。
                      *
                      * 只有交界处那一个（`end` ↔ 下一个 `start`）才算 —— 一段
                      * 内部的 `start → end` 之间隔着一整段时间，那是"面对面"。
                      * 拖动过程中值会变，每帧重算会把新同值的节点也卷进来。
+                     *
+                     * 具体带哪个节点由操作自己 `getEndStart` 取，这里只判断
+                     * 有没有。
                      */
-                    const partner = this.sameValueLinked
-                        ? sameValuePartner(
-                              this.selectedNode as
-                                  | EventStartNode<number>
-                                  | EventEndNode<number>,
-                          )
-                        : null;
-
-                    this.dragGroup = partner
-                        ? [this.selectedNode as any, partner]
-                        : null;
+                    this.linkedDrag =
+                        this.sameValueLinked &&
+                        sameValuePartner(
+                            this.selectedNode as
+                                | EventStartNode<number>
+                                | EventEndNode<number>
+                        ) !== null;
                     // 放大镜以这个节点为中心（松手才收起）
                     this.focusMagnifier();
                     this.dispatchEvent(
