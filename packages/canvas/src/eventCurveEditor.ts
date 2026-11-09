@@ -758,6 +758,21 @@ export class EventSequenceEditors extends EventTarget {
                 }
             },
             {
+                /*
+                 * 同值联动：连续同值的节点画成紫色，拖其中一个整组一起动。
+                 * 只有数值事件有"同值"语义（文本 / 颜色没有），基类的判断
+                 * 默认返回 false，所以这里不需要按类型分支。
+                 */
+                id: "same-value",
+                icon: "sameValue" as IconName,
+                active: this.activatedEditor.sameValueLinked,
+                onClick: () => {
+                    this.activatedEditor.sameValueLinked =
+                        !this.activatedEditor.sameValueLinked;
+                    this.draw();
+                }
+            },
+            {
                 // 复制当前选中的节点（粘到别处）
                 id: "copy",
                 icon: "copy" as IconName,
@@ -1223,6 +1238,15 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      *   · `"x"`    —— 时间锁住，只允许横向平移。
      */
     panAxis: "time" | "x" = "time";
+
+    /**
+     * 同值联动：开启后，**连续同值**的节点视为一组 —— 拖任意一个就整组
+     * 一起改值，这些段也画成紫色。
+     *
+     * 放在基类是因为按钮栏（`EventSequenceEditors`）只能拿到基类类型；
+     * 「是不是一组」的判断在数值子类里（`isSameValueLinked`）。
+     */
+    sameValueLinked = false;
 
     //#region 放置预览（和音符画布同一套：对象还不存在，只画准星）
     /**
@@ -2170,6 +2194,15 @@ export abstract class EventSequenceEditor<
     autoRangeEnabled: boolean = true;
 
     clipboard: Set<EventStartNode<VT>> = new Set();
+
+    /**
+     * 该节点是否属于「同值背靠背组」（组内至少两个节点）。
+     *
+     * 基类不做判断；{@linkcode NumericEventCurveEditor} 按 `value` 实现。
+     */
+    protected isSameValueLinked(_node: EventStartNode<VT>): boolean {
+        return false;
+    }
     nodesSelection: Set<EventStartNode<VT>> = new Set();
 
     constructor(
@@ -2753,10 +2786,13 @@ export abstract class EventSequenceEditor<
             });
 
             const selected = this.nodesSelection.has(startNode);
+            // 同值联动：整组画紫色，一眼看出哪些节点会一起动
+            const linked =
+                this.sameValueLinked && this.isSameValueLinked(startNode);
 
-            if (selected) {
+            if (selected || linked) {
                 context.save();
-                context.strokeStyle = "cyan";
+                context.strokeStyle = selected ? "cyan" : "purple";
             }
 
             this.strokeCurve(
@@ -2767,7 +2803,7 @@ export abstract class EventSequenceEditor<
                 endXY,
                 beats,
             );
-            if (selected) {
+            if (selected || linked) {
                 context.restore();
             }
             context.drawImage(
@@ -2796,12 +2832,15 @@ export abstract class EventSequenceEditor<
             const [startX, startY] = startXY;
             const topY = startY - NODE_HEIGHT;
             const selected = this.nodesSelection.has(lastStart);
-            if (selected) {
+            const linked =
+                this.sameValueLinked && this.isSameValueLinked(lastStart);
+
+            if (selected || linked) {
                 context.save();
-                context.strokeStyle = "cyan";
+                context.strokeStyle = selected ? "cyan" : "purple";
             }
             this.strokeLastLineSegment(context, lastStart, startXY);
-            if (selected) {
+            if (selected || linked) {
                 context.restore();
             }
             context.drawImage(
@@ -2990,10 +3029,122 @@ export abstract class EventSequenceEditor<
 
 const isReturn = (e: { target: any }) => e && e.target === "return";
 
+/**
+ * 与 `node` 同值、且在时间上首尾相接的整组节点（含自己）。
+ *
+ * 链的形状是 `start → end → start → end …`：
+ *   · 向左看 `previous.previous`（上一个 start）；
+ *   · 向右看 `next.next`（下一个 start），且当前这一段必须水平
+ *     （`next.value === value`），否则中间是斜线，画面上不是一条同值线。
+ *
+ * 单独抽出来是为了能直接测（编辑器实例要 canvas / operationList，太重）。
+ */
+export function collectSameValueGroup(
+    node: EventStartNode<number>,
+): EventStartNode<number>[] {
+    const value = node.value;
+
+    // 自己这一段不水平（起点值 ≠ 终点值），就不是"一条同值线"上的节点
+    if ((node.next as EventEndNode<number> | null)?.value !== value) {
+        return [node];
+    }
+
+    const group: EventStartNode<number>[] = [node];
+
+    let cursor: any = node;
+
+    while (cursor?.previous?.previous) {
+        const prevStart = cursor.previous.previous;
+
+        if (!(prevStart instanceof EventStartNode)) break;
+        if (prevStart.value !== value) break;
+        // 上一段也得水平，否则中间是斜线，不算连在一起
+        if (prevStart.next?.value !== value) break;
+
+        group.unshift(prevStart);
+        cursor = prevStart;
+    }
+
+    cursor = node;
+
+    while (cursor?.next?.next) {
+        const nextStart = cursor.next.next;
+
+        if (!(nextStart instanceof EventStartNode)) break;
+        if (nextStart.value !== value) break;
+        if (nextStart.next?.value !== value) break;
+
+        group.push(nextStart);
+        cursor = nextStart;
+    }
+
+    return group;
+}
+
+/**
+ * 一整组同值节点一起改值。
+ *
+ * 拖动时每帧都会发一条，`rewrite` 把同一组的后续修改合并进第一条 ——
+ * 一次拖动只留一条撤销记录。
+ *
+ * 逐节点发 `EventNodeValueChangeOperation` 不行：那个的 `rewrite` 只合并
+ * **同一个节点**，一组 N 个节点每帧会新增 N 条操作，撤销栈直接爆掉。
+ */
+class SameValueGroupValueChangeOperation extends O.Operation {
+    updatesEditor = true;
+    readonly nodes: EventStartNode<number>[];
+    private readonly changes: O.EventNodeValueChangeOperation<number>[];
+
+    constructor(nodes: EventStartNode<number>[], value: number) {
+        super();
+        this.nodes = nodes;
+        this.changes = nodes.map(
+            (node) => new O.EventNodeValueChangeOperation(node, value)
+        );
+    }
+
+    do(chart: any): void {
+        for (const change of this.changes) change.do(chart);
+    }
+
+    undo(chart: any): void {
+        for (const change of this.changes) change.undo(chart);
+    }
+
+    rewrite(next: this, chart: any): boolean {
+        if (next.changes.length !== this.changes.length) return false;
+
+        // 只有节点集合完全一致才能合并（拖动开始时锁定的那一组，不会变）
+        for (let index = 0; index < this.changes.length; index += 1) {
+            if (this.changes[index].node !== next.changes[index].node) {
+                return false;
+            }
+        }
+
+        for (let index = 0; index < this.changes.length; index += 1) {
+            this.changes[index].rewrite(next.changes[index], chart);
+        }
+
+        return true;
+    }
+}
+
 export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     override readonly valueType = EventValueType.numeric;
 
     public pointedValue: number;
+
+    /**
+     * 拖动开始时锁定的「同值组」。
+     *
+     * 不能在拖动过程中重算：值会被改成同一个数，组会越并越大，把原本
+     * 不同值的邻居也卷进来。
+     */
+    private dragGroup: EventStartNode<number>[] | null = null;
+
+    protected override isSameValueLinked(node: EventStartNode<number>): boolean {
+        return collectSameValueGroup(node).length > 1;
+    }
 
     attachableValues: number[] = [];
 
@@ -3092,20 +3243,35 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.pointedTime = [pointedBeats, beatFraction, timeDivisor];
 
         switch (this.state) {
-            case EventCurveEditorState.selecting:
-                // console.log("det")
+            case EventCurveEditorState.selecting: {
+                /*
+                 * 同值联动：按下时锁定的那一组一起改值。
+                 *
+                 * 逐个发操作而不是造一个复合操作 —— `rewrite` 会把同节点的
+                 * 连续修改合并成一条，撤销步数 = 组成员数，可以接受。
+                 * 时间只动被直接拖的那个（同组节点时间各不相同）。
+                 */
+                const targets = this.dragGroup ?? [this.selectedNode];
+
                 this.operationList.do(
-                    new O.EventNodeValueChangeOperation(
-                        this.selectedNode,
-                        this.pointedValue,
-                    ),
+                    targets.length > 1
+                        ? new SameValueGroupValueChangeOperation(
+                              targets,
+                              this.pointedValue,
+                          )
+                        : new O.EventNodeValueChangeOperation(
+                              this.selectedNode,
+                              this.pointedValue,
+                          ),
                 );
+
                 this.operationList.do(
                     new O.EventNodeTimeChangeOperation(
                         this.selectedNode,
                         this.pointedTime,
                     ),
                 );
+            }
         }
     }
     downHandler(event: MouseEvent | TouchEvent) {
@@ -3132,8 +3298,21 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 this.state = !snode
                     ? EventCurveEditorState.select
                     : EventCurveEditorState.selecting;
+                // 每次按下都重新算，避免上一次的组残留
+                this.dragGroup = null;
+
                 if (snode && snode.target instanceof EventNode) {
                     this.selectedNode = snode.target;
+                    /*
+                     * 同值联动：在这里就把整组定下来。
+                     * 拖动过程中值会变成同一个数，组会越并越大 —— 每帧重算
+                     * 会把原本不同值的邻居也卷进来。
+                     */
+                    this.dragGroup =
+                        this.sameValueLinked &&
+                        this.selectedNode instanceof EventStartNode
+                            ? collectSameValueGroup(this.selectedNode)
+                            : null;
                     this.dispatchEvent(
                         new KPANodeSelectedEvent(this.selectedNode),
                     );

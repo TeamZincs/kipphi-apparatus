@@ -91,7 +91,9 @@ export const ICONS = {
     axisX: "ArrowLeftRight",
     /** 复制 / 粘贴 */
     copy: "Copy",
-    paste: "ClipboardPaste"
+    paste: "ClipboardPaste",
+    /** 同值联动：连续同值的节点合并成一组一起拖 */
+    sameValue: "Merge"
 } as const;
 
 export type IconName = keyof typeof ICONS;
