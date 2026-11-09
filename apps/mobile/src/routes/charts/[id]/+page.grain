@@ -10,7 +10,7 @@
 
     import { EventSequenceEditors, NotesEditor } from "@kpa/canvas";
     // 面板拆出去之后，页面只剩"打开哪个对象"，用不到操作类
-    import { type Note } from "kipphi";
+    import { KPAError, type Note } from "kipphi";
     import {
         AudioProcessor,
         Images,
@@ -44,18 +44,52 @@ import MacroSheet from "./MacroSheet.grain";
     import { readDefaultRespackFile } from "#/tauri";
 
     //#region 页面状态
-    type MobileTab = "lines" | "notes" | "events" | "ops";
+    type MobileTab = "lines" | "notes" | "events" | "ops" | "errors";
 
     const tabs: Array<{ id: MobileTab; label: string }> = [
         { id: "lines", label: "判定线" },
         { id: "notes", label: "音符" },
         { id: "events", label: "事件" },
     // 只读的操作栈：已撤销的在上面，用虚线跟已做的分开
-    { id: "ops", label: "操作栈" }
+    { id: "ops", label: "操作栈" },
+    // 解析时收集到的警告（`KPAError.buffer`）
+    { id: "errors", label: "错误" }
     ];
 
     let activeTab = $state<MobileTab>("lines");
     let tabIndex = $state(0);
+
+    /** 解析 / 自愈过程中收集到的警告（`KPAError.buffer` 的快照） */
+    let chartErrors = $state<Array<{ message: string; fixed: boolean }>>([]);
+    /** 底部提示条：解析出错时提示"去看错误页" */
+    let notices = $state<Array<{ id: number; message: string; type: "info" | "error" }>>([]);
+    let noticeSeq = 0;
+
+    /**
+     * 弹一条提示，几秒后自己消失。
+     *
+     * 移动端不方便开控制台，这是唯一的反馈渠道 —— 和桌面端的 `notify()`
+     * 是同一套语义（只是没有那边的通知中心）。
+     */
+    function notify(message: string, type: "info" | "error" = "info"): void {
+        noticeSeq += 1;
+
+        const id = noticeSeq;
+
+        notices = [...notices, { id, message, type }];
+
+        setTimeout(() => {
+            notices = notices.filter((item) => item.id !== id);
+        }, 5000);
+    }
+
+    /** 把 `KPAError.buffer` 里的东西同步到错误页 */
+    function refreshChartErrors(): void {
+        chartErrors = KPAError.buffer.map((error) => ({
+            message: error.message,
+            fixed: error.fixed
+        }));
+    }
 
     let ready = $state(false);
     /** 未捕获异常（显示在屏幕底部，见 `<script onmount>` 里的监听） */
@@ -815,6 +849,9 @@ import MacroSheet from "./MacroSheet.grain";
         // 操作栈是只读快照：切过去时重新算一次
         opsTick += 1;
 
+        // 错误页同理：解析 / 自愈可能在别处又记了新的
+        if (id === "errors") refreshChartErrors();
+
         const next = Math.max(0, tabs.findIndex((item) => item.id === id));
 
         if (next === tabIndex) return;
@@ -993,6 +1030,20 @@ import MacroSheet from "./MacroSheet.grain";
             operationList?.addEventListener("needsupdate", onOperationsChanged);
 
             await bootPlayer();
+
+            /*
+             * 解析阶段收集到的警告（形状不对、自动修复过的东西）。
+             * 和桌面端一致：加载完看一眼 `KPAError.buffer`，有东西就提示
+             * 用户去「错误」页看 —— 不打断，也不自动弹面板。
+             */
+            refreshChartErrors();
+
+            if (chartErrors.length > 0) {
+                notify(
+                    `谱面解析有 ${chartErrors.length} 条警告，详见「错误」页`,
+                    "error"
+                );
+            }
         } catch (error) {
             /*
              * 别在这里设 `ready = true`：错误只渲染在 `{#if !ready}` 的占位符里，
@@ -1175,8 +1226,35 @@ import MacroSheet from "./MacroSheet.grain";
                     {/for}
                 </div>
             </div>
+
+            <!-- 解析警告：`KPAError.buffer` 的快照，只读 -->
+            <div class="slide {tabIndex === 4 ? "active" : ""}">
+                <div class="ops">
+                    {#if chartErrors.length === 0}
+                        <p class="errors-empty">没有解析警告</p>
+                    {:else}
+                        {#for error of chartErrors}
+                            <div class="error-line">
+                                <span class="error-tag {error.fixed ? "fixed" : ""}">
+                                    {error.fixed ? "已修复" : "警告"}
+                                </span>
+                                <span class="error-text">{error.message}</span>
+                            </div>
+                        {/for}
+                    {/if}
+                </div>
+            </div>
         </div>
     </section>
+
+    <!-- 底部提示条：解析警告 / 自愈提示（几秒后自己消失） -->
+    {#if notices.length > 0}
+        <div class="notices">
+            {#for notice of notices with key = notice.id}
+                <div class="notice {notice.type}">{notice.message}</div>
+            {/for}
+        </div>
+    {/if}
 
     <!--
         底部面板：骨架（遮罩 / 凸起 / 开合动画 / 下滑收起）在 `SheetShell.grain`，
@@ -1370,6 +1448,72 @@ import MacroSheet from "./MacroSheet.grain";
 .op-sep {
     margin: 8px 0;
     border-top: 1px dashed var(--border);
+}
+
+.errors-empty {
+    margin: 0;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+/* 一条解析警告：左边标签 + 右边原文（原文允许换行，路径很长） */
+.error-line {
+    display: flex;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.error-tag {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(242, 84, 91, 0.18);
+    color: #ff8080;
+    font-size: 11px;
+}
+
+.error-tag.fixed {
+    background: rgba(76, 141, 255, 0.18);
+    color: #8ab4ff;
+}
+
+.error-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+    word-break: break-word;
+}
+
+/* 底部提示条：和运行时错误条同一个位置，但可以叠多条 */
+.notices {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 60;
+    pointer-events: none;
+}
+
+.notice {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(28, 32, 40, 0.95);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.notice.error {
+    border-color: rgba(242, 84, 91, 0.5);
+    color: #ff8080;
 }
 
 .top-controls {

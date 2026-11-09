@@ -6,7 +6,7 @@
  */
 import { writable } from '@graints/runtime';
 
-import { Chart, JudgeLine, Op } from 'kipphi';
+import { Chart, JudgeLine, KPAError, Op } from 'kipphi';
 
 import { getChartProject } from './background';
 import { isTauri } from './tauri';
@@ -129,6 +129,12 @@ function buildDemoChart(): Chart {
  * 页面直接读这些 live binding 就行。
  */
 export async function loadChart(id: string | null): Promise<void> {
+    /*
+     * 上一张谱面留下的解析警告不能带到这一张 —— `buffer` 是静态的，
+     * 不在这里清就会越积越多，错误页也会显示别的谱面的问题。
+     */
+    KPAError.flush();
+
     if (isTauri() && id) {
         const project = await getChartProject(id);
 
