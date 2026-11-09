@@ -1857,8 +1857,11 @@ export class NotesEditor extends EventTarget {
         anchor: { x: number; y: number },
         size: number
     ): void {
-        const unitX = this.positionRatio * scale;
-        const unitT = this.timeRatio * scale;
+        // `positionRatio` / `timeRatio` 已经含主视图倍率，这里只补"相对主视图
+        // 再放大"的那一档（局部恒比主视图高一档）
+        const factor = scale / Math.max(1, this.magnifier.zoom);
+        const unitX = this.positionRatio * factor;
+        const unitT = this.timeRatio * factor;
         const half = size / 2;
 
         // 网格：和主视图同样的间距，只是按倍率放大

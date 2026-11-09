@@ -478,6 +478,10 @@ export class EventSequenceEditors extends EventTarget {
             }
 
             this.activatedEditor.upHandler(event);
+
+            // 松手：放大镜回到 1x（选中状态保留）
+            this.activatedEditor.resetMagnifier();
+
             this.draw();
         });
         /**
@@ -829,7 +833,9 @@ export class EventSequenceEditors extends EventTarget {
                 icon: "info" as IconName,
                 disabled: !this.activatedEditor.selectedNode,
                 onClick: () => this.dispatchEvent(new Event("inspect"))
-            }
+            },
+            // 放大镜档位：按住节点时才出现
+            ...this.activatedEditor.magnifierButtons()
         );
 
         return buttons;
@@ -982,15 +988,25 @@ export class EventSequenceEditors extends EventTarget {
     draw(beats?: number) {
         beats = beats || this.lastBeats;
         this.lastBeats = beats;
-        //console.log("draw")
-        if (this.activatedEditor === this.easing) {
+
+        // 放大镜：推进 0.4s 动画，并把按住的那个节点摆到中心
+        //（子编辑器的 `updateMatrix` 会读 `timeBasis` / `anchor`）
+        const editor = this.activatedEditor;
+
+        editor.magnifier.tick();
+        editor.applyMagnifier(beats);
+
+        if (editor === this.easing) {
             this.easing.draw(this.easingBeats);
         } else {
-            this.activatedEditor.draw(beats);
+            editor.draw(beats);
         }
 
         // 预览准星画在节点之上（子编辑器的 draw 用完自己的变换后会还原）
-        this.activatedEditor.drawPreviewMarker();
+        editor.drawPreviewMarker();
+
+        // 局部视图盖在内容上、按钮下面
+        editor.drawMagnifier();
 
         // 按钮画在**屏幕坐标**上（子编辑器的 draw 里是相机变换），所以放在最后、单独复位
         this.drawToolbars();
@@ -1247,6 +1263,112 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      * 「是不是一组」的判断在数值子类里（`isSameValueLinked`）。
      */
     sameValueLinked = false;
+
+    /** 放大镜：按住节点时放大主视图 + 侧边局部视图（和音符画布同一套） */
+    readonly magnifier = new Magnifier();
+
+    /** 进放大镜之前的纵向基准（松手还原） */
+    protected zoomBaseline: number | null = null;
+
+    /**
+     * 放大时把被按住的节点摆到画布中心。
+     *
+     * 横向由 `updateMatrix` 用 `anchor.x` 处理；纵向要靠 `timeBasis` 换算，
+     * 而它依赖当前的 `beats`，所以得在 draw 时算。
+     */
+    applyMagnifier(beats: number): void {
+        const anchor = this.magnifier.anchor;
+
+        if (anchor && this.magnifier.zoom > 1) {
+            this.zoomBaseline ??= this.timeBasis;
+            this.timeBasis = (anchor.y - beats) / this.timeSpan;
+        } else if (this.zoomBaseline !== null) {
+            this.timeBasis = this.zoomBaseline;
+            this.zoomBaseline = null;
+        }
+    }
+
+    /** 松手 / 取消选中：收起放大镜 */
+    resetMagnifier(): void {
+        this.magnifier.reset();
+    }
+
+    /** 侧边局部放大视图（按住节点时才有） */
+    drawMagnifier(): void {
+        if (!this.magnifier.active) return;
+
+        const rect = insetRect(this.innerWidth, this.innerHeight, 10);
+        const { context } = this;
+
+        // 工具栏和局部视图都画在**屏幕坐标**上（子编辑器 draw 里是相机变换）
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+        this.magnifier.drawInset(context, rect, (inner, scale, anchor) =>
+            this.paintMagnified(inner, scale, anchor, rect[2])
+        );
+
+        context.restore();
+    }
+
+    /**
+     * 局部视图的内容。
+     *
+     * 调用时原点已在框中心、`scale` 是相对主视图的倍率。
+     * 基类只标一个中心点，数值子类补网格和节点。
+     */
+    protected paintMagnified(
+        context: CanvasRenderingContext2D,
+        _scale: number,
+        _anchor: { x: number; y: number },
+        _size: number
+    ): void {
+        context.fillStyle = "#4c8dff";
+        context.beginPath();
+        context.arc(0, 0, 5, 0, Math.PI * 2);
+        context.fill();
+    }
+
+    /** 档位切换的 0.4s 动画：逐帧重绘直到插值结束 */
+    protected animateZoom(): void {
+        if (!this.magnifier.animatingNow) return;
+        if (typeof requestAnimationFrame !== "function") return;
+
+        requestAnimationFrame(() => {
+            if (!this.magnifier.animatingNow) return;
+
+            this.parentEditorSet.draw(this.lastBeats);
+            this.animateZoom();
+        });
+    }
+
+    /**
+     * 放大镜的排形按钮：按住节点时才出现，当前 N 档就列出 2x…N×2 的下一档。
+     */
+    magnifierButtons(): CanvasButton[] {
+        if (!this.magnifier.anchor) return [];
+
+        const buttons: CanvasButton[] = [];
+
+        for (let level = 1; level <= this.magnifier.levelIndex + 1; level += 1) {
+            if (level >= ZOOM_LEVELS.length) break;
+
+            buttons.push({
+                id: `zoom-${ZOOM_LEVELS[level]}x`,
+                label: `${ZOOM_LEVELS[level]}x`,
+                active: this.magnifier.levelIndex === level,
+                onClick: () => {
+                    this.magnifier.setIndex(level);
+                    this.animateZoom();
+                    this.parentEditorSet.draw(this.lastBeats);
+                },
+            });
+        }
+
+        return buttons;
+    }
+
+
 
     //#region 放置预览（和音符画布同一套：对象还不存在，只画准星）
     /**
@@ -1547,6 +1669,7 @@ import {
     type IconName,
 } from "./ui";
 import { ButtonManager, type CanvasButton } from "./buttonManager";
+import { insetRect, Magnifier, ZOOM_LEVELS } from "./magnifier";
 
 /** 总览里的层级 / line 按钮：沿用新样式，但选中态用**白底深字**而不是蓝底 */
 const OVERVIEW_PALETTE: ButtonPalette = {
@@ -2203,6 +2326,35 @@ export abstract class EventSequenceEditor<
     protected isSameValueLinked(_node: EventStartNode<VT>): boolean {
         return false;
     }
+
+    /** 桌面 D / A：放大 / 缩小一级（没有按住时用当前选中的节点） */
+    stepZoom(delta: number): void {
+        if (!this.magnifier.anchor && this.selectedNode) {
+            this.focusMagnifier();
+        }
+
+        if (!this.magnifier.anchor) return;
+
+        this.magnifier.step(delta);
+        this.animateZoom();
+        this.parentEditorSet.draw(this.lastBeats);
+    }
+
+    /** 按住节点 → 定住放大镜中心 */
+    protected focusMagnifier(): void {
+        const node = this.selectedNode;
+
+        if (!node) {
+            this.magnifier.reset();
+
+            return;
+        }
+
+        this.magnifier.focus({
+            x: (node as EventStartNode<VT>).value as number,
+            y: TC.toBeats(node.time),
+        });
+    }
     nodesSelection: Set<EventStartNode<VT>> = new Set();
 
     constructor(
@@ -2243,6 +2395,19 @@ export abstract class EventSequenceEditor<
                 this.draw();
                 return;
             }
+            // 桌面端：D 放大一级、A 缩小一级（焦点不在画布时上面已经 return 了）
+            if (e.key.toLowerCase() === "d") {
+                this.stepZoom(1);
+
+                return;
+            }
+
+            if (e.key.toLowerCase() === "a") {
+                this.stepZoom(-1);
+
+                return;
+            }
+
             switch (e.key.toLowerCase()) {
                 case "v":
                     this.paste(false, e.ctrlKey);
@@ -3146,6 +3311,52 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         return collectSameValueGroup(node).length > 1;
     }
 
+    /** 局部视图：值网格 + 时间网格（密度跟着倍率走） */
+    protected override paintMagnified(
+        context: CanvasRenderingContext2D,
+        scale: number,
+        _anchor: { x: number; y: number },
+        size: number
+    ): void {
+        const half = size / 2;
+
+        // `valueRatio` / `timeRatio` 已经含主视图的倍率，这里只要相对主视图
+        // 再放大的那部分（局部恒比主视图高一档）
+        const factor = scale / Math.max(1, this.magnifier.zoom);
+
+        const stepValue =
+            this.attachableValues.length > 1
+                ? this.attachableValues[1] - this.attachableValues[0]
+                : 1;
+        const gridX = stepValue * this.valueRatio * factor;
+        const gridT = this.timeRatio * factor;
+
+        context.strokeStyle = "rgba(255, 255, 255, 0.14)";
+        context.lineWidth = 1;
+
+        for (let i = -6; i <= 6; i += 1) {
+            if (gridX > 2) {
+                context.beginPath();
+                context.moveTo(i * gridX, -half);
+                context.lineTo(i * gridX, half);
+                context.stroke();
+            }
+
+            if (gridT > 2) {
+                context.beginPath();
+                context.moveTo(-half, i * gridT);
+                context.lineTo(half, i * gridT);
+                context.stroke();
+            }
+        }
+
+        // 被按住的节点就在中心
+        context.fillStyle = "#4c8dff";
+        context.beginPath();
+        context.arc(0, 0, 5, 0, Math.PI * 2);
+        context.fill();
+    }
+
     attachableValues: number[] = [];
 
     valueRatio: number;
@@ -3177,13 +3388,21 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
 
     override updateMatrix(): void {
         super.updateMatrix();
+
+        // 放大镜：只临时乘倍率，不改用户设置的 timeSpan / valueRange
+        const zoom = this.magnifier.active ? this.magnifier.zoom : 1;
+
         // 扩展：值维度
-        this.valueRatio = this.innerWidth / lengthOf(this.valueRange);
-        this.timeRatio = this.innerHeight / this.timeSpan;
-        const { valueRange, timeRatio, valueRatio } = this;
+        this.valueRatio = (this.innerWidth * zoom) / lengthOf(this.valueRange);
+        this.timeRatio = (this.innerHeight * zoom) / this.timeSpan;
+
+        // 放大时把按住节点的值摆到画布中心（纵向在 `applyMagnifier` 里换算）
+        const anchor = this.magnifier.active ? this.magnifier.anchor : null;
+        const centerValue = anchor ? anchor.x : medianOf(this.valueRange);
+
         this.matrix = identity
-            .scale(valueRatio, -timeRatio)
-            .translate(-medianOf(valueRange), -this.timeSpan * this.timeBasis);
+            .scale(this.valueRatio, -this.timeRatio)
+            .translate(-centerValue, -this.timeSpan * this.timeBasis);
         this.matrixInverted = this.matrix.invert();
     }
     override drawCoordination(beats: number): void {
@@ -3313,6 +3532,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                         this.selectedNode instanceof EventStartNode
                             ? collectSameValueGroup(this.selectedNode)
                             : null;
+                    // 放大镜以这个节点为中心（松手才收起）
+                    this.focusMagnifier();
                     this.dispatchEvent(
                         new KPANodeSelectedEvent(this.selectedNode),
                     );
