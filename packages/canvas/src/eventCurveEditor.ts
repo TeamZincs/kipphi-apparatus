@@ -3309,59 +3309,6 @@ export function sameValuePartner(
     return partner as EventStartNode<number> | EventEndNode<number>;
 }
 
-/**
- * 一对「背靠背」节点一起改值和时刻。
- *
- * 两个节点在交界处贴在一起，只改其中一项就会裂开，所以值和时刻都跟着走。
- *
- * 继承 `ComplexOperation` 而不是自己攒一个子操作列表：那个基类已经处理了
- * 「跳过 `ineffective` 子操作」「聚合 `reflows` / `updatesEditor` /
- * `comboDelta`」「`find` 递归」这几件事 —— 自己写很容易漏掉事务性约定
- *（比如这里曾经无条件调 `do()`，把 `undefined` 写进了 `node.time`）。
- */
-class BackToBackChangeOperation extends O.ComplexOperation<O.Operation[]> {
-    constructor(
-        nodes: (EventStartNode<number> | EventEndNode<number>)[],
-        value: number,
-        time: any,
-    ) {
-        super(
-            ...nodes.flatMap((node) => [
-                new O.EventNodeValueChangeOperation(node, value),
-                new O.EventNodeTimeChangeOperation(node, time),
-            ]),
-        );
-    }
-
-    /**
-     * 拖动每帧都会构造一条新的，把后续帧合并进第一条。
-     *
-     * `ComplexOperation` 本身不合并 —— 不覆写的话一次拖动会往撤销栈里塞
-     * 几百条记录。
-     */
-    override rewrite(next: this, chart: any): boolean {
-        if (next.length !== this.length) return false;
-
-        // 只有节点集合完全一致才能合并（按下时锁定的那一对，不会变）
-        for (let index = 0; index < this.length; index += 1) {
-            const mine = this.subOperations[index] as { node?: unknown };
-            const theirs = next.subOperations[index] as { node?: unknown };
-
-            if (mine.node !== theirs.node) return false;
-        }
-
-        for (let index = 0; index < this.length; index += 1) {
-            (
-                this.subOperations[index] as {
-                    rewrite: (op: unknown, chart: unknown) => boolean;
-                }
-            ).rewrite(next.subOperations[index], chart);
-        }
-
-        return true;
-    }
-}
-
 export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     override readonly valueType = EventValueType.numeric;
 
@@ -3544,8 +3491,10 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 const targets = this.dragGroup ?? [this.selectedNode];
 
                 if (targets.length > 1) {
+                    // 一对节点一起动：值 + 时刻，事务性由 kipphi 的
+                    // `ComplexOperation` 保证（无效子操作会被跳过）
                     this.operationList.do(
-                        new BackToBackChangeOperation(
+                        new O.EventNodeBackToBackChangeOperation(
                             targets,
                             this.pointedValue,
                             this.pointedTime,
