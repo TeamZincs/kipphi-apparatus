@@ -3314,46 +3314,48 @@ export function sameValuePartner(
  *
  * 两个节点在交界处贴在一起，只改其中一项就会裂开，所以值和时刻都跟着走。
  *
- * 拖动时每帧都会发一条，`rewrite` 把同一对的后续修改合并进第一条 ——
- * 一次拖动只留一条撤销记录。逐节点发单节点操作不行：那个的 `rewrite`
- * 只合并**同一个节点**，一对节点每帧会新增两条，撤销栈很快就撑爆。
+ * 继承 `ComplexOperation` 而不是自己攒一个子操作列表：那个基类已经处理了
+ * 「跳过 `ineffective` 子操作」「聚合 `reflows` / `updatesEditor` /
+ * `comboDelta`」「`find` 递归」这几件事 —— 自己写很容易漏掉事务性约定
+ *（比如这里曾经无条件调 `do()`，把 `undefined` 写进了 `node.time`）。
  */
-class BackToBackChangeOperation extends O.Operation {
-    updatesEditor = true;
-    private readonly changes: any[];
-
+class BackToBackChangeOperation extends O.ComplexOperation<O.Operation[]> {
     constructor(
         nodes: (EventStartNode<number> | EventEndNode<number>)[],
         value: number,
         time: any,
     ) {
-        super();
-        this.changes = nodes.flatMap((node) => [
-            new O.EventNodeValueChangeOperation(node, value),
-            new O.EventNodeTimeChangeOperation(node, time),
-        ]);
+        super(
+            ...nodes.flatMap((node) => [
+                new O.EventNodeValueChangeOperation(node, value),
+                new O.EventNodeTimeChangeOperation(node, time),
+            ]),
+        );
     }
 
-    do(chart: any): void {
-        for (const change of this.changes) change.do(chart);
-    }
+    /**
+     * 拖动每帧都会构造一条新的，把后续帧合并进第一条。
+     *
+     * `ComplexOperation` 本身不合并 —— 不覆写的话一次拖动会往撤销栈里塞
+     * 几百条记录。
+     */
+    override rewrite(next: this, chart: any): boolean {
+        if (next.length !== this.length) return false;
 
-    undo(chart: any): void {
-        for (const change of this.changes) change.undo(chart);
-    }
+        // 只有节点集合完全一致才能合并（按下时锁定的那一对，不会变）
+        for (let index = 0; index < this.length; index += 1) {
+            const mine = this.subOperations[index] as { node?: unknown };
+            const theirs = next.subOperations[index] as { node?: unknown };
 
-    rewrite(next: this, chart: any): boolean {
-        if (next.changes.length !== this.changes.length) return false;
-
-        // 只有节点集合完全一致才能合并（拖动开始时锁定的那一对，不会变）
-        for (let index = 0; index < this.changes.length; index += 1) {
-            if (this.changes[index].node !== next.changes[index].node) {
-                return false;
-            }
+            if (mine.node !== theirs.node) return false;
         }
 
-        for (let index = 0; index < this.changes.length; index += 1) {
-            this.changes[index].rewrite(next.changes[index], chart);
+        for (let index = 0; index < this.length; index += 1) {
+            (
+                this.subOperations[index] as {
+                    rewrite: (op: unknown, chart: unknown) => boolean;
+                }
+            ).rewrite(next.subOperations[index], chart);
         }
 
         return true;
