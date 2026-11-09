@@ -118,7 +118,45 @@ async function loadProject() {
     });
 }
 
-await loadProject();
+/**
+ * 加载失败时在页面上盖一层。
+ *
+ * 桌面端不方便开控制台，而且这个页面的模板/侧栏全都依赖 `chart`，加载失败后
+ * 根本没法正常建树 —— 与其白屏，不如把原因和"去历史里捞一个能打开的版本"
+ * 直接摆出来。
+ */
+function showLoadFailure(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+
+    console.error("[打开谱面失败]", error);
+
+    const box = document.createElement("div");
+
+    box.setAttribute(
+        "style",
+        "position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;"
+            + "align-items:center;justify-content:center;gap:16px;padding:5vw;"
+            + "background:rgba(0,0,0,.9);color:#ff8080;"
+            + "font:14px/1.6 system-ui,sans-serif;text-align:center;word-break:break-word"
+    );
+    box.textContent = `${_("main.loadFailed")}${message}`;
+
+    const link = document.createElement("a");
+
+    link.href = `/charts/${encodeURIComponent(chartIdParam)}/history`;
+    link.textContent = _("history.openFromError");
+    link.setAttribute("style", "color:#8ab4ff;text-decoration:underline");
+    box.appendChild(link);
+
+    document.body.appendChild(box);
+}
+
+try {
+    await loadProject();
+} catch (error) {
+    showLoadFailure(error);
+    throw error;
+}
 
 /**
  * `operationList` 必须在模板建起来之前就有。
@@ -813,9 +851,7 @@ updateTip();
         <TextSwitchButton onText="Y" offText="N" bgText={_("general.preservesPitch")} bind:checked={ get: () => preservesPitch, set: applyPreservesPitch } />
     </div>
     <div id="secondary-footer">
-        <span id="tips" onclick={() => {clearTimeout(timeout);updateTip()}}>Tips: {
-            "怎么突然Phigros自制谱界都在vibe coding了，那我也不忍了。我将证明，我，奇谱发生器开发者，也是高效的LLM掌舵人！"
-            }</span>
+        <span id="tips" onclick={() => {clearTimeout(timeout);updateTip()}}>Tips: {Constants.tips[tipIndex]}</span>
         <span class="history-button" style="opacity: {undoAvailable ? 1 : 0.2}" role="button" onclick={() => operationList.undo()}>↶</span>
         <span class="history-button" style="opacity: {redoAvailable ? 1 : 0.2}" role="button" onclick={() => operationList.redo()}>↷</span>
     </div>

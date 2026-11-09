@@ -12,7 +12,8 @@
       "delete": "删除谱面",
       "deleteConfirm": "确定删除谱面{name}？",
       "deleteSuccess": "谱面{name}已删除。",
-      "export": "导出谱面"
+      "export": "导出谱面",
+      "history": "历史"
     },
     "licenseDeclaration": "虽然本软件使用MIT许可证，但作者不鼓励、支持其付费再分发，请知悉。",
     "subscribe": "请收藏我们的网址：https://pgrfm.miraheze.org/！"
@@ -22,7 +23,7 @@
     "useRpeEasingId": "使用RPE缓动ID",
     "useRpeEasingIdWarning": "使用RPE缓动ID将无法使用EaseInOutQuint和EaseInOutExpo。",
     "autosaveEnabled": "启用自动保存",
-    "autosaveComment": "自动保存只会保存修改过的谱面，每次自动保存增加一次制谱时间。\n（也就是说，如果挂机，自动保存不会塞满你的硬盘，也不会统计这部分时间）" ,
+    "autosaveComment": "自动保存只会保存修改过的谱面，每次自动保存增加一次制谱时间。\n（也就是说，如果挂机，自动保存不会塞满你的硬盘，也不会统计这部分时间）",
     "autosaveInterval": "自动保存间隔",
     "playerHeight": "播放器高度（分辨率）",
     "hotkey": "热键",
@@ -73,14 +74,12 @@
     "gotFile": "已获得三大文件。"
   },
   "form": {
-    
     "hint": "谱面标识符用于索引谱面，请尽量使用易于记忆的纯英文+数字名称（最好不要包含空格）",
     "id": "谱面标识符",
     "music": "音乐文件",
     "illustration": "曲绘文件",
     "chartsLocation": "谱面列表位于{location}",
     "idState": {
-      
       "occupied": "该标识符已被使用",
       "available": "该标识符可用",
       "empty": "请填写标识符",
@@ -176,7 +175,6 @@
       "judgeSize": "判定区大小",
       "setAsDefault": "设为默认",
       "delete": "删除音符",
-
       "warning-not-from-selected-line": "警告：这个Note不属于选中的判定线{line}。",
       "warning-lone-note": "警告：这个Note不存在于谱面中。",
       "macro": "宏",
@@ -347,14 +345,12 @@
     "chart": {
       "info": "谱面信息",
       "id": "谱面标识符",
-
       "title": "标题",
       "charter": "谱师",
       "illustrator": "画师",
       "composer": "曲师",
       "offset": "偏移量",
       "level": "难度等级",
-
       "save": "保存谱面",
       "beautify": "美观输出",
       "beautifyTooltip": "若开启此项，JSON内容将添加换行与缩进以便识读，但文件体积也随之增大。",
@@ -371,7 +367,6 @@
       "notify": "谱面中存在错误，打开“错误”次侧栏以检查。",
       "check": "检查错误",
       "checkComplete": "检查完成。在{secs}秒内发现{count}个错误。",
-
       "nodeParentNotFound": "该节点已不在谱面中。",
       "sequenceNotReferenced": "该节点所在序列未被引用。"
     },
@@ -385,7 +380,8 @@
       "run": "运行",
       "close": "关闭编辑器",
       "open": "打开编辑器"
-    }
+    },
+    "loadFailed": "打开谱面失败："
   },
   "history": {
     "title": "历史版本",
@@ -393,7 +389,8 @@
     "empty": "还没有保存过版本。",
     "restore": "还原",
     "restoring": "还原中…",
-    "restored": "已还原到所选版本。"
+    "restored": "已还原到所选版本。",
+    "openFromError": "查看该谱面的历史版本"
   },
   "export": {
     "convertToRPEJSONOnly": "仅转谱为RPEJSON",
@@ -433,7 +430,7 @@
     "wheel": "滚轮",
     "pressIconToReturn": "按图标返回主页",
     "multiSelectMode": "多选模式",
-    "modes": {  
+    "modes": {
       "replace": "重选",
       "extend": "扩选",
       "substract": "排除",

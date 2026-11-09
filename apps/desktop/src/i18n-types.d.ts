@@ -13,6 +13,7 @@ export interface I18nMapping {
 "chartIndex.charts.deleteConfirm": "name";
 "chartIndex.charts.deleteSuccess": "name";
 "chartIndex.charts.export": never;
+"chartIndex.charts.history": never;
 "chartIndex.licenseDeclaration": never;
 "chartIndex.subscribe": never;
 "settings.language": never;
@@ -287,12 +288,14 @@ export interface I18nMapping {
 "main.script.run": never;
 "main.script.close": never;
 "main.script.open": never;
+"main.loadFailed": never;
 "history.title": never;
 "history.loading": never;
 "history.empty": never;
 "history.restore": never;
 "history.restoring": never;
 "history.restored": never;
+"history.openFromError": never;
 "export.convertToRPEJSONOnly": never;
 "export.exportPEZ": never;
 "export.noShaderSupport": never;

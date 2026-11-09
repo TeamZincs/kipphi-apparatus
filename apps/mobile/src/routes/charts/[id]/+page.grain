@@ -1192,7 +1192,16 @@ import MacroSheet from "./MacroSheet.grain";
 
         {#if !ready}
             <div class="placeholder {loadError ? "err" : ""}">
-                {#if loadError}打开谱面失败：{loadError}{:else}正在打开谱面…{/if}
+                {#if loadError}
+                    打开谱面失败：{loadError}
+
+                    <!-- 加载失败时唯一能做的事：去历史里挑一个能打开的版本 -->
+                    <button class="recover" onclick={goHistory}>
+                        前往该谱面的历史版本
+                    </button>
+                {:else}
+                    正在打开谱面…
+                {/if}
             </div>
         {:else if playerError}
             <div class="placeholder err">播放器初始化失败：{playerError}</div>
@@ -1206,13 +1215,6 @@ import MacroSheet from "./MacroSheet.grain";
             </button>
         {/for}
 
-        <!--
-            历史版本入口：常驻在 tab 栏最右。
-            放播放器控制条里的话，不点画面根本看不到（几秒后自动隐藏）。
-        -->
-        <button class="tab history-tab" onclick={goHistory} aria-label="历史版本">
-            ↺
-        </button>
     </nav>
 
     <!-- 三块内容始终存活：切页只平移轨道 + 切 visibility，不销毁 DOM -->
@@ -1367,12 +1369,26 @@ import MacroSheet from "./MacroSheet.grain";
      * 解析错误常常是"字段路径 + 期望类型"那种长串，允许换行和滚动，
      * 不然会被 flex 居中截在中间，两边都看不见。
      */
+    flex-direction: column;
     align-items: flex-start;
+    justify-content: center;
+    gap: 12px;
     padding: 12px;
     white-space: pre-wrap;
     word-break: break-word;
     overflow: auto;
     text-align: left;
+}
+
+/* 加载失败时通往历史版本的按钮 */
+.recover {
+    padding: 8px 14px;
+    border: 1px solid rgba(242, 84, 91, 0.5);
+    border-radius: 8px;
+    background: rgba(242, 84, 91, 0.12);
+    color: #ff8080;
+    font: inherit;
+    font-size: 13px;
 }
 
 .center {
@@ -1698,15 +1714,7 @@ import MacroSheet from "./MacroSheet.grain";
     box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-/* 历史版本入口：不参与等分，固定贴在 tab 栏最右 */
-.history-tab {
-    flex: none;
-    width: 44px;
-    font-size: 16px;
-    line-height: 1;
-    color: var(--text);
-    border-left: 1px solid var(--border);
-}
+
 
 /* ---------- 内容区 ---------- */
 .content {

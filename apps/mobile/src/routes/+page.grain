@@ -43,6 +43,11 @@
         navigate(`/charts/${encodeURIComponent(item.identifier)}`);
     }
 
+    /** 历史版本：主页是唯一入口，编辑页里刻意不放 */
+    function openHistory(item: Item) {
+        navigate(`/charts/${encodeURIComponent(item.identifier)}/history`);
+    }
+
     function fail(e: unknown) {
         error = e instanceof Error ? e.message : String(e);
     }
@@ -198,18 +203,27 @@
 
             <div class="list">
                 {#for item of charts with key = item}
-                    <button class="card" onclick={() => open(item)}>
-                        {#if item.cover}
-                            <img class="cover" src={item.cover} alt="" />
-                        {:else}
-                            <div class="cover placeholder">♪</div>
-                        {/if}
+                    <div class="row">
+                        <button class="card" onclick={() => open(item)}>
+                            {#if item.cover}
+                                <img class="cover" src={item.cover} alt="" />
+                            {:else}
+                                <div class="cover placeholder">♪</div>
+                            {/if}
 
-                        <div class="meta">
-                            <span class="title">{item.title}</span>
-                            <span class="sub">{item.type} · {item.identifier}</span>
-                        </div>
-                    </button>
+                            <div class="meta">
+                                <span class="title">{item.title}</span>
+                                <span class="sub">{item.type} · {item.identifier}</span>
+                            </div>
+                        </button>
+
+                        <!-- 历史版本：主页是唯一入口（谱面加载失败时另外给链接） -->
+                        <button
+                            class="history"
+                            onclick={() => openHistory(item)}
+                            aria-label="历史版本"
+                        >↺</button>
+                    </div>
                 {/for}
             </div>
         {/if}
@@ -328,7 +342,16 @@
     gap: 10px;
 }
 
+/* 一行 = 谱面卡片 + 历史入口按钮 */
+.row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
 .card {
+    flex: 1;
+    min-width: 0;
     display: flex;
     gap: 12px;
     align-items: center;
@@ -338,6 +361,18 @@
     background: var(--surface);
     box-shadow: var(--shadow);
     text-align: left;
+}
+
+.history {
+    flex: none;
+    width: 48px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    font-size: 18px;
+    line-height: 1;
 }
 
 .cover {

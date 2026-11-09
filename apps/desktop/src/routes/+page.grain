@@ -44,6 +44,9 @@
               <a class="export-link" href="/charts/{chart.identifier}/export"
                 >{_("chartIndex.charts.export")}</a
               >
+              <a class="history-link" href="/charts/{chart.identifier}/history"
+                >{_("chartIndex.charts.history")}</a
+              >
               <a href="/charts/{chart.identifier}/delete" class="delete-link"
                 >{_("chartIndex.charts.delete")}</a
               >
@@ -210,6 +213,10 @@
 
   .export-link {
     transition-delay: 0.3s;
+  }
+
+  .history-link {
+    transition-delay: 0.38s;
   }
 
   .delete-link {

@@ -12,7 +12,8 @@
       "delete": "Delete",
       "deleteConfirm": "Are you sure you want to delete chart {name}?",
       "deleteSuccess": "Chart {name} has been deleted.",
-      "export": "Export"
+      "export": "Export",
+      "history": "History"
     },
     "licenseDeclaration": "Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware.",
     "subscribe": "Please bookmark our website: https://pgrfm.miraheze.org/!"
@@ -73,14 +74,12 @@
     "gotFile": "Got the chart, illustration and music files."
   },
   "form": {
-    
     "hint": "Chart identifier is used to index charts. Please use easy-to-remember English + numeric names (preferably without spaces)",
     "id": "Chart Identifier",
     "music": "Music File",
     "illustration": "Illustration File",
     "chartsLocation": "Chart list is located at {location}",
     "idState": {
-      
       "occupied": "This identifier is already in use",
       "available": "This identifier is available",
       "empty": "Please enter an identifier",
@@ -176,7 +175,6 @@
       "judgeSize": "Judgement Area Size",
       "setAsDefault": "Set as Default",
       "delete": "Delete",
-
       "warning-not-from-selected-line": "Warning: This Note does not belong to the selected judge line {line}.",
       "warning-lone-note": "Warning: This Note does not exist in the chart.",
       "macro": "Macro",
@@ -339,14 +337,12 @@
     "chart": {
       "info": "Chart Info",
       "id": "Chart Identifier",
-
       "title": "Title",
       "charter": "Charter",
       "illustrator": "Illustrator",
       "composer": "Composer",
       "offset": "Offset",
       "level": "Difficulty Level",
-
       "save": "Save Chart",
       "beautify": "Beautify output",
       "beautifyTooltip": "If enabled, it adds newlines and indentaions to the JSON so as to make it readable, but the file size will increase.",
@@ -363,7 +359,6 @@
       "notify": "There are errors in the chart. Open the \"Errors\" sidebar to check.",
       "check": "Check Errors",
       "checkComplete": "Check completed. Discovered {count} error(s) in {secs} seconds.",
-
       "nodeParentNotFound": "This node has been out of the chart.",
       "sequenceNotReferenced": "This sequence is not referenced by any line."
     },
@@ -377,7 +372,8 @@
       "run": "Run",
       "close": "Close Editor",
       "open": "Open Editor"
-    }
+    },
+    "loadFailed": "Failed to open chart: "
   },
   "history": {
     "title": "History",
@@ -385,7 +381,8 @@
     "empty": "No saved versions yet.",
     "restore": "Restore",
     "restoring": "Restoring…",
-    "restored": "Restored to the selected version."
+    "restored": "Restored to the selected version.",
+    "openFromError": "Open this chart's history"
   },
   "export": {
     "convertToRPEJSONOnly": "Convert to RPEJSON Only",

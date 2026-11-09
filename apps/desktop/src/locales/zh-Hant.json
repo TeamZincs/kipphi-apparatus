@@ -12,7 +12,8 @@
       "delete": "刪除譜面",
       "deleteConfirm": "確定刪除譜面{name}？",
       "deleteSuccess": "譜面{name}已刪除。",
-      "export": "導出譜面"
+      "export": "導出譜面",
+      "history": "歷史"
     },
     "licenseDeclaration": "雖然本軟件使用 MIT 許可證，但作者不鼓勵、支持其付費再分發，請知悉。",
     "subscribe": "請收藏我們的網址：https://pgrfm.miraheze.org/！"
@@ -73,14 +74,12 @@
     "gotFile": "已獲得三大檔案。"
   },
   "form": {
-    
     "hint": "譜面標識符用於索引譜面，請盡量使用易於記憶的純英文 + 數字名稱（最好不要包含空格）",
     "id": "譜面標識符",
     "music": "音樂文件",
     "illustration": "曲繪文件",
     "chartsLocation": "譜面列表位於{location}",
     "idState": {
-      
       "occupied": "該標識符已被使用",
       "available": "該標識符可用",
       "empty": "請填寫標識符",
@@ -176,7 +175,6 @@
       "judgeSize": "判定區大小",
       "setAsDefault": "設為默認",
       "delete": "刪除音符",
-
       "warning-not-from-selected-line": "警告：這個 Note 不屬於選中的判定線{line}。",
       "warning-lone-note": "警告：這個 Note 不存在於譜面中。",
       "macro": "宏",
@@ -339,14 +337,12 @@
     "chart": {
       "info": "譜面信息",
       "id": "譜面標識符",
-
       "title": "標題",
       "charter": "譜師",
       "illustrator": "畫師",
       "composer": "曲師",
       "offset": "偏移量",
       "level": "難度等級",
-
       "save": "保存譜面",
       "beautify": "美觀輸出",
       "beautifyTooltip": "若開啟此項，JSON內容將新增換行與縮排以便識讀，但檔案體積也隨之增大。",
@@ -363,7 +359,6 @@
       "notify": "譜面中存在錯誤，打開“錯誤“次側欄以檢視。",
       "check": "檢查錯誤",
       "checkComplete": "檢查完成。在{secs}秒內發現{count}個錯誤。",
-
       "nodeParentNotFound": "該節點已不在譜面中。",
       "sequenceNotReferenced": "該節點所在序列未被引用。"
     },
@@ -377,7 +372,8 @@
       "run": "運行",
       "close": "關閉編輯器",
       "open": "打開編輯器"
-    }
+    },
+    "loadFailed": "打開譜面失敗："
   },
   "history": {
     "title": "歷史版本",
@@ -385,7 +381,8 @@
     "empty": "還沒有儲存過版本。",
     "restore": "還原",
     "restoring": "還原中…",
-    "restored": "已還原到所選版本。"
+    "restored": "已還原到所選版本。",
+    "openFromError": "查看該譜面的歷史版本"
   },
   "export": {
     "convertToRPEJSONOnly": "僅轉譜為RPEJSON",
@@ -421,7 +418,7 @@
     "wheel": "滾輪",
     "pressIconToReturn": "按圖標返回首頁",
     "multiSelectMode": "多選模式",
-    "modes": {  
+    "modes": {
       "replace": "重選",
       "extend": "擴選",
       "substract": "排除",
