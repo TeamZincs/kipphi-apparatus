@@ -3016,9 +3016,17 @@ export abstract class EventSequenceEditor<
             });
 
             const selected = this.nodesSelection.has(startNode);
-            // 同值联动：只有这一组的节点变紫，线本身保持原色
+            /*
+             * 同值联动：只有这一组的节点变紫，线本身保持原色。
+             *
+             * 链表头部的**第一个** start 节点不染紫 —— 它是序列的初始值，
+             * 跟着"同值"走会让用户分不清哪条是真正被绑定的。
+             */
+            const isSequenceStart = startNode.previous?.type === NodeType.HEAD;
             const linked =
-                this.sameValueLinked && this.isSameValueLinked(startNode);
+                !isSequenceStart &&
+                this.sameValueLinked &&
+                this.isSameValueLinked(startNode);
 
             if (selected) {
                 context.save();
@@ -3072,8 +3080,11 @@ export abstract class EventSequenceEditor<
             const [startX, startY] = startXY;
             const topY = startY - NODE_HEIGHT;
             const selected = this.nodesSelection.has(lastStart);
+            const isSequenceStart = lastStart.previous?.type === NodeType.HEAD;
             const linked =
-                this.sameValueLinked && this.isSameValueLinked(lastStart);
+                !isSequenceStart &&
+                this.sameValueLinked &&
+                this.isSameValueLinked(lastStart);
 
             if (selected) {
                 context.save();
@@ -3284,28 +3295,23 @@ export function collectSameValueGroup(
     node: EventStartNode<number>,
 ): EventStartNode<number>[] {
     const value = node.value;
-
-    // 自己这一段不水平（起点值 ≠ 终点值），就不是"一条同值线"上的节点
-    if ((node.next as EventEndNode<number> | null)?.value !== value) {
-        return [node];
-    }
-
     const group: EventStartNode<number>[] = [node];
 
     let cursor: any = node;
 
+    // 向左：上一个 start 同值就连上（不看那一段是斜是平 —— 中间有几段
+    // 不同值只影响分组边界，不会让同值的邻居也不紫）
     while (cursor?.previous?.previous) {
         const prevStart = cursor.previous.previous;
 
         if (!(prevStart instanceof EventStartNode)) break;
         if (prevStart.value !== value) break;
-        // 上一段也得水平，否则中间是斜线，不算连在一起
-        if (prevStart.next?.value !== value) break;
 
         group.unshift(prevStart);
         cursor = prevStart;
     }
 
+    // 向右：下一个 start 同值就连上
     cursor = node;
 
     while (cursor?.next?.next) {
@@ -3313,7 +3319,6 @@ export function collectSameValueGroup(
 
         if (!(nextStart instanceof EventStartNode)) break;
         if (nextStart.value !== value) break;
-        if (nextStart.next?.value !== value) break;
 
         group.push(nextStart);
         cursor = nextStart;

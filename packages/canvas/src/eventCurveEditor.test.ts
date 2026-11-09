@@ -103,7 +103,7 @@ describe("collectSameValueGroup", () => {
         expect(collectSameValueGroup(starts[3]).length).toBe(2);
     });
 
-    it("斜段（起点值和终点值不同）不算同值组", () => {
+    it("起点值不同就断开（和这一段平不平无关）", () => {
         const starts = chain([
             [0, 1],
             [1, 1]
@@ -119,14 +119,18 @@ describe("collectSameValueGroup", () => {
         expect(collectSameValueGroup(starts[0]).length).toBe(1);
     });
 
-    it("同值但中间隔着斜段，不会跨过去", () => {
+    it("中间夹着斜段也不影响同值的邻居绑定", () => {
+        // 起点值：1、1、2 —— 前两段同值，第三段不同。
+        // 斜段只说明"这一段不是平的"，不该让同值的前两段散伙。
         const starts = chain([
             [1, 1],
             [1, 2],
             [2, 2]
         ]);
 
-        expect(collectSameValueGroup(starts[0]).length).toBe(1);
+        expect(collectSameValueGroup(starts[0]).length).toBe(2);
+        expect(collectSameValueGroup(starts[1]).length).toBe(2);
+        // 第三个起点值是 2，不和前面同值
         expect(collectSameValueGroup(starts[2]).length).toBe(1);
     });
 });
