@@ -78,6 +78,7 @@ import MacroSheet from "./MacroSheet.grain";
 
         notices = [...notices, { id, message, type }];
 
+        // 几秒后自己消失
         setTimeout(() => {
             notices = notices.filter((item) => item.id !== id);
         }, 5000);
