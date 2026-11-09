@@ -991,8 +991,23 @@ import MacroSheet from "./MacroSheet.grain";
 
             await bootPlayer();
         } catch (error) {
-            loadError = error instanceof Error ? error.message : String(error);
-            ready = true;
+            /*
+             * 别在这里设 `ready = true`：错误只渲染在 `{#if !ready}` 的占位符里，
+             * 一设 ready 消息就被藏起来了，页面上只剩"空 UI"，看不出为什么空。
+             *
+             * `message` 也兜一下底：有些解析错误是 `throw "字符串"` 或者
+             * 只有 `name`，直接取 `.message` 会得到空串。
+             */
+            const message =
+                error instanceof Error
+                    ? error.message || error.stack || error.name
+                    : String(error);
+
+            loadError = message || "未知错误";
+
+            // `ready` 在 try 里可能已经置 true 了（`bootEditors` 那一步失败），
+            // 退回占位符态，否则错误照样被主 UI 盖住
+            ready = false;
         }
     })();
 </script>
@@ -1111,7 +1126,9 @@ import MacroSheet from "./MacroSheet.grain";
         >‹</button>
 
         {#if !ready}
-            <div class="placeholder">{#if loadError}打开谱面失败：{loadError}{:else}正在打开谱面…{/if}</div>
+            <div class="placeholder {loadError ? "err" : ""}">
+                {#if loadError}打开谱面失败：{loadError}{:else}正在打开谱面…{/if}
+            </div>
         {:else if playerError}
             <div class="placeholder err">播放器初始化失败：{playerError}</div>
         {/if}
@@ -1246,6 +1263,16 @@ import MacroSheet from "./MacroSheet.grain";
 
 .placeholder.err {
     color: #ff8080;
+    /*
+     * 解析错误常常是"字段路径 + 期望类型"那种长串，允许换行和滚动，
+     * 不然会被 flex 居中截在中间，两边都看不见。
+     */
+    align-items: flex-start;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: auto;
+    text-align: left;
 }
 
 .center {
