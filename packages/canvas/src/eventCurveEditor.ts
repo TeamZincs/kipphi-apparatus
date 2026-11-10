@@ -3874,9 +3874,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         context.textAlign = "center";
         context.strokeStyle = this.valueGridColor;
         context.lineWidth = 1;
+        /*
+         * 竖线要贯穿**整个屏幕**：放大时 context 原点被平移了 `zoomOffset`，
+         * 还用 `±height/2`（相对原点）就会有一侧缺一块 —— 放大越多次
+         * （`py` 越大）缺得越多。
+         */
         const height = this.clippingRect[3];
-        const top = -height / 2;
-        const bottom = height / 2;
+        const top = -height / 2 - this.zoomOffset.y;
+        const bottom = height / 2 - this.zoomOffset.y;
         const textPosY = top + this.padding;
         context.fillStyle = this.valueGridColor;
 
