@@ -3668,11 +3668,11 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
 
         /*
          * 指针位置：画成**绿色半透明小球**，不要长得像节点 ——
-         * 否则会和"被按住的节点"混淆。
+         * 否则会和"被按住的节点"混淆。半径跟小窗尺寸走（两个编辑器一致）。
          */
         context.fillStyle = "rgba(80, 220, 140, 0.45)";
         context.beginPath();
-        context.arc(0, 0, Math.max(5, this.nodeWidth * 0.3), 0, Math.PI * 2);
+        context.arc(0, 0, Math.max(5, size * 0.05), 0, Math.PI * 2);
         context.fill();
     }
 

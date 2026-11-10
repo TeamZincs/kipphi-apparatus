@@ -2066,15 +2066,31 @@ export class NotesEditor extends EventTarget {
 
         context.restore();
 
+        // 音符：和主视图**同一个贴图、同一个尺寸**，只按倍率摆位置
+        const note = this.selectedNote;
+
+        if (note) {
+            const width = this.noteWidth;
+            const height = this.noteHeight;
+
+            context.drawImage(
+                this.respack.getNoteFromType(note.type),
+                -width / 2,
+                -height / 2,
+                width,
+                height
+            );
+        }
+
         /*
-         * 指针位置：和事件小窗一致，画成**绿色半透明小球**。
+         * 指针位置：绿色半透明小球，**压在贴图上**（半透明，不挡识别）。
          *
-         * 不画音符贴图 —— 那玩意儿在小窗里就是"一个节点"，容易让人以为
-         * 它是可以点/拖的对象，实际这里只是指示手指落在哪。
+         * 半径跟小窗尺寸走，和事件小窗保持一致 —— 别按音符贴图的宽度算，
+         * 那个比事件节点大好几倍。
          */
         context.fillStyle = "rgba(80, 220, 140, 0.45)";
         context.beginPath();
-        context.arc(0, 0, Math.max(5, this.noteWidth * 0.3), 0, Math.PI * 2);
+        context.arc(0, 0, Math.max(5, size * 0.05), 0, Math.PI * 2);
         context.fill();
     }
     /**
