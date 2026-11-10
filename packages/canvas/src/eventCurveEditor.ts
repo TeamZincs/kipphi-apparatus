@@ -1730,6 +1730,20 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         this.canvasMatrix = Matrix33.fromDOMMatrix(this.context.getTransform());
         this.canvasMatrixInverted = this.canvasMatrix.invert();
     }
+
+    /**
+     * 相对拍数 → 屏幕 y（相对 context 原点，向下为正）。
+     *
+     * 基类（含总览）只有时间维度、也没有放大镜，手算就够；需要缩放的数值子类
+     * 会用矩阵覆盖这个方法 —— 网格才会跟着缩放和偏移走。
+     */
+    protected beatToY(relativeBeats: number): number {
+        return -(
+            relativeBeats * this.timeRatio -
+            this.timeSpan * this.timeBasis * this.timeRatio
+        );
+    }
+
     abstract moveHandler(event: MouseEvent | TouchEvent): void;
     abstract downHandler(event: MouseEvent | TouchEvent): void;
     abstract upHandler(event: MouseEvent | TouchEvent): void;
@@ -1821,7 +1835,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
             ) * timeGridSpan;
 
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
-            const y = new Coordinate(0, time - beats).mul(this.matrix).y;
+            const y = this.beatToY(time - beats);
 
             // 横线铺满整块画布（`±innerWidth/2` 就是屏幕左右边缘）
             drawLine(context, innerWidth / 2, y, -innerWidth / 2, y);
@@ -1830,10 +1844,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
             context.save();
             context.lineWidth = 1;
             for (let i = 1; i < timeDivisor; i++) {
-                const minorY = new Coordinate(
-                    0,
-                    time + i / timeDivisor - beats,
-                ).mul(this.matrix).y;
+                const minorY = this.beatToY(time + i / timeDivisor - beats);
 
                 drawLine(
                     context,
@@ -1849,7 +1860,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         context.lineWidth = 3;
 
         // 基线：`beats` 那一拍所在的位置
-        const baselineY = new Coordinate(0, 0).mul(this.matrix).y;
+        const baselineY = this.beatToY(0);
 
         drawLine(
             context,
@@ -2990,7 +3001,7 @@ export abstract class EventSequenceEditor<
             ) * timeGridSpan;
 
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
-            const y = new Coordinate(0, time - beats).mul(this.matrix).y;
+            const y = this.beatToY(time - beats);
 
             // 横线铺满整块画布（`±innerWidth/2` 就是屏幕左右边缘）
             drawLine(context, innerWidth / 2, y, -innerWidth / 2, y);
@@ -2999,10 +3010,7 @@ export abstract class EventSequenceEditor<
             context.save();
             context.lineWidth = 1;
             for (let i = 1; i < timeDivisor; i++) {
-                const minorY = new Coordinate(
-                    0,
-                    time + i / timeDivisor - beats,
-                ).mul(this.matrix).y;
+                const minorY = this.beatToY(time + i / timeDivisor - beats);
 
                 drawLine(
                     context,
@@ -3018,7 +3026,7 @@ export abstract class EventSequenceEditor<
         context.lineWidth = 3;
 
         // 基线：`beats` 那一拍所在的位置
-        const baselineY = new Coordinate(0, 0).mul(this.matrix).y;
+        const baselineY = this.beatToY(0);
 
         drawLine(
             context,
@@ -3769,6 +3777,15 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.baseValueGridStep = config.valueGridSpan;
 
         this.updateMatrix();
+    }
+
+    /**
+     * 相对拍数 → 屏幕 y。
+     *
+     * 数值曲线有放大镜，网格必须和节点走同一个矩阵；基类（含总览）用不到。
+     */
+    protected override beatToY(relativeBeats: number): number {
+        return new Coordinate(0, relativeBeats).mul(this.matrix).y;
     }
 
     override updateMatrix(): void {
