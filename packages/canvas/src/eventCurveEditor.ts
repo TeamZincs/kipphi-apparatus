@@ -1392,6 +1392,47 @@ function divideOrMul(gridSpan: number, maximum: number) {
     }
 }
 
+/**
+ * 从当前帧内的节点值里挑一个"能整除最多值"的网格步长。
+ *
+ * **负值必须先取绝对值**：`anything % -1 === 0` 恒成立，往左拖把节点拖成
+ * 负数之后，`-1` 会以"整除所有值"的身份被选中，再经 `divideOrMul` 变成 1
+ * —— 网格立刻密铺满整个画布（往右拖不会触发，因为正数取模不恒为零）。
+ *
+ * @param values      当前帧内的节点值（可能含负数）
+ * @param baseSpan    该事件类型的默认步长
+ * @param rangeLength 值域长度，用来估算"画面里放几条线合适"
+ */
+export function pickValueGridSpan(
+    values: number[],
+    baseSpan: number,
+    rangeLength: number,
+): number {
+    let span = baseSpan;
+    let priority = 0;
+
+    for (const raw of values) {
+        const candidate = Math.abs(raw);
+
+        if (!(candidate > 0)) continue;
+
+        const hits = values.reduce(
+            (acc, cur) => (cur % candidate === 0 ? acc + 1 : acc),
+            0,
+        );
+
+        if (hits > priority * 1.2) {
+            priority = hits;
+            span = candidate;
+        }
+    }
+
+    span = divideOrMul(span, 10 / (rangeLength / span));
+
+    // 兜底：负 / NaN / 0 一律退回类型默认步长
+    return span > 0 && Number.isFinite(span) ? span : baseSpan;
+}
+
 export abstract class EventSequenceEditorBase extends EventTarget {
     targetLine: JudgeLine;
 
@@ -4101,30 +4142,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         // 计算合适的valueGridSpan
         // 根据这个值能够整除多少个值。
 
-        let valueGridSpan = eventTypeMap[this.type]!.valueGridSpan;
-        if (this.valueGridInterval) {
-            valueGridSpan = this.valueGridInterval;
-        } else {
-            let priority = 0;
-            const len = values.length;
-            for (let i = 0; i < len; i++) {
-                const v = values[i];
-                if (v === 0) {
-                    continue;
-                }
-                const p = values.reduce((acc, cur) => {
-                    return cur % v === 0 ? acc + 1 : acc;
-                });
-                if (p > priority * 1.2) {
-                    priority = p;
-                    valueGridSpan = v;
-                }
-            }
-            valueGridSpan = divideOrMul(
-                valueGridSpan,
-                10 / (lengthOf(this.valueRange) / valueGridSpan),
-            );
-        }
+        const baseGridSpan = eventTypeMap[this.type]!.valueGridSpan;
+        const valueGridSpan = this.valueGridInterval
+            ? this.valueGridInterval
+            : pickValueGridSpan(
+                  values,
+                  baseGridSpan,
+                  lengthOf(this.valueRange),
+              );
         /*
          * 放大时按倍率细分（`chooseGridStep` 里有条数上下限和整数约束）。
          * 只在 1x 算出来的步长基础上细分，不叠加 —— 否则松手再放大两份，

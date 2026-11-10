@@ -22,6 +22,11 @@ let chooseGridStep: (
     zoom: number,
     rangeLength: number
 ) => number;
+let pickValueGridSpan: (
+    values: number[],
+    baseSpan: number,
+    rangeLength: number
+) => number;
 
 beforeAll(async () => {
     const window = new Window();
@@ -37,7 +42,8 @@ beforeAll(async () => {
     };
 
     ({ EventStartNode, EventEndNode } = await import("kipphi"));
-    ({ sameValuePartner, chooseGridStep } = await import("./eventCurveEditor"));
+    ({ sameValuePartner, chooseGridStep, pickValueGridSpan } =
+        await import("./eventCurveEditor"));
 });
 
 /** 用原型造节点，`instanceof` 判断能过；只需要 value / next / previous */
@@ -172,5 +178,27 @@ describe("chooseGridStep（放大时的值网格密度）", () => {
     it("线太少时继续升倍（不到 5 条）", () => {
         // 1x 只有 2 条；2x 才 4 条 → 升到 5 倍（间隔 2，共 10 条）
         expect(chooseGridStep(10, 2, 20)).toBe(2);
+    });
+});
+
+describe("pickValueGridSpan（负值不该把网格压成 1）", () => {
+    it("往左拖出来的负值不会命中 -1", () => {
+        // 修复前：-1 整除一切 → 步长 1 → 1350 个值域画满一屏
+        const span = pickValueGridSpan([-40, -20, 30], 1, 1350);
+
+        expect(span).toBeGreaterThan(1);
+        expect(1350 / span).toBeLessThanOrEqual(200);
+    });
+
+    it("全是负数时步长仍然合理", () => {
+        const span = pickValueGridSpan([-1, -2, -3], 1, 1350);
+
+        expect(span).toBeGreaterThan(1);
+        expect(Number.isFinite(span)).toBe(true);
+    });
+
+    it("正常值仍按能整除最多个数的来", () => {
+        // 10 能整除 10 / 20 / 30 三个
+        expect(pickValueGridSpan([10, 20, 30], 1, 100)).toBe(10);
     });
 });
