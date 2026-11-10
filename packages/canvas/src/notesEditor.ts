@@ -234,14 +234,11 @@ export class NotesEditor extends EventTarget {
     /** 放大镜：按住音符时放大主视图 + 侧边局部视图 */
     readonly magnifier = new Magnifier();
 
-    /** 进放大镜之前的视野（松手还原） */
-    private zoomBaseline: { positionBasis: number; beats: number } | null = null;
-
     /**
-     * 主视图放大时锁定的中心（按下那一刻的位置）。
+     * 主视图放大时的缩放中心（按下那一刻的位置）。
      *
      * 局部视图用 `magnifier.anchor` 跟手，主视图必须用这个固定值 ——
-     * 见 `draw()` 里的说明。
+     * 否则视野会跟着节点一起跑（自激）。
      */
     private zoomAnchor: { x: number; y: number } | null = null; // 取消弱引用的使用
     // end
@@ -1512,9 +1509,31 @@ export class NotesEditor extends EventTarget {
         this.timeRatio = (height * zoom) / this.timeSpan;
         this.context.resetTransform();
         this.context.translate(left + width / 2, top + height - this.padding);
-        this.matrix = identity
-            .translate(this.positionBasis, 0)
-            .scale(positionRatio, -timeRatio);
+
+        const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
+        const pointer = this.magnifier.pointer;
+
+        if (anchor && pointer) {
+            /*
+             * 以**按住的那一点**为中心缩放：世界点 `anchor` 始终落在手指
+             * 所在的那一像素上，而不是被搬到画布中心（那样一放大整个画面
+             * 会跳一下，手底下的东西跑掉）。
+             *
+             * `px` / `py` 是相对 context 原点（内容区左下中心）的偏移。
+             */
+            const px = pointer.x - (left + width / 2);
+            const py = pointer.y - (top + height - this.padding);
+
+            this.matrix = identity
+                .translate(px, py)
+                .scale(this.positionRatio, -this.timeRatio)
+                .translate(-anchor.x, -(anchor.y - this.lastBeats));
+        } else {
+            this.matrix = identity
+                .translate(this.positionBasis, 0)
+                .scale(positionRatio, -timeRatio);
+        }
+
         this.matrixInverted = this.matrix.invert();
         this.canvasMatrix = Matrix33.fromDOMMatrix(this.context.getTransform());
         this.canvasMatrixInverted = this.canvasMatrix.invert();
@@ -1720,27 +1739,12 @@ export class NotesEditor extends EventTarget {
          * 拿它算 `positionBasis` 会自激：位置变 → 视野变 → 世界坐标换算变
          * → 吸附值变 → 位置又变。局部视图跟手、主视图锁死，两者分开。
          */
-        const magnified = this.zoomAnchor;
-
-        if (magnified && this.magnifier.zooming) {
-            this.zoomBaseline ??= {
-                positionBasis: this.positionBasis,
-                beats: this.lastBeats,
-            };
-            this.positionBasis = -magnified.x;
-            beats = magnified.y - this.timeSpan / (2 * this.magnifier.zoom);
-
-            /*
-             * `lastBeats` 必须同步：`moveHandler` 里算绝对拍用的是
-             * `y + this.lastBeats`。不同步的话拖出来的时刻和手指对不上，
-             * 放大倍数越大偏得越远。
-             */
-            this.lastBeats = beats;
-        } else if (this.zoomBaseline !== null) {
-            this.positionBasis = this.zoomBaseline.positionBasis;
-            this.lastBeats = this.zoomBaseline.beats;
-            this.zoomBaseline = null;
-        }
+        /*
+         * 视野不因为放大而改变：居中 / 滚动都不做，缩放由 `updateMatrix`
+         * 围绕"按住的那一点"完成（见那里的注释）。这样松手回到 1x 时
+         * 画面不会跳，`positionBasis` / `lastBeats` 也就不用存基线再还原。
+         */
+        this.lastBeats = beats;
 
         this.updateMatrix();
         this.selectionManager.refresh();

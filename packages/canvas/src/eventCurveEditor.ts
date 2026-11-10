@@ -1075,12 +1075,13 @@ export class EventSequenceEditors extends EventTarget {
         beats = beats || this.lastBeats;
         this.lastBeats = beats;
 
-        // 放大镜：推进 0.4s 动画，并把按住的那个节点摆到中心
-        //（子编辑器的 `updateMatrix` 会读 `timeBasis` / `anchor`）
+        /*
+         * 放大镜：只推进 0.4s 动画。缩放围绕"按住的那一点"由子编辑器的
+         * `updateMatrix` 完成，这里不再改 `timeBasis` —— 画面不会跳。
+         */
         const editor = this.activatedEditor;
 
         editor.magnifier.tick();
-        editor.applyMagnifier(beats);
 
         if (editor === this.easing) {
             this.easing.draw(this.easingBeats);
@@ -1463,34 +1464,15 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     /** 放大镜：按住节点时放大主视图 + 侧边局部视图（和音符画布同一套） */
     readonly magnifier = new Magnifier();
 
-    /** 进放大镜之前的纵向基准（松手还原） */
-    protected zoomBaseline: number | null = null;
-
     /**
-     * 主视图放大时锁定的中心（按下那一刻）。
+     * 主视图放大时的缩放中心（按下那一刻）。
      *
      * 局部视图用 `magnifier.anchor` 跟手，主视图必须用这个固定值 ——
      * 否则拖动时视野会跟着节点一起跑（自激）。
+     *
+     * 缩放本身由 `updateMatrix` 围绕"按住的那一点"完成，不再改 `timeBasis`。
      */
     protected zoomAnchor: { x: number; y: number } | null = null;
-
-    /**
-     * 放大时把被按住的节点摆到画布中心。
-     *
-     * 横向由 `updateMatrix` 用 `zoomAnchor.x` 处理；纵向要靠 `timeBasis` 换算，
-     * 而它依赖当前的 `beats`，所以得在 draw 时算。
-     */
-    applyMagnifier(beats: number): void {
-        const anchor = this.zoomAnchor;
-
-        if (anchor && this.magnifier.zoom > 1) {
-            this.zoomBaseline ??= this.timeBasis;
-            this.timeBasis = (anchor.y - beats) / this.timeSpan;
-        } else if (this.zoomBaseline !== null) {
-            this.timeBasis = this.zoomBaseline;
-            this.zoomBaseline = null;
-        }
-    }
 
     /** 松手 / 取消选中：收起放大镜 */
     resetMagnifier(): void {
@@ -3716,16 +3698,36 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.timeRatio = (this.innerHeight * zoom) / this.timeSpan;
 
         /*
-         * 主视图居中用**按下那一刻**的锚点（`zoomAnchor`），不是 `magnifier.anchor`
-         * —— 后者拖动时每帧跟着节点走（局部视图靠它刷新），拿它算
-         * `centerValue` 会自激：位置变 → 视野变 → 世界坐标变 → 吸附值又变。
+         * 缩放中心是**按下那一刻**的锚点（`zoomAnchor`），不是
+         * `magnifier.anchor` —— 后者拖动时每帧跟着节点走（局部视图靠它
+         * 刷新），拿它算会自激。
          */
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
-        const centerValue = anchor ? anchor.x : medianOf(this.valueRange);
+        const pointer = this.magnifier.pointer;
 
-        this.matrix = identity
-            .scale(this.valueRatio, -this.timeRatio)
-            .translate(-centerValue, -this.timeSpan * this.timeBasis);
+        if (anchor && pointer) {
+            /*
+             * 以按住的那一点为中心缩放：世界点 `anchor` 始终落在手指所在
+             * 的那一像素上，而不是被搬到画布中心（那样一放大画面会跳）。
+             *
+             * `px` / `py` 相对 context 原点 —— 基类把原点放在内容区中心。
+             */
+            const px = pointer.x - (this.clippingRect[0] + this.innerWidth / 2);
+            const py = pointer.y - (this.clippingRect[1] + this.innerHeight / 2);
+
+            this.matrix = identity
+                .translate(px, py)
+                .scale(this.valueRatio, -this.timeRatio)
+                .translate(-anchor.x, -(anchor.y - this.lastBeats));
+        } else {
+            this.matrix = identity
+                .scale(this.valueRatio, -this.timeRatio)
+                .translate(
+                    -medianOf(this.valueRange),
+                    -this.timeSpan * this.timeBasis,
+                );
+        }
+
         this.matrixInverted = this.matrix.invert();
     }
     override drawCoordination(beats: number): void {
