@@ -35,7 +35,13 @@ import {
     on,
 } from "./util";
 import { ButtonManager, type CanvasButton } from "./buttonManager";
-import { insetRect, Magnifier, ZOOM_LEVELS } from "./magnifier";
+import {
+    formatGridValue,
+    insetRect,
+    Magnifier,
+    pickGridStep,
+    ZOOM_LEVELS,
+} from "./magnifier";
 import { scaleFont } from "./ui";
 
 const DRAWS_NN = true;
@@ -228,7 +234,15 @@ export class NotesEditor extends EventTarget {
     readonly magnifier = new Magnifier();
 
     /** 进放大镜之前的视野（松手还原） */
-    private zoomBaseline: { positionBasis: number; beats: number } | null = null; // 取消弱引用的使用
+    private zoomBaseline: { positionBasis: number; beats: number } | null = null;
+
+    /**
+     * 主视图放大时锁定的中心（按下那一刻的位置）。
+     *
+     * 局部视图用 `magnifier.anchor` 跟手，主视图必须用这个固定值 ——
+     * 见 `draw()` 里的说明。
+     */
+    private zoomAnchor: { x: number; y: number } | null = null; // 取消弱引用的使用
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -472,6 +486,15 @@ export class NotesEditor extends EventTarget {
         const timeT: TimeT = this.timeMap.get(attached);
         this.pointedTime = timeT;
 
+        /*
+         * 局部视图要跟着节点走：不刷新的话，按住拖走以后小窗口还停在原地，
+         * 看到的是一块空白。这里只更新锚点（`track` 不动档位 / 动画）。
+         */
+        this.magnifier.track(
+            { x: this.pointedPositionX, y: attached },
+            this.canvasPoint
+        );
+
         switch (this.state) {
             case NotesEditorState.selecting:
                 console.log("det");
@@ -620,16 +643,22 @@ export class NotesEditor extends EventTarget {
         const note = this.selectedNote;
 
         if (!note) {
+            this.zoomAnchor = null;
             this.magnifier.reset();
 
             return;
         }
 
+        const anchor = {
+            x: note.positionX,
+            y: TC.toBeats(note.startTime),
+        };
+
+        // 主视图中心锁在这里；拖动时只有 `magnifier.anchor` 跟手
+        this.zoomAnchor = anchor;
+
         this.magnifier.focus(
-            {
-                x: note.positionX,
-                y: TC.toBeats(note.startTime),
-            },
+            anchor,
             // 手指位置决定局部视图放哪一角（别被挡住）
             this.canvasPoint
         );
@@ -1389,6 +1418,7 @@ export class NotesEditor extends EventTarget {
 
         // 松手：放大镜回到 1x（选中状态保留）
         this.magnifier.reset();
+        this.zoomAnchor = null;
 
         const canvasCoord = getCanvasCoordFromEvent(
             event,
@@ -1681,7 +1711,14 @@ export class NotesEditor extends EventTarget {
         // 放大镜：推进 0.4s 动画，并在放大时把按住的那个音符摆到中心
         this.magnifier.tick();
 
-        const magnified = this.magnifier.anchor;
+        /*
+         * 主视图居中用**按下那一刻**的锚点（`zoomAnchor`），不是 `magnifier.anchor`。
+         *
+         * `magnifier.anchor` 拖动时每帧都会跟着节点走（局部视图靠它刷新），
+         * 拿它算 `positionBasis` 会自激：位置变 → 视野变 → 世界坐标换算变
+         * → 吸附值变 → 位置又变。局部视图跟手、主视图锁死，两者分开。
+         */
+        const magnified = this.zoomAnchor;
 
         if (magnified && this.magnifier.zooming) {
             this.zoomBaseline ??= {
@@ -1952,41 +1989,84 @@ export class NotesEditor extends EventTarget {
         const unitT = this.timeRatio * factor;
         const half = size / 2;
 
-        // 网格：和主视图同样的间距，只是按倍率放大
-        context.strokeStyle = "rgba(255, 255, 255, 0.14)";
+        // 这个小窗格能装下的世界范围
+        const halfValue = unitX > 0 ? half / unitX : 0;
+        const halfBeats = unitT > 0 ? half / unitT : 0;
+
+        context.save();
+        context.font = `${Math.max(9, Math.round(size * 0.075))}px system-ui, sans-serif`;
+        context.textAlign = "left";
+        context.textBaseline = "top";
         context.lineWidth = 1;
 
-        // 局部视图比主视图再高一档，网格也跟着再细一档
-        const subLocal = this.gridSubdivision(this.magnifier.localZoom);
-        const gridX = (this.positionGridSpan / subLocal) * unitX;
-        const gridT = (this.timeGridSpan / subLocal) * unitT;
-        const steps = 6;
+        /*
+         * 步长按**窗口可见范围**挑，不能套主视图的 `positionGridSpan`：
+         * 那个对 `moveX` 可能是 1，窗口里一百多个单位就是一片实心竖线。
+         */
+        const valueStep = pickGridStep(halfValue * 2, 5);
+        const startValue =
+            Math.ceil((anchor.x - halfValue) / valueStep) * valueStep;
 
-        for (let i = -steps; i <= steps; i += 1) {
-            if (gridX > 2) {
-                context.beginPath();
-                context.moveTo(i * gridX, -half);
-                context.lineTo(i * gridX, half);
-                context.stroke();
-            }
+        for (let value = startValue; value <= anchor.x + halfValue; value += valueStep) {
+            const x = (value - anchor.x) * unitX;
 
-            if (gridT > 2) {
-                context.beginPath();
-                context.moveTo(-half, i * gridT);
-                context.lineTo(half, i * gridT);
-                context.stroke();
-            }
+            context.strokeStyle = "rgba(255, 170, 120, 0.35)";
+            context.beginPath();
+            context.moveTo(x, -half);
+            context.lineTo(x, half);
+            context.stroke();
+
+            context.fillStyle = "rgba(255, 190, 140, 0.95)";
+            context.fillText(
+                formatGridValue(value, valueStep),
+                Math.min(x + 2, half - 2),
+                -half + 2
+            );
         }
 
-        // 选中音符：画在中心（anchor 就是它）
+        const timeStep = pickGridStep(halfBeats * 2, 4);
+        const startBeat =
+            Math.ceil((anchor.y - halfBeats) / timeStep) * timeStep;
+
+        for (let beat = startBeat; beat <= anchor.y + halfBeats; beat += timeStep) {
+            const y = -(beat - anchor.y) * unitT;
+
+            context.strokeStyle = "rgba(140, 200, 255, 0.28)";
+            context.beginPath();
+            context.moveTo(-half, y);
+            context.lineTo(half, y);
+            context.stroke();
+
+            context.fillStyle = "rgba(160, 210, 255, 0.95)";
+            context.fillText(
+                formatGridValue(beat, timeStep),
+                -half + 2,
+                Math.max(-half + 2, y + 2)
+            );
+        }
+
+        context.restore();
+
+        // 音符：和主视图**同一个贴图、同一个尺寸**，只按倍率摆位置
         const note = this.selectedNote;
 
         if (!note) return;
 
-        context.fillStyle = "#4c8dff";
-        context.beginPath();
-        context.arc(0, 0, Math.max(6, size * 0.08), 0, Math.PI * 2);
-        context.fill();
+        const width = this.noteWidth;
+        const height = this.noteHeight;
+
+        context.drawImage(
+            this.respack.getNoteFromType(note.type),
+            -width / 2,
+            -height / 2,
+            width,
+            height
+        );
+
+        // 中心点：和主视图的选中态一致（细描边，不糊住贴图）
+        context.strokeStyle = "#4c8dff";
+        context.lineWidth = 1.5;
+        context.strokeRect(-width / 2, -height / 2, width, height);
     }
     /**
      *

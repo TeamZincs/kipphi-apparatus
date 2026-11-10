@@ -52,6 +52,52 @@ export function insetRect(
     return [covered ? right : left, top, size, size];
 }
 
+/**
+ * 按**可见范围**挑一个好看的网格步长（1 / 2 / 5 × 10ⁿ）。
+ *
+ * 局部视图不能直接套主视图的绝对步长：`moveX` 的 `valueGridSpan` 是 1，
+ * 而值域有 1350 —— 160px 的小窗格里塞一千多条线就是一片实心。
+ *
+ * @param visibleSpan 窗口里能装下的世界长度
+ * @param target      期望画几条线（4~6 比较舒服）
+ */
+export function pickGridStep(visibleSpan: number, target = 5): number {
+    if (!(visibleSpan > 0) || !(target > 0)) return 1;
+
+    const rough = visibleSpan / target;
+    const power = 10 ** Math.floor(Math.log10(rough));
+    const candidates = [power, power * 2, power * 5, power * 10];
+
+    let best = candidates[0]!;
+
+    for (const candidate of candidates) {
+        if (Math.abs(candidate - rough) < Math.abs(best - rough)) {
+            best = candidate;
+        }
+    }
+
+    return best;
+}
+
+/**
+ * 网格线标签：整数步长不带小数，小数步长按**步长自己的位数**补零。
+ *
+ * 不能用 `-log10(step)` 估位数：`0.25` 会算成 1 位，写出 "0.3"。
+ */
+export function formatGridValue(value: number, step: number): string {
+    if (Number.isInteger(step)) return String(Math.round(value));
+
+    let digits = 0;
+    let scaled = step;
+
+    while (!Number.isInteger(scaled) && digits < 6) {
+        scaled *= 10;
+        digits += 1;
+    }
+
+    return value.toFixed(digits);
+}
+
 export class Magnifier {
     /** 当前档位下标（`ZOOM_LEVELS` 的下标） */
     private index = 0;
@@ -125,6 +171,21 @@ export class Magnifier {
 
         // 换了元素就从头开始（档位也回 1x）
         if (changed) this.setIndex(0, true);
+    }
+
+    /**
+     * 拖动中更新局部视图的中心。
+     *
+     * 和 `focus()` 的区别是**不动档位、不播动画**：按住元素拖动时每帧调用，
+     * 小窗口才会跟着节点走。用 `focus()` 的话，锚点一变就被当成"换了元素"，
+     * 档位直接被打回 1x。
+     */
+    track(anchor: MagnifierAnchor, pointer?: { x: number; y: number }): void {
+        if (!this.anchor) return;
+
+        this.anchor = anchor;
+
+        if (pointer) this.pointer = pointer;
     }
 
     /** 松手：回到 1x，并收起局部视图 */

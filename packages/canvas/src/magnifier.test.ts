@@ -1,6 +1,12 @@
 import { describe, expect, it } from "bun:test";
 
-import { insetRect, Magnifier, ZOOM_LEVELS } from "./magnifier";
+import {
+    formatGridValue,
+    insetRect,
+    Magnifier,
+    pickGridStep,
+    ZOOM_LEVELS
+} from "./magnifier";
 
 describe("Magnifier", () => {
     it("初始是 1x，没按下元素时不激活", () => {
@@ -127,5 +133,37 @@ describe("insetRect", () => {
         const [, , size] = insetRect(1000, 200, 8);
 
         expect(size).toBeLessThanOrEqual(200 * 0.4);
+    });
+});
+
+describe("pickGridStep（局部视图的网格步长）", () => {
+    it("按窗口长度挑 1/2/5 档", () => {
+        // 窗口装 135 个单位、想要 5 条 → 每条 27 → 挑 20
+        expect(pickGridStep(135, 5)).toBe(20);
+        expect(pickGridStep(10, 5)).toBe(2);
+        expect(pickGridStep(1, 5)).toBe(0.2);
+    });
+
+    it("不会画成一堆线：1350 个单位也只有个位数条", () => {
+        const step = pickGridStep(1350, 5);
+
+        expect(1350 / step).toBeLessThanOrEqual(10);
+        expect(1350 / step).toBeGreaterThanOrEqual(3);
+    });
+
+    it("非法输入退回 1", () => {
+        expect(pickGridStep(0)).toBe(1);
+        expect(pickGridStep(-5)).toBe(1);
+    });
+});
+
+describe("formatGridValue", () => {
+    it("整数步长不带小数", () => {
+        expect(formatGridValue(12.0000001, 1)).toBe("12");
+    });
+
+    it("小数步长按位数补零", () => {
+        expect(formatGridValue(0.5, 0.5)).toBe("0.5");
+        expect(formatGridValue(0.25, 0.25)).toBe("0.25");
     });
 });

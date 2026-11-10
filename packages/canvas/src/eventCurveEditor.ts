@@ -1298,15 +1298,6 @@ function generateAttachable(
     return attachable;
 }
 
-/** 网格线标签：整数步长不带小数，小数步长按位数补零 */
-export function formatGridValue(value: number, step: number): string {
-    if (Number.isInteger(step)) return String(Math.round(value));
-
-    const digits = Math.min(4, Math.max(1, -Math.floor(Math.log10(step))));
-
-    return value.toFixed(digits);
-}
-
 /** 值网格线太少就补密（放大后只剩两三根线没参考意义） */
 export const GRID_MIN_LINES = 5;
 /** 超过这个条数说明 1x 的密度本身就不合理，放弃加密 */
@@ -1435,13 +1426,21 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     protected zoomBaseline: number | null = null;
 
     /**
+     * 主视图放大时锁定的中心（按下那一刻）。
+     *
+     * 局部视图用 `magnifier.anchor` 跟手，主视图必须用这个固定值 ——
+     * 否则拖动时视野会跟着节点一起跑（自激）。
+     */
+    protected zoomAnchor: { x: number; y: number } | null = null;
+
+    /**
      * 放大时把被按住的节点摆到画布中心。
      *
-     * 横向由 `updateMatrix` 用 `anchor.x` 处理；纵向要靠 `timeBasis` 换算，
+     * 横向由 `updateMatrix` 用 `zoomAnchor.x` 处理；纵向要靠 `timeBasis` 换算，
      * 而它依赖当前的 `beats`，所以得在 draw 时算。
      */
     applyMagnifier(beats: number): void {
-        const anchor = this.magnifier.anchor;
+        const anchor = this.zoomAnchor;
 
         if (anchor && this.magnifier.zoom > 1) {
             this.zoomBaseline ??= this.timeBasis;
@@ -1454,6 +1453,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
 
     /** 松手 / 取消选中：收起放大镜 */
     resetMagnifier(): void {
+        this.zoomAnchor = null;
         this.magnifier.reset();
     }
 
@@ -1845,7 +1845,13 @@ import {
     type IconName,
 } from "./ui";
 import { ButtonManager, type CanvasButton } from "./buttonManager";
-import { insetRect, Magnifier, ZOOM_LEVELS } from "./magnifier";
+import {
+    formatGridValue,
+    insetRect,
+    Magnifier,
+    pickGridStep,
+    ZOOM_LEVELS,
+} from "./magnifier";
 
 /** 总览里的层级 / line 按钮：沿用新样式，但选中态用**白底深字**而不是蓝底 */
 const OVERVIEW_PALETTE: ButtonPalette = {
@@ -2523,16 +2529,22 @@ export abstract class EventSequenceEditor<
         const node = this.selectedNode;
 
         if (!node) {
+            this.zoomAnchor = null;
             this.magnifier.reset();
 
             return;
         }
 
+        const anchor = {
+            x: (node as EventStartNode<VT>).value as number,
+            y: TC.toBeats(node.time),
+        };
+
+        // 主视图中心锁在这里；拖动时只有 `magnifier.anchor` 跟手
+        this.zoomAnchor = anchor;
+
         this.magnifier.focus(
-            {
-                x: (node as EventStartNode<VT>).value as number,
-                y: TC.toBeats(node.time),
-            },
+            anchor,
             // 手指位置决定局部视图放哪一角（别被挡住）
             this.canvasPoint
         );
@@ -3078,7 +3090,7 @@ export abstract class EventSequenceEditor<
      * 用 canvas 直接画（圆角矩形），不再用贴图 —— 贴图没法按状态换色，
      * 而"同值联动"需要把整组节点染紫。
      */
-    private paintNode(
+    protected paintNode(
         context: CanvasRenderingContext2D,
         x: number,
         y: number,
@@ -3501,9 +3513,11 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         context.lineWidth = 1;
 
         // ---------- 值网格（竖线，每根都标数值）----------
-        const valueStep = this.currentValueGridStep > 0
-            ? this.currentValueGridStep
-            : 1;
+        /*
+         * 步长按**窗口可见范围**挑，不能套 `currentValueGridStep`：
+         * 主视图那个对 `moveX` 可能是 1，窗口里一百多个单位就是一片实心。
+         */
+        const valueStep = pickGridStep(halfValue * 2, 5);
         const startValue =
             Math.ceil((anchor.x - halfValue) / valueStep) * valueStep;
 
@@ -3525,7 +3539,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         }
 
         // ---------- 时间网格（横线，每根都标数值）----------
-        const timeStep = this.timeGridInterval > 0 ? this.timeGridInterval : 1;
+        const timeStep = pickGridStep(halfBeats * 2, 4);
         const startBeat =
             Math.ceil((anchor.y - halfBeats) / timeStep) * timeStep;
 
@@ -3566,9 +3580,17 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                     const x = (node.value - anchor.x) * unitX;
                     const y = -(beats - anchor.y) * unitT;
 
-                    context.fillStyle =
-                        node instanceof EventStartNode ? "#4c8dff" : "#f2545b";
-                    context.fillRect(x - 3, y - 3, 6, 6);
+                    // 和主视图同一个 `paintNode`：同形状、同尺寸、同配色
+                    this.paintNode(
+                        context,
+                        x - this.nodeWidth / 2,
+                        y - this.nodeHeight / 2,
+                        this.nodeWidth,
+                        this.nodeHeight,
+                        node instanceof EventStartNode
+                            ? NODE_START_COLOR
+                            : NODE_END_COLOR,
+                    );
                 }
 
                 node = node.next;
@@ -3578,10 +3600,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         context.restore();
 
         // 被按住的节点就在中心，最后画、压在别的节点上面
-        context.fillStyle = "#a855f7";
-        context.beginPath();
-        context.arc(0, 0, 5, 0, Math.PI * 2);
-        context.fill();
+        this.paintNode(
+            context,
+            -this.nodeWidth / 2,
+            -this.nodeHeight / 2,
+            this.nodeWidth,
+            this.nodeHeight,
+            NODE_LINKED_COLOR,
+        );
     }
 
     attachableValues: number[] = [];
@@ -3623,8 +3649,12 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.valueRatio = (this.innerWidth * zoom) / lengthOf(this.valueRange);
         this.timeRatio = (this.innerHeight * zoom) / this.timeSpan;
 
-        // 放大时把按住节点的值摆到画布中心（纵向在 `applyMagnifier` 里换算）
-        const anchor = this.magnifier.zooming ? this.magnifier.anchor : null;
+        /*
+         * 主视图居中用**按下那一刻**的锚点（`zoomAnchor`），不是 `magnifier.anchor`
+         * —— 后者拖动时每帧跟着节点走（局部视图靠它刷新），拿它算
+         * `centerValue` 会自激：位置变 → 视野变 → 世界坐标变 → 吸附值又变。
+         */
+        const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
         const centerValue = anchor ? anchor.x : medianOf(this.valueRange);
 
         this.matrix = identity
@@ -3687,6 +3717,15 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             beatFraction = 0;
         }
         this.pointedTime = [pointedBeats, beatFraction, timeDivisor];
+
+        /*
+         * 局部视图跟着节点走：不刷新的话，拖走以后小窗口还停在原位，
+         * 看到的是一块空白。`track` 只更新锚点，不动档位 / 动画。
+         */
+        this.magnifier.track(
+            { x: this.pointedValue, y: accurateBeats },
+            this.canvasPoint,
+        );
 
         switch (this.state) {
             case EventCurveEditorState.selecting: {
