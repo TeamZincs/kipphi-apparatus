@@ -1857,12 +1857,17 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     }
     draw(beats?: number) {
         beats = beats || this.lastBeats || 0;
+
+        /*
+         * 先写 `lastBeats` 再算矩阵：`updateMatrix` 的放大平移用的就是
+         * `anchor.y - lastBeats`，晚一帧更新会让网格和节点差一帧。
+         */
+        this.lastBeats = beats;
         this.updateMatrix();
+
         const { context, selectionManager } = this;
         selectionManager.refresh();
         this.drawCoordination(beats);
-
-        this.lastBeats = beats;
     }
 
     protected notify(message: string) {

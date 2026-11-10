@@ -1714,12 +1714,12 @@ export class NotesEditor extends EventTarget {
 
             drawLine(context, positionX, screenTop, positionX, screenBottom);
 
-            // 数字只标在原网格上，细分线不标
+            // 数字只标在原网格上，细分线不标（位置在**顶部**，别挪到底部）
             if (major) {
                 context.fillText(
                     Math.round(value) + "",
                     positionX,
-                    screenBottom + padding,
+                    screenTop + padding,
                 );
             }
         }
