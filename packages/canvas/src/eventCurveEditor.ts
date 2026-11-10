@@ -1812,14 +1812,22 @@ export abstract class EventSequenceEditorBase extends EventTarget {
             ) * timeGridSpan;
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
             const positionY = (time - beats) * timeRatio - yZero;
+            /*
+             * 横线的左右端点要贴**屏幕边缘**：放大时 context 原点被平移了
+             * `zoomOffset`，直接写 `±innerWidth/2` 会让一侧缺一块。
+             */
             drawLine(
                 context,
-                innerWidth / 2,
+                innerWidth / 2 - this.zoomOffset.x,
                 -positionY,
-                -innerWidth / 2,
+                -innerWidth / 2 - this.zoomOffset.x,
                 -positionY,
             );
-            context.fillText(time + "", -innerWidth / 2 + 10, -positionY);
+            context.fillText(
+                time + "",
+                -innerWidth / 2 + 10 - this.zoomOffset.x,
+                -positionY,
+            );
 
             context.save();
             context.lineWidth = 1;
@@ -1828,9 +1836,9 @@ export abstract class EventSequenceEditorBase extends EventTarget {
                     (time + i / timeDivisor - beats) * timeRatio - yZero;
                 drawLine(
                     context,
-                    innerWidth / 2,
+                    innerWidth / 2 - this.zoomOffset.x,
                     -minorPosY,
-                    -innerWidth / 2,
+                    -innerWidth / 2 - this.zoomOffset.x,
                     -minorPosY,
                 );
             }
@@ -1838,7 +1846,13 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         }
         context.restore();
         context.lineWidth = 3;
-        drawLine(context, innerWidth / 2, yZero, -innerWidth / 2, yZero);
+        drawLine(
+            context,
+            innerWidth / 2 - this.zoomOffset.x,
+            yZero,
+            -innerWidth / 2 - this.zoomOffset.x,
+            yZero,
+        );
         context.strokeStyle = "#EEE";
     }
     draw(beats?: number) {
@@ -2981,14 +2995,22 @@ export abstract class EventSequenceEditor<
             ) * timeGridSpan;
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
             const positionY = (time - beats) * timeRatio - yZero;
+            /*
+             * 横线的左右端点要贴**屏幕边缘**：放大时 context 原点被平移了
+             * `zoomOffset`，直接写 `±innerWidth/2` 会让一侧缺一块。
+             */
             drawLine(
                 context,
-                innerWidth / 2,
+                innerWidth / 2 - this.zoomOffset.x,
                 -positionY,
-                -innerWidth / 2,
+                -innerWidth / 2 - this.zoomOffset.x,
                 -positionY,
             );
-            context.fillText(time + "", -innerWidth / 2 + 10, -positionY);
+            context.fillText(
+                time + "",
+                -innerWidth / 2 + 10 - this.zoomOffset.x,
+                -positionY,
+            );
 
             context.save();
             context.lineWidth = 1;
@@ -2997,9 +3019,9 @@ export abstract class EventSequenceEditor<
                     (time + i / timeDivisor - beats) * timeRatio - yZero;
                 drawLine(
                     context,
-                    innerWidth / 2,
+                    innerWidth / 2 - this.zoomOffset.x,
                     -minorPosY,
-                    -innerWidth / 2,
+                    -innerWidth / 2 - this.zoomOffset.x,
                     -minorPosY,
                 );
             }
@@ -3007,7 +3029,13 @@ export abstract class EventSequenceEditor<
         }
         context.restore();
         context.lineWidth = 3;
-        drawLine(context, innerWidth / 2, yZero, -innerWidth / 2, yZero);
+        drawLine(
+            context,
+            innerWidth / 2 - this.zoomOffset.x,
+            yZero,
+            -innerWidth / 2 - this.zoomOffset.x,
+            yZero,
+        );
         context.strokeStyle = "#EEE";
     }
     override draw(beats?: number) {
@@ -3787,16 +3815,21 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
              * `drawCoordination` 里按像素算的（不经过 `matrix`），只改
              * `matrix` 的话网格不动、节点乱跑 —— 两边就对不上了。
              */
-            const px = pointer.x - (left + this.innerWidth / 2);
-            const py = pointer.y - (top + this.innerHeight / 2);
+            /*
+             * 原点必须和 `initContext` 一致：那里用的是**含 padding 的整块**
+             * 中心（`clippingRect` 的 width/height），不是 `innerWidth`
+             *（那个已经扣过 padding）。
+             */
+            const px = pointer.x - (left + width / 2);
+            const py = pointer.y - (top + height / 2);
 
             this.context.setTransform(
                 1,
                 0,
                 0,
                 1,
-                left + this.innerWidth / 2 + px,
-                top + this.innerHeight / 2 + py,
+                left + width / 2 + px,
+                top + height / 2 + py,
             );
             this.zoomOffset = { x: px, y: py };
 
@@ -3811,8 +3844,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 0,
                 0,
                 1,
-                left + this.innerWidth / 2,
-                top + this.innerHeight / 2,
+                left + width / 2,
+                top + height / 2,
             );
 
             this.matrix = identity

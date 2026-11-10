@@ -1647,8 +1647,13 @@ export class NotesEditor extends EventTarget {
          */
         const screenLeft = -viewportWidth / 2 - this.zoomOffset.x;
         const screenRight = viewportWidth / 2 - this.zoomOffset.x;
-        const screenTop = -viewportHeight / 2 - this.zoomOffset.y;
-        const screenBottom = viewportHeight / 2 - this.zoomOffset.y;
+        /*
+         * 音符画布的原点**不在中心**：`updateMatrix` 把它放在
+         * `(left + width/2, top + height - padding)`，即底部中心再抬一个
+         * `padding`。所以纵向要按"原点下方像素"算，不能套 `±height/2`。
+         */
+        const screenTop = -(viewportHeight - padding) - this.zoomOffset.y;
+        const screenBottom = padding - this.zoomOffset.y;
 
         context.textAlign = "left";
 
