@@ -1492,12 +1492,58 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     protected zoomAnchor: { x: number; y: number } | null = null;
 
     /**
+     * 放大时重新锚定到当前指针。
+     *
+     * 需要具体比例（`valueRatio` / `timeRatio`）才能反解世界坐标，所以只由
+     * `NumericEventCurveEditor` 实现；基类留空，让 `magnifierButtons` /
+     * `stepZoom` 能无条件调用。
+     */
+    protected reanchorZoom(): void {}
+
+    /**
      * 缩放中心在画布上的**屏幕位置**（按下那一刻，锁死）。
      *
      * 不能用 `magnifier.pointer`：那个拖动时每帧更新（局部视图靠它选角落），
      * 拿它当缩放中心会让画面跟着鼠标一起跑 —— 表现为"元素飞到对侧"。
      */
     protected zoomPointer: { x: number; y: number } | null = null;
+
+    /**
+     * 指针的**绝对画布像素**坐标（事件里记下的原始值）。
+     *
+     * 不能用 `canvasPoint` 反推：那个乘过 `canvasMatrixInverted`，基准是"当时
+     * （含放大偏移）的 context 原点"，用它算锚点会一次偏一点，
+     * `D`/`A` 来回按就累积成"节点越来越往右上跑"。
+     */
+    protected pointerPixel: { x: number; y: number } | null = null;
+
+    /**
+     * 从事件里记下指针的**绝对画布像素**坐标。
+     *
+     * 直接按 `getBoundingClientRect` 换算，不经过任何矩阵 —— 矩阵里含放大
+     * 偏移，反推出来的坐标每帧都会偏一点。
+     */
+    protected recordPointer(event: MouseEvent | TouchEvent): void {
+        const source =
+            "touches" in event
+                ? event.touches[0] ?? event.changedTouches[0]
+                : event;
+
+        if (!source) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+
+        if (!rect.width || !rect.height) return;
+
+        this.pointerPixel = {
+            x:
+                ((source.clientX - rect.left) * this.canvas.width) /
+                rect.width,
+            y:
+                ((source.clientY - rect.top) * this.canvas.height) /
+                rect.height,
+        };
+    }
 
     /**
      * 当前放大偏移（相对未放大的 context 原点）。
@@ -1584,7 +1630,11 @@ export abstract class EventSequenceEditorBase extends EventTarget {
                 label: `${ZOOM_LEVELS[level]}x`,
                 active: this.magnifier.levelIndex === level,
                 onClick: () => {
-                    this.reanchorZoom();
+                    // 只有往更高档跳才重新锚定；降档沿用放大时的中心
+                    if (level > this.magnifier.levelIndex) {
+                        this.reanchorZoom();
+                    }
+
                     this.magnifier.setIndex(level);
                     this.animateZoom();
                     this.parentEditorSet.draw(this.lastBeats);
@@ -2600,7 +2650,12 @@ export abstract class EventSequenceEditor<
 
         if (!this.magnifier.anchor) return;
 
-        this.reanchorZoom();
+        /*
+         * 只有**放大**才重新锚定：缩小沿用放大到该级时锁定的中心，
+         * 否则每次按 `A` 都按当时的指针位置收，画面会往回跑。
+         */
+        if (delta > 0) this.reanchorZoom();
+
         this.magnifier.step(delta);
         this.animateZoom();
         this.parentEditorSet.draw(this.lastBeats);
@@ -2612,35 +2667,41 @@ export abstract class EventSequenceEditor<
      * 缩放中心不是"按下那一刻"就定死了 —— 用户可能已经拖到别处再点下一档，
      * 那时候应该以**当前**指针为准。
      */
-    reanchorZoom(): void {
-        const pointer = this.absolutePointer();
+    override reanchorZoom(): void {
+        const pixel = this.pointerPixel;
+        const anchor = this.zoomAnchor;
 
-        if (pointer) this.zoomPointer = pointer;
+        if (!pixel || !anchor) return;
+
+        const [left, top, width, height] = this.clippingRect;
+        // 相对 context 原点、且**不含**放大偏移（`matrix` 里没有偏移）
+        const localX = pixel.x - (left + width / 2) - this.zoomOffset.x;
+        const localY = pixel.y - (top + height / 2) - this.zoomOffset.y;
+
+        /*
+         * 反解"指针下面那个世界点"，让它成为新的缩放中心。
+         *
+         * 只改 `zoomPointer` 不改 `zoomAnchor` 的话，画面会被整体平移（anchor
+         * 去追新指针），看起来就是"节点越跑越远"。
+         *
+         * `matrix`：`x' = (x - anchor.x) * valueRatio`，
+         *            `y' = -(y - anchor.y) * timeRatio`
+         */
+        this.zoomAnchor = {
+            x: localX / this.valueRatio + anchor.x,
+            y: -localY / this.timeRatio + anchor.y,
+        };
+        this.zoomPointer = { x: pixel.x, y: pixel.y };
     }
 
     /**
-     * 指针的**绝对画布像素**坐标（不受 context 平移影响）。
+     * 指针的**绝对画布像素**坐标。
      *
-     * `canvasPoint` 乘过 `canvasMatrixInverted`，基准是"当前（含偏移）的
-     * context 原点"；缩放要的是画布上的绝对位置，所以把偏移和原点加回去。
+     * 直接用事件里记下的原始像素，不从 `canvasPoint` 反推 —— 后者乘过
+     * `canvasMatrixInverted`（含当帧的放大偏移），跨帧算会累积误差。
      */
     protected absolutePointer(): { x: number; y: number } | null {
-        if (!this.canvasPoint) return null;
-
-        const [left, top] = this.clippingRect;
-
-        return {
-            x:
-                this.canvasPoint.x +
-                this.zoomOffset.x +
-                left +
-                this.innerWidth / 2,
-            y:
-                this.canvasPoint.y +
-                this.zoomOffset.y +
-                top +
-                this.innerHeight / 2,
-        };
+        return this.pointerPixel;
     }
 
     /** 按住节点 → 定住放大镜中心 */
@@ -3919,6 +3980,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     }
 
     moveHandler(event: MouseEvent | TouchEvent) {
+        this.recordPointer(event);
+
         const canvasCoord = (this.canvasPoint = getCanvasCoordFromEvent(
             event,
             this.canvas,
@@ -3988,6 +4051,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         }
     }
     downHandler(event: MouseEvent | TouchEvent) {
+        this.recordPointer(event);
+
         // 所有的数值性事件，包括X/Y缩放，都一定存在
         const canvasCoord = (this.canvasPoint = getCanvasCoordFromEvent(
             event,

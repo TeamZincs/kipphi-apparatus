@@ -257,6 +257,15 @@ export class NotesEditor extends EventTarget {
      * 的原点，要还原成"绝对画布像素"就得把这个偏移加回去。
      */
     private zoomOffset = { x: 0, y: 0 };
+
+    /**
+     * 指针的**绝对画布像素**坐标（`pointerInBitmap` 的结果）。
+     *
+     * 不能用 `canvasPoint` 反推：那个乘过 `canvasMatrixInverted`，基准是"当时
+     * （含放大偏移）的 context 原点"，而偏移每帧都在变 —— 用它算锚点会一次
+     * 偏一点，`D`/`A` 来回按就累积成"节点越来越往右上跑"。
+     */
+    private pointerPixel: { x: number; y: number } | null = null;
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -482,6 +491,8 @@ export class NotesEditor extends EventTarget {
             .mul(this.elementMatrixInverted)
             .mul(this.canvasMatrixInverted));
 
+        this.pointerPixel = this.pointerInBitmap(event);
+
         const { x, y } = canvasCoord.mul(this.matrixInverted);
 
         // 正在轴向拖动：只做平移，不做吸附/选中
@@ -632,31 +643,41 @@ export class NotesEditor extends EventTarget {
      * 那时候应该以**当前**指针为准。
      */
     private reanchorZoom(): void {
-        const pointer = this.absolutePointer();
+        const pixel = this.pointerPixel;
+        const anchor = this.zoomAnchor;
 
-        if (pointer) this.zoomPointer = pointer;
+        if (!pixel || !anchor) return;
+
+        const [left, top, width, height] = this.clippingRect;
+        // 相对 context 原点、且**不含**放大偏移（`matrix` 里没有偏移）
+        const localX = pixel.x - (left + width / 2) - this.zoomOffset.x;
+        const localY =
+            pixel.y - (top + height - this.padding) - this.zoomOffset.y;
+
+        /*
+         * 反解"指针下面那个世界点"，让它成为新的缩放中心。
+         *
+         * 只改 `zoomPointer` 不改 `zoomAnchor` 的话，画面会被整体平移（anchor
+         * 去追新指针），看起来就是"节点越跑越远"。
+         *
+         * `matrix`：`x' = (x - anchor.x) * positionRatio`，
+         *            `y' = -(y - anchor.y) * timeRatio`（`y` 已是相对 beats 的拍数）
+         */
+        const worldX = localX / this.positionRatio + anchor.x;
+        const worldY = -localY / this.timeRatio + anchor.y;
+
+        this.zoomAnchor = { x: worldX, y: worldY };
+        this.zoomPointer = { x: pixel.x, y: pixel.y };
     }
 
     /**
-     * 指针的**绝对画布像素**坐标（不受 context 平移影响）。
+     * 指针的**绝对画布像素**坐标。
      *
-     * `canvasPoint` 是乘过 `canvasMatrixInverted` 的结果，基准是"当前（含偏移）
-     * 的 context 原点"；而缩放要的是画布上的绝对位置。所以把偏移和原点加回去。
+     * 直接用 `pointerInBitmap` 记下的原始像素，不从 `canvasPoint` 反推 ——
+     * 后者乘过 `canvasMatrixInverted`（含当帧的放大偏移），跨帧算会累积误差。
      */
     private absolutePointer(): { x: number; y: number } | null {
-        if (!this.canvasPoint) return null;
-
-        const [left, top, width, height] = this.clippingRect;
-
-        return {
-            x: this.canvasPoint.x + this.zoomOffset.x + left + width / 2,
-            y:
-                this.canvasPoint.y +
-                this.zoomOffset.y +
-                top +
-                height -
-                this.padding,
-        };
+        return this.pointerPixel;
     }
 
     /** 档位切换的 0.4s 动画：逐帧重绘直到插值结束 */
@@ -684,7 +705,12 @@ export class NotesEditor extends EventTarget {
 
         if (!this.magnifier.anchor) return;
 
-        this.reanchorZoom();
+        /*
+         * 只有**放大**才重新锚定：缩小沿用放大到该级时锁定的中心，
+         * 否则每次按 `A` 都按当时的指针位置收，画面会往回跑。
+         */
+        if (delta > 0) this.reanchorZoom();
+
         this.magnifier.step(delta);
         this.animateZoom();
         this.draw(this.lastBeats);
@@ -825,7 +851,11 @@ export class NotesEditor extends EventTarget {
                 label: `${ZOOM_LEVELS[level]}x`,
                 active: this.magnifier.levelIndex === level,
                 onClick: () => {
-                    this.reanchorZoom();
+                    // 只有往更高档跳才重新锚定；降档沿用放大时的中心
+                    if (level > this.magnifier.levelIndex) {
+                        this.reanchorZoom();
+                    }
+
                     this.magnifier.setIndex(level);
                     this.animateZoom();
                     this.draw(this.lastBeats);
@@ -1373,6 +1403,9 @@ export class NotesEditor extends EventTarget {
         const canvasCoord = (this.canvasPoint = new Coordinate(offsetX, offsetY)
             .mul(this.elementMatrixInverted)
             .mul(this.canvasMatrixInverted));
+
+        this.pointerPixel = this.pointerInBitmap(event);
+
         // 按钮优先于画布：命中就直接吃掉这次事件（按钮在位图像素空间）
         {
             const point = this.pointerInBitmap(event);
