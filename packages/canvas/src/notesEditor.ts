@@ -250,6 +250,14 @@ export class NotesEditor extends EventTarget {
      */
     private zoomPointer: { x: number; y: number } | null = null;
 
+    /**
+     * `matrix` 生成时用的视野起点（拍）。
+     *
+     * 网格要和节点严格同源，所以一律用这个值算 `time - matrixBeats`，而不是
+     * 方法参数 `beats` —— 两者在某些调用路径下会差一拍两拍。
+     */
+    private matrixBeats = 0;
+
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -1547,6 +1555,9 @@ export class NotesEditor extends EventTarget {
         this.context.resetTransform();
         this.context.translate(left + width / 2, top + height - this.padding);
 
+        // 记下矩阵用的视野起点，网格会读它（保证和节点同源）
+        this.matrixBeats = this.lastBeats;
+
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
 
         /*
@@ -1603,7 +1614,7 @@ export class NotesEditor extends EventTarget {
          * `[-(viewportHeight - padding), padding]`。
          */
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
-        const centerBeats = anchor ? anchor.y : beats;
+        const centerBeats = anchor ? anchor.y : this.matrixBeats;
 
         const halfW = viewportWidth / 2;
         const screenTop = -(viewportHeight - padding);
@@ -1684,7 +1695,7 @@ export class NotesEditor extends EventTarget {
         const timeDivisor = this.timeDivisor;
 
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
-            const positionY = new Coordinate(0, time - beats).mul(
+            const positionY = new Coordinate(0, time - this.matrixBeats).mul(
                 this.matrix,
             ).y;
 
@@ -1710,9 +1721,10 @@ export class NotesEditor extends EventTarget {
             for (let i = 1; i < minorDivisor; i++) {
                 const minorBeats =
                     time + (i / minorDivisor) * timeGridSpan;
-                const minorY = new Coordinate(0, minorBeats - beats).mul(
-                    this.matrix,
-                ).y;
+                const minorY = new Coordinate(
+                    0,
+                    minorBeats - this.matrixBeats,
+                ).mul(this.matrix).y;
 
                 map.set(minorBeats, [time, i, minorDivisor]);
                 attachableTimes.push(minorBeats);
@@ -1726,7 +1738,7 @@ export class NotesEditor extends EventTarget {
 
         if (this.showsNNNListAttachable) {
             const nnnList = this.operationList.chart.nnnList;
-            this.lookList(nnnList, startBeats, stopBeats, beats);
+            this.lookList(nnnList, startBeats, stopBeats, this.matrixBeats);
         }
         //*/
     }
@@ -1752,7 +1764,7 @@ export class NotesEditor extends EventTarget {
             const time: TimeT = (node as NoteNode | NNNode).startTime;
             const nodeBeats = TC.toBeats(time);
             // 同样过 `matrix`，放大时才和别的网格线对齐
-            const posY = new Coordinate(0, nodeBeats - beats).mul(
+            const posY = new Coordinate(0, nodeBeats - this.matrixBeats).mul(
                 this.matrix,
             ).y;
 

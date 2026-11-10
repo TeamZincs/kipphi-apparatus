@@ -1824,14 +1824,20 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         const anchor = this.magnifier?.zooming ? this.zoomAnchor : null;
         const center = anchor ? anchor.y : beats;
 
+        /*
+         * 遍历范围以 `center` 为**对称中心**取 `±timeSpan`。
+         *
+         * 之前按 `timeBasis` 偏（`(-0.5 + timeBasis)`）—— 那道偏移是给"未放大
+         * 时 `beats` 在底部"用的；放大后 `center` 是视野正中，再套一层就只剩
+         * 上半屏，表现为"下面缺几根时间线"。
+         *
+         * 非放大时 `center = beats`，多画半屏落在画布外，无害。
+         */
         const stopBeats =
-            Math.ceil(
-                (center + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
-            ) * timeGridSpan;
+            Math.ceil((center + this.timeSpan) / timeGridSpan) * timeGridSpan;
         const startBeats =
             Math.ceil(
-                (center + this.timeSpan * (-0.5 + timeBasis)) / timeGridSpan -
-                    1,
+                (center - this.timeSpan) / timeGridSpan - 1,
             ) * timeGridSpan;
 
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
@@ -2990,14 +2996,20 @@ export abstract class EventSequenceEditor<
         const anchor = this.magnifier?.zooming ? this.zoomAnchor : null;
         const center = anchor ? anchor.y : beats;
 
+        /*
+         * 遍历范围以 `center` 为**对称中心**取 `±timeSpan`。
+         *
+         * 之前按 `timeBasis` 偏（`(-0.5 + timeBasis)`）—— 那道偏移是给"未放大
+         * 时 `beats` 在底部"用的；放大后 `center` 是视野正中，再套一层就只剩
+         * 上半屏，表现为"下面缺几根时间线"。
+         *
+         * 非放大时 `center = beats`，多画半屏落在画布外，无害。
+         */
         const stopBeats =
-            Math.ceil(
-                (center + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
-            ) * timeGridSpan;
+            Math.ceil((center + this.timeSpan) / timeGridSpan) * timeGridSpan;
         const startBeats =
             Math.ceil(
-                (center + this.timeSpan * (-0.5 + timeBasis)) / timeGridSpan -
-                    1,
+                (center - this.timeSpan) / timeGridSpan - 1,
             ) * timeGridSpan;
 
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
