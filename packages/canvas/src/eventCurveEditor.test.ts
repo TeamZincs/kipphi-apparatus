@@ -17,6 +17,11 @@ type AnyNode = { value: number; next: unknown; previous: unknown };
 let EventStartNode: any;
 let EventEndNode: any;
 let sameValuePartner: (node: AnyNode) => AnyNode | null;
+let chooseGridStep: (
+    baseSpan: number,
+    zoom: number,
+    rangeLength: number
+) => number;
 
 beforeAll(async () => {
     const window = new Window();
@@ -32,7 +37,7 @@ beforeAll(async () => {
     };
 
     ({ EventStartNode, EventEndNode } = await import("kipphi"));
-    ({ sameValuePartner } = await import("./eventCurveEditor"));
+    ({ sameValuePartner, chooseGridStep } = await import("./eventCurveEditor"));
 });
 
 /** 用原型造节点，`instanceof` 判断能过；只需要 value / next / previous */
@@ -132,5 +137,40 @@ describe("sameValuePartner", () => {
         expect(sameValuePartner(start2.next as AnyNode)).toBe(start3);
         // 第一个 start 依然不参与
         expect(sameValuePartner(start1)).toBeNull();
+    });
+});
+
+describe("chooseGridStep（放大时的值网格密度）", () => {
+    it("没放大时步长不变", () => {
+        expect(chooseGridStep(10, 1, 100)).toBe(10);
+        expect(chooseGridStep(10, 0.5, 100)).toBe(10);
+    });
+
+    it("能整除时按放大倍数细分", () => {
+        expect(chooseGridStep(10, 2, 100)).toBe(5);
+        // 4 倍时 10/4 = 2.5 不是整数 → 退到 5 倍（间隔 2，仍是整数）
+        expect(chooseGridStep(10, 4, 100)).toBe(2);
+    });
+
+    it("间隔是 1 时允许小数", () => {
+        expect(chooseGridStep(1, 2, 10)).toBe(0.5);
+        expect(chooseGridStep(1, 4, 10)).toBe(0.25);
+    });
+
+    it("间隔不是 2 的倍数时，退到能整除的 3 / 5 倍", () => {
+        // 3 只能靠 3 倍整除
+        expect(chooseGridStep(3, 2, 3)).toBe(1);
+        // 5 只能靠 5 倍整除
+        expect(chooseGridStep(5, 2, 5)).toBe(1);
+    });
+
+    it("加密后超过 50 条线就放弃加密", () => {
+        // 1x 就有 60 条（100 的间隔、6000 的范围）
+        expect(chooseGridStep(100, 2, 6000)).toBe(100);
+    });
+
+    it("线太少时继续升倍（不到 5 条）", () => {
+        // 1x 只有 2 条；2x 才 4 条 → 升到 5 倍（间隔 2，共 10 条）
+        expect(chooseGridStep(10, 2, 20)).toBe(2);
     });
 });

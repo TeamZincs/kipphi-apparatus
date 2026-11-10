@@ -424,6 +424,8 @@ export class EventSequenceEditors extends EventTarget {
             if (this.activatedEditor.state === EventCurveEditorState.select) {
                 const anyEditor = this.activatedEditor as unknown as {
                     valueRange?: [number, number];
+                    autoRangeEnabled?: boolean;
+                    xPanning?: boolean;
                 };
 
                 this.pan = {
@@ -432,7 +434,18 @@ export class EventSequenceEditors extends EventTarget {
                     range: anyEditor.valueRange
                         ? [...anyEditor.valueRange]
                         : [0, 0],
+                    autoRange: anyEditor.autoRangeEnabled ?? false,
                 };
+
+                /*
+                 * 横向拖动期间关掉 autoRange —— 否则每帧的 `adjust()` 都会
+                 * 按"当前帧内的节点值"把视野拽回去，手指怎么拖都不动。
+                 * 松手时（mouseup）恢复成按下前的值。
+                 */
+                if (this.panAxis === "x" && anyEditor.autoRangeEnabled) {
+                    anyEditor.autoRangeEnabled = false;
+                    anyEditor.xPanning = true;
+                }
             }
 
             this.draw();
@@ -453,7 +466,17 @@ export class EventSequenceEditors extends EventTarget {
                 return;
             }
 
-            // 轴向拖动结束
+            // 轴向拖动结束：把 autoRange 还回去（alpha 之类的类型本来是关着的）
+            if (this.pan) {
+                const anyEditor = this.activatedEditor as unknown as {
+                    autoRangeEnabled?: boolean;
+                    xPanning?: boolean;
+                };
+
+                anyEditor.autoRangeEnabled = this.pan.autoRange;
+                anyEditor.xPanning = false;
+            }
+
             this.pan = null;
 
             // 粘贴定位的松手：在 pointer 处落子
@@ -602,7 +625,13 @@ export class EventSequenceEditors extends EventTarget {
      * 拖什么看 `panAxis`：`"time"` 竖向拖时间（走 `timescroll` → 页面 seek），
      * `"x"` 横向平移值的窗口（改子编辑器的 `valueRange`，只是视图，不写谱面）。
      */
-    private pan: { x: number; y: number; range: [number, number] } | null = null;
+    private pan: {
+        x: number;
+        y: number;
+        range: [number, number];
+        /** 按下时子编辑器的 `autoRangeEnabled`，松手要还回去 */
+        autoRange: boolean;
+    } | null = null;
 
     private panBy(event: MouseEvent | TouchEvent): void {
         const pan = this.pan;
@@ -1267,6 +1296,84 @@ function generateAttachable(
         if (val > right) break;
     }
     return attachable;
+}
+
+/** 网格线标签：整数步长不带小数，小数步长按位数补零 */
+export function formatGridValue(value: number, step: number): string {
+    if (Number.isInteger(step)) return String(Math.round(value));
+
+    const digits = Math.min(4, Math.max(1, -Math.floor(Math.log10(step))));
+
+    return value.toFixed(digits);
+}
+
+/** 值网格线太少就补密（放大后只剩两三根线没参考意义） */
+export const GRID_MIN_LINES = 5;
+/** 超过这个条数说明 1x 的密度本身就不合理，放弃加密 */
+export const GRID_MAX_LINES = 50;
+
+/**
+ * 放大时该用多细的值网格。
+ *
+ * 规则（按需求定的）：
+ *   · 加密后总条数 **超过 50** → 认为 1x 时设的密度本来就不合理，**不加密**；
+ *   · 不到 **5 条** → 继续试 3 / 4 / 5 倍，别让画面空荡荡；
+ *   · 步长优先保持**整数**：`baseSpan` 能被倍数整除才用，否则退到 3 倍、5 倍；
+ *   · `baseSpan === 1` 是例外，此时允许小数（0.5 / 0.25…）。
+ *
+ * 抽成纯函数是为了能直接测（编辑器实例要 canvas / operationList，太重）。
+ *
+ * @param baseSpan    1x 时的值网格间隔
+ * @param zoom        当前放大倍数（<= 1 表示没放大）
+ * @param rangeLength 值域长度，用来估算条数
+ */
+export function chooseGridStep(
+    baseSpan: number,
+    zoom: number,
+    rangeLength: number,
+): number {
+    if (!(zoom > 1) || !(baseSpan > 0) || !(rangeLength > 0)) return baseSpan;
+
+    const lines = (step: number) => rangeLength / step;
+    const tooMany = (step: number) => lines(step) > GRID_MAX_LINES;
+
+    /*
+     * 候选倍数：
+     *   · `baseSpan === 1` → 只可能靠小数加密；
+     *   · 其它情况优先挑能**整除** `baseSpan` 的倍数，网格才落在整数上。
+     */
+    const candidates: number[] = [];
+
+    if (baseSpan === 1) {
+        for (let m = 2; m <= 64; m *= 2) candidates.push(m);
+    } else {
+        for (const m of [2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 25, 32, 50]) {
+            if (baseSpan % m === 0) candidates.push(m);
+        }
+
+        // 谁都不整除（比如 7）→ 允许步长带小数
+        if (candidates.length === 0) {
+            for (let m = 2; m <= 32; m *= 2) candidates.push(m);
+        }
+    }
+
+    let chosen = baseSpan;
+
+    for (const m of candidates) {
+        if (m < zoom) continue; // 还没到当前放大倍数
+
+        const step = baseSpan / m;
+
+        // 再细就过密：说明 1x 的密度本来就不合理，整体放弃
+        if (tooMany(step)) break;
+
+        chosen = step;
+
+        // 条数够了就收（不到 5 条就继续升倍）
+        if (lines(step) >= GRID_MIN_LINES) break;
+    }
+
+    return chosen;
 }
 
 function divideOrMul(gridSpan: number, maximum: number) {
@@ -3372,7 +3479,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     protected override paintMagnified(
         context: CanvasRenderingContext2D,
         scale: number,
-        _anchor: { x: number; y: number },
+        anchor: { x: number; y: number },
         size: number
     ): void {
         const half = size / 2;
@@ -3380,35 +3487,98 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         // `valueRatio` / `timeRatio` 已经含主视图的倍率，这里只要相对主视图
         // 再放大的那部分（局部恒比主视图高一档）
         const factor = scale / Math.max(1, this.magnifier.zoom);
+        const unitX = this.valueRatio * factor;
+        const unitT = this.timeRatio * factor;
 
-        const stepValue =
-            this.attachableValues.length > 1
-                ? this.attachableValues[1] - this.attachableValues[0]
-                : 1;
-        const gridX = stepValue * this.valueRatio * factor;
-        const gridT = this.timeRatio * factor;
+        // 这个小窗口能装下的世界范围 = 下一步放大后主视图看到的范围
+        const halfValue = unitX > 0 ? half / unitX : 0;
+        const halfBeats = unitT > 0 ? half / unitT : 0;
 
-        context.strokeStyle = "rgba(255, 255, 255, 0.14)";
+        context.save();
+        context.font = `${Math.max(9, Math.round(size * 0.075))}px system-ui, sans-serif`;
+        context.textAlign = "left";
+        context.textBaseline = "top";
         context.lineWidth = 1;
 
-        for (let i = -6; i <= 6; i += 1) {
-            if (gridX > 2) {
-                context.beginPath();
-                context.moveTo(i * gridX, -half);
-                context.lineTo(i * gridX, half);
-                context.stroke();
-            }
+        // ---------- 值网格（竖线，每根都标数值）----------
+        const valueStep = this.currentValueGridStep > 0
+            ? this.currentValueGridStep
+            : 1;
+        const startValue =
+            Math.ceil((anchor.x - halfValue) / valueStep) * valueStep;
 
-            if (gridT > 2) {
-                context.beginPath();
-                context.moveTo(-half, i * gridT);
-                context.lineTo(half, i * gridT);
-                context.stroke();
+        for (let value = startValue; value <= anchor.x + halfValue; value += valueStep) {
+            const x = (value - anchor.x) * unitX;
+
+            context.strokeStyle = "rgba(255, 170, 120, 0.35)";
+            context.beginPath();
+            context.moveTo(x, -half);
+            context.lineTo(x, half);
+            context.stroke();
+
+            context.fillStyle = "rgba(255, 190, 140, 0.95)";
+            context.fillText(
+                formatGridValue(value, valueStep),
+                Math.min(x + 2, half - 2),
+                -half + 2
+            );
+        }
+
+        // ---------- 时间网格（横线，每根都标数值）----------
+        const timeStep = this.timeGridInterval > 0 ? this.timeGridInterval : 1;
+        const startBeat =
+            Math.ceil((anchor.y - halfBeats) / timeStep) * timeStep;
+
+        for (let beat = startBeat; beat <= anchor.y + halfBeats; beat += timeStep) {
+            // 和主画布同一个方向：拍数越大越靠上
+            const y = -(beat - anchor.y) * unitT;
+
+            context.strokeStyle = "rgba(140, 200, 255, 0.28)";
+            context.beginPath();
+            context.moveTo(-half, y);
+            context.lineTo(half, y);
+            context.stroke();
+
+            context.fillStyle = "rgba(160, 210, 255, 0.95)";
+            context.fillText(
+                formatGridValue(beat, timeStep),
+                -half + 2,
+                Math.max(-half + 2, y + 2)
+            );
+        }
+
+        // ---------- 附近的节点 ----------
+        /*
+         * 这里**不**看"周边节点用过的值"（`adjust()` 里的那套并集），
+         * 只用均匀网格 —— 局部视图是"看位置"，不是"看吸附点"。
+         */
+        const seq = this.selectedNode?.parentSeq;
+
+        if (seq) {
+            let node: any = seq.getNodeAt(anchor.y - halfBeats);
+
+            for (let guard = 0; node && guard < 512; guard += 1) {
+                const beats = TC.toBeats(node.time);
+
+                if (beats > anchor.y + halfBeats) break;
+
+                if (Math.abs(node.value - anchor.x) <= halfValue) {
+                    const x = (node.value - anchor.x) * unitX;
+                    const y = -(beats - anchor.y) * unitT;
+
+                    context.fillStyle =
+                        node instanceof EventStartNode ? "#4c8dff" : "#f2545b";
+                    context.fillRect(x - 3, y - 3, 6, 6);
+                }
+
+                node = node.next;
             }
         }
 
-        // 被按住的节点就在中心
-        context.fillStyle = "#4c8dff";
+        context.restore();
+
+        // 被按住的节点就在中心，最后画、压在别的节点上面
+        context.fillStyle = "#a855f7";
         context.beginPath();
         context.arc(0, 0, 5, 0, Math.PI * 2);
         context.fill();
@@ -3815,20 +3985,44 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.adjust(this.valuesInFrame);
     }
 
+    /**
+     * 当前生效的值网格步长。
+     *
+     * 局部视图要用它标每根线的数值 —— 它可能已经被放大镜细分过，
+     * 和 `eventTypeMap[type].valueGridSpan` 不是一回事。
+     */
+    protected currentValueGridStep = 1;
+
+    /**
+     * 正在轴向横向拖动（外层 `panBy` 设置）。
+     *
+     * 这时视野每帧都在变，`attachableValues` 必须无条件重算。
+     */
+    xPanning = false;
+
     adjust(values: number[]): void {
         if (this.state !== EventCurveEditorState.select) {
             return;
         }
         const valueRange = this.valueRange;
         const distinctValueCount = new Set(values).size;
+
+        /*
+         * 放大 / 横向拖动时视野每帧都在变，必须**无条件**重算 attachable。
+         * 下面两条早退的本意是"没什么变化就别折腾"，这时候不适用。
+         */
+        const liveView = this.magnifier.active || this.xPanning;
+
         if (
+            !liveView &&
             distinctValueCount < 2 &&
             valueRange[0] < values[0] &&
             values[0] < valueRange[1]
         ) {
             return;
         }
-        if (this.autoRangeEnabled) {
+        // 放大 / 横向拖动期间关掉 autoRange，否则视野会被"数据"拽回去
+        if (this.autoRangeEnabled && !liveView) {
             const sorted = values.sort((a, b) => a - b);
             const lengthOfValue = lengthOf(valueRange);
             // 如果上四分位数超出了valueRange，则扩大valueRange右边界valueRange长度的一半。
@@ -3879,15 +4073,30 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 10 / (lengthOf(this.valueRange) / valueGridSpan),
             );
         }
+        /*
+         * 放大时按倍率细分（`chooseGridStep` 里有条数上下限和整数约束）。
+         * 只在 1x 算出来的步长基础上细分，不叠加 —— 否则松手再放大两份，
+         * 会越分越细。
+         */
+        const step = this.magnifier.active
+            ? chooseGridStep(
+                  valueGridSpan,
+                  this.magnifier.zoom,
+                  lengthOf(this.valueRange),
+              )
+            : valueGridSpan;
+
+        this.currentValueGridStep = step;
+
         if (distinctValueCount > 10) {
             this.attachableValues = generateAttachable(
-                [valueGridSpan, 0],
+                [step, 0],
                 this.valueRange,
             );
         } else {
             this.attachableValues = Array.from(
                 new Set([
-                    ...generateAttachable([valueGridSpan, 0], this.valueRange),
+                    ...generateAttachable([step, 0], this.valueRange),
                     ...values,
                 ]),
             ).sort((a, b) => a - b);
