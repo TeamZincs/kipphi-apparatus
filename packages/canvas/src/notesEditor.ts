@@ -1637,6 +1637,19 @@ export class NotesEditor extends EventTarget {
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
         const originX = anchor ? -anchor.x : positionBasis;
         const originY = anchor ? anchor.y : beats;
+
+        /*
+         * 网格要铺到**屏幕边缘**，不能按 `±width/2` 算：放大时 context 原点
+         * 被平移了 `zoomOffset`，还用 `±width/2` 会让一侧缺一整块（表现为
+         * "左边一片灰"）、标签被推出画布。
+         *
+         * 下面这几个是屏幕四边在"context 原点坐标系"里的位置。
+         */
+        const screenLeft = -viewportWidth / 2 - this.zoomOffset.x;
+        const screenRight = viewportWidth / 2 - this.zoomOffset.x;
+        const screenTop = -viewportHeight / 2 - this.zoomOffset.y;
+        const screenBottom = viewportHeight / 2 - this.zoomOffset.y;
+
         context.textAlign = "left";
 
         /*
@@ -1656,9 +1669,9 @@ export class NotesEditor extends EventTarget {
         context.save();
         context.lineWidth = 5;
         context.strokeStyle = "#EEE";
-        const textPosX = -width / 2 + 10;
+        const textPosX = screenLeft + 10;
         // 基线
-        drawLine(context, -viewportWidth / 2, 0, viewportWidth / 2, 0);
+        drawLine(context, screenLeft, 0, screenRight, 0);
 
         context.fillStyle = "#EEE6";
         context.fillText(`Kipphi v${VERSION}`, textPosX, -70);
@@ -1675,11 +1688,11 @@ export class NotesEditor extends EventTarget {
         // 计算上下界
         const upperEnd =
             Math.ceil(
-                (width / 2 - originX) / positionStep / positionRatio,
+                (screenRight - originX) / positionStep / positionRatio,
             ) * positionStep;
         const lowerEnd =
             Math.ceil(
-                (-width / 2 - originX) / positionStep / positionRatio,
+                (screenLeft - originX) / positionStep / positionRatio,
             ) * positionStep;
         context.strokeStyle = context.fillStyle = this.positionGridColor;
         context.lineWidth = 1;
@@ -1694,14 +1707,14 @@ export class NotesEditor extends EventTarget {
             const major =
                 Math.abs(value / positionGridSpan - Math.round(value / positionGridSpan)) < 1e-6;
 
-            drawLine(context, positionX, -height + padding, positionX, 0);
+            drawLine(context, positionX, screenTop, positionX, screenBottom);
 
             // 数字只标在原网格上，细分线不标
             if (major) {
                 context.fillText(
                     Math.round(value) + "",
                     positionX,
-                    -height + padding,
+                    screenBottom + padding,
                 );
             }
         }
@@ -1717,10 +1730,10 @@ export class NotesEditor extends EventTarget {
         const timeDivisor = this.timeDivisor;
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
             const positionY = (time - originY) * timeRatio;
-            drawLine(context, -width / 2, -positionY, width / 2, -positionY);
+            drawLine(context, screenLeft, -positionY, screenRight, -positionY);
             context.save();
             context.fillStyle = this.timeGridColor;
-            context.fillText(time + "", +width / 2, -positionY - 4);
+            context.fillText(time + "", screenRight - padding, -positionY - 4);
 
             attachableTimes.push(time);
             map.set(time, [time, 0, timeDivisor]);
@@ -1746,9 +1759,9 @@ export class NotesEditor extends EventTarget {
 
                 drawLine(
                     context,
-                    -width / 2,
+                    screenLeft,
                     -minorPosY,
-                    width / 2,
+                    screenRight,
                     -minorPosY,
                 );
             }
