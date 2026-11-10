@@ -2066,17 +2066,28 @@ export class NotesEditor extends EventTarget {
 
         context.restore();
 
-        // 音符：和主视图**同一个贴图、同一个尺寸**，只按倍率摆位置
+        /*
+         * 音符：画在**实际吸附到的位置**上，不是中心。
+         *
+         * 中心是手指（绿球），音符会跳到最近的吸附点 —— 这样才看得出
+         * "松手会落在哪"。两个都画在中心的话，吸附与否完全没有反馈。
+         */
         const note = this.selectedNote;
 
         if (note) {
             const width = this.noteWidth;
             const height = this.noteHeight;
+            const snappedX = this.pointedPositionX ?? anchor.x;
+            const snappedBeats = this.pointedTime
+                ? TC.toBeats(this.pointedTime)
+                : anchor.y;
+            const x = (snappedX - anchor.x) * unitX;
+            const y = -(snappedBeats - anchor.y) * unitT;
 
             context.drawImage(
                 this.respack.getNoteFromType(note.type),
-                -width / 2,
-                -height / 2,
+                x - width / 2,
+                y - height / 2,
                 width,
                 height
             );
