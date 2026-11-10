@@ -1499,14 +1499,6 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      */
     protected zoomPointer: { x: number; y: number } | null = null;
 
-    /**
-     * 当前放大偏移（相对未放大的 context 原点）。
-     *
-     * `canvasPoint` 是乘过 `canvasMatrixInverted` 的 —— 它已经相对**平移后**
-     * 的原点，要还原成"绝对画布像素"就得把这个偏移加回去。
-     */
-    protected zoomOffset = { x: 0, y: 0 };
-
     /** 松手 / 取消选中：收起放大镜 */
     resetMagnifier(): void {
         this.zoomAnchor = null;
@@ -1584,7 +1576,11 @@ export abstract class EventSequenceEditorBase extends EventTarget {
                 label: `${ZOOM_LEVELS[level]}x`,
                 active: this.magnifier.levelIndex === level,
                 onClick: () => {
-                    this.reanchorZoom();
+                    // 只有往更高档跳才重新锚定；降档沿用放大时的中心
+                    if (level > this.magnifier.levelIndex) {
+                        this.reanchorZoom();
+                    }
+
                     this.magnifier.setIndex(level);
                     this.animateZoom();
                     this.parentEditorSet.draw(this.lastBeats);
@@ -1808,16 +1804,11 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         context.lineWidth = 3;
 
         /*
-         * 网格的纵向基准必须和 `matrix` 一致：
-         *   · 平时：`matrix` 平移 `-timeSpan * timeBasis`，网格 `yZero` 取同一个值；
-         *   · 放大时：`matrix` 平移 `-(anchor.y - beats)`，网格也要跟着走。
-         * 两边不一致的话节点会跑到格点外面。
+         * 网格的纵向位置一律**过 `matrix`**，和节点同一套换算 —— 放大时
+         * `matrix` 里带着缩放和偏移，网格跟着走就不会错位。
          */
         const anchor = this.magnifier?.zooming ? this.zoomAnchor : null;
         const center = anchor ? anchor.y : beats;
-        const yZero = anchor
-            ? (anchor.y - beats) * timeRatio
-            : this.timeSpan * timeBasis * timeRatio;
 
         const stopBeats =
             Math.ceil(
@@ -1825,50 +1816,47 @@ export abstract class EventSequenceEditorBase extends EventTarget {
             ) * timeGridSpan;
         const startBeats =
             Math.ceil(
-                (beats + this.timeSpan * (-0.5 + timeBasis)) / timeGridSpan - 1,
+                (center + this.timeSpan * (-0.5 + timeBasis)) / timeGridSpan -
+                    1,
             ) * timeGridSpan;
+
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
-            const positionY = (time - beats) * timeRatio - yZero;
-            /*
-             * 横线的左右端点要贴**屏幕边缘**：放大时 context 原点被平移了
-             * `zoomOffset`，直接写 `±innerWidth/2` 会让一侧缺一块。
-             */
-            drawLine(
-                context,
-                innerWidth / 2 - this.zoomOffset.x,
-                -positionY,
-                -innerWidth / 2 - this.zoomOffset.x,
-                -positionY,
-            );
-            context.fillText(
-                time + "",
-                -innerWidth / 2 + 10 - this.zoomOffset.x,
-                -positionY,
-            );
+            const y = new Coordinate(0, time - beats).mul(this.matrix).y;
+
+            // 横线铺满整块画布（`±innerWidth/2` 就是屏幕左右边缘）
+            drawLine(context, innerWidth / 2, y, -innerWidth / 2, y);
+            context.fillText(time + "", -innerWidth / 2 + 10, y);
 
             context.save();
             context.lineWidth = 1;
             for (let i = 1; i < timeDivisor; i++) {
-                const minorPosY =
-                    (time + i / timeDivisor - beats) * timeRatio - yZero;
+                const minorY = new Coordinate(
+                    0,
+                    time + i / timeDivisor - beats,
+                ).mul(this.matrix).y;
+
                 drawLine(
                     context,
-                    innerWidth / 2 - this.zoomOffset.x,
-                    -minorPosY,
-                    -innerWidth / 2 - this.zoomOffset.x,
-                    -minorPosY,
+                    innerWidth / 2,
+                    minorY,
+                    -innerWidth / 2,
+                    minorY,
                 );
             }
             context.restore();
         }
         context.restore();
         context.lineWidth = 3;
+
+        // 基线：`beats` 那一拍所在的位置
+        const baselineY = new Coordinate(0, 0).mul(this.matrix).y;
+
         drawLine(
             context,
-            innerWidth / 2 - this.zoomOffset.x,
-            yZero,
-            -innerWidth / 2 - this.zoomOffset.x,
-            yZero,
+            innerWidth / 2,
+            baselineY,
+            -innerWidth / 2,
+            baselineY,
         );
         context.strokeStyle = "#EEE";
     }
@@ -2600,7 +2588,9 @@ export abstract class EventSequenceEditor<
 
         if (!this.magnifier.anchor) return;
 
-        this.reanchorZoom();
+        // 只有放大才重新锚定；降档沿用放大到该级时的中心
+        if (delta > 0) this.reanchorZoom();
+
         this.magnifier.step(delta);
         this.animateZoom();
         this.parentEditorSet.draw(this.lastBeats);
@@ -2613,34 +2603,19 @@ export abstract class EventSequenceEditor<
      * 那时候应该以**当前**指针为准。
      */
     reanchorZoom(): void {
-        const pointer = this.absolutePointer();
+        if (!this.canvasPoint || !this.zoomAnchor) return;
 
-        if (pointer) this.zoomPointer = pointer;
-    }
+        /*
+         * `canvasPoint` 和 `matrix` 是**同一个空间**：都是"相对 context 原点"
+         * （`canvasMatrix` 只含 `translate(原点)`）。所以拿它当 `matrix` 的
+         * 偏移，用 `matrixInverted` 反解世界坐标，一步到位，没有跨帧误差。
+         */
+        this.zoomPointer = { x: this.canvasPoint.x, y: this.canvasPoint.y };
 
-    /**
-     * 指针的**绝对画布像素**坐标（不受 context 平移影响）。
-     *
-     * `canvasPoint` 乘过 `canvasMatrixInverted`，基准是"当前（含偏移）的
-     * context 原点"；缩放要的是画布上的绝对位置，所以把偏移和原点加回去。
-     */
-    protected absolutePointer(): { x: number; y: number } | null {
-        if (!this.canvasPoint) return null;
+        // 当前屏幕位置对应的世界点（`matrixInverted` 已含缩放与平移）
+        const world = this.canvasPoint.mul(this.matrixInverted);
 
-        const [left, top] = this.clippingRect;
-
-        return {
-            x:
-                this.canvasPoint.x +
-                this.zoomOffset.x +
-                left +
-                this.innerWidth / 2,
-            y:
-                this.canvasPoint.y +
-                this.zoomOffset.y +
-                top +
-                this.innerHeight / 2,
-        };
+        this.zoomAnchor = { x: world.x, y: world.y };
     }
 
     /** 按住节点 → 定住放大镜中心 */
@@ -2662,7 +2637,9 @@ export abstract class EventSequenceEditor<
 
         // 主视图中心 / 缩放中心都锁在这里；拖动时只有 `magnifier.anchor` 跟手
         this.zoomAnchor = anchor;
-        this.zoomPointer = this.absolutePointer();
+        this.zoomPointer = this.canvasPoint
+            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
+            : null;
 
         this.magnifier.focus(
             anchor,
@@ -2996,16 +2973,11 @@ export abstract class EventSequenceEditor<
         context.lineWidth = 3;
 
         /*
-         * 网格的纵向基准必须和 `matrix` 一致：
-         *   · 平时：`matrix` 平移 `-timeSpan * timeBasis`，网格 `yZero` 取同一个值；
-         *   · 放大时：`matrix` 平移 `-(anchor.y - beats)`，网格也要跟着走。
-         * 两边不一致的话节点会跑到格点外面。
+         * 网格的纵向位置一律**过 `matrix`**，和节点同一套换算 —— 放大时
+         * `matrix` 里带着缩放和偏移，网格跟着走就不会错位。
          */
         const anchor = this.magnifier?.zooming ? this.zoomAnchor : null;
         const center = anchor ? anchor.y : beats;
-        const yZero = anchor
-            ? (anchor.y - beats) * timeRatio
-            : this.timeSpan * timeBasis * timeRatio;
 
         const stopBeats =
             Math.ceil(
@@ -3013,50 +2985,47 @@ export abstract class EventSequenceEditor<
             ) * timeGridSpan;
         const startBeats =
             Math.ceil(
-                (beats + this.timeSpan * (-0.5 + timeBasis)) / timeGridSpan - 1,
+                (center + this.timeSpan * (-0.5 + timeBasis)) / timeGridSpan -
+                    1,
             ) * timeGridSpan;
+
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
-            const positionY = (time - beats) * timeRatio - yZero;
-            /*
-             * 横线的左右端点要贴**屏幕边缘**：放大时 context 原点被平移了
-             * `zoomOffset`，直接写 `±innerWidth/2` 会让一侧缺一块。
-             */
-            drawLine(
-                context,
-                innerWidth / 2 - this.zoomOffset.x,
-                -positionY,
-                -innerWidth / 2 - this.zoomOffset.x,
-                -positionY,
-            );
-            context.fillText(
-                time + "",
-                -innerWidth / 2 + 10 - this.zoomOffset.x,
-                -positionY,
-            );
+            const y = new Coordinate(0, time - beats).mul(this.matrix).y;
+
+            // 横线铺满整块画布（`±innerWidth/2` 就是屏幕左右边缘）
+            drawLine(context, innerWidth / 2, y, -innerWidth / 2, y);
+            context.fillText(time + "", -innerWidth / 2 + 10, y);
 
             context.save();
             context.lineWidth = 1;
             for (let i = 1; i < timeDivisor; i++) {
-                const minorPosY =
-                    (time + i / timeDivisor - beats) * timeRatio - yZero;
+                const minorY = new Coordinate(
+                    0,
+                    time + i / timeDivisor - beats,
+                ).mul(this.matrix).y;
+
                 drawLine(
                     context,
-                    innerWidth / 2 - this.zoomOffset.x,
-                    -minorPosY,
-                    -innerWidth / 2 - this.zoomOffset.x,
-                    -minorPosY,
+                    innerWidth / 2,
+                    minorY,
+                    -innerWidth / 2,
+                    minorY,
                 );
             }
             context.restore();
         }
         context.restore();
         context.lineWidth = 3;
+
+        // 基线：`beats` 那一拍所在的位置
+        const baselineY = new Coordinate(0, 0).mul(this.matrix).y;
+
         drawLine(
             context,
-            innerWidth / 2 - this.zoomOffset.x,
-            yZero,
-            -innerWidth / 2 - this.zoomOffset.x,
-            yZero,
+            innerWidth / 2,
+            baselineY,
+            -innerWidth / 2,
+            baselineY,
         );
         context.strokeStyle = "#EEE";
     }
@@ -3819,58 +3788,24 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
          */
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
 
-        const [left, top, width, height] = this.clippingRect;
-
+        /*
+         * **context 只 translate 到原点**（`initContext` 已设好，这里不再动）。
+         * 缩放偏移全部进 `matrix` —— 这样网格和节点共用同一个换算入口，
+         * 不会出现"网格铺在原点、节点被搬走"的错位。
+         */
         if (anchor) {
             /*
-             * 缩放中心用**按下时锁定**的 `zoomPointer`，不是实时的
-             * `magnifier.pointer` —— 后者拖动时每帧都变，画面会跟着鼠标跑。
+             * 缩放中心用**按下时锁定**的 `zoomPointer`（相对原点的像素），
+             * 不是实时的 `magnifier.pointer` —— 后者拖动时每帧都变，
+             * 拿它当偏移会让画面跟着鼠标跑。
              */
-            const pointer = this.zoomPointer ?? {
-                x: left + this.innerWidth / 2,
-                y: top + this.innerHeight / 2,
-            };
-            /*
-             * 以按住的那一点为中心缩放：世界点 `anchor` 始终落在手指所在
-             * 的那一像素上，而不是被搬到画布中心（那样一放大画面会跳）。
-             *
-             * 偏移放进 **context**，不是只放进 `matrix`：网格是
-             * `drawCoordination` 里按像素算的（不经过 `matrix`），只改
-             * `matrix` 的话网格不动、节点乱跑 —— 两边就对不上了。
-             */
-            /*
-             * 原点必须和 `initContext` 一致：那里用的是**含 padding 的整块**
-             * 中心（`clippingRect` 的 width/height），不是 `innerWidth`
-             *（那个已经扣过 padding）。
-             */
-            const px = pointer.x - (left + width / 2);
-            const py = pointer.y - (top + height / 2);
-
-            this.context.setTransform(
-                1,
-                0,
-                0,
-                1,
-                left + width / 2 + px,
-                top + height / 2 + py,
-            );
-            this.zoomOffset = { x: px, y: py };
+            const pointer = this.zoomPointer ?? { x: 0, y: 0 };
 
             this.matrix = identity
+                .translate(pointer.x, pointer.y)
                 .scale(this.valueRatio, -this.timeRatio)
                 .translate(-anchor.x, -(anchor.y - this.lastBeats));
         } else {
-            // 松手回 1x：context 也要复原，否则偏移会一直留着
-            this.zoomOffset = { x: 0, y: 0 };
-            this.context.setTransform(
-                1,
-                0,
-                0,
-                1,
-                left + width / 2,
-                top + height / 2,
-            );
-
             this.matrix = identity
                 .scale(this.valueRatio, -this.timeRatio)
                 .translate(
@@ -3893,13 +3828,12 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         context.strokeStyle = this.valueGridColor;
         context.lineWidth = 1;
         /*
-         * 竖线要贯穿**整个屏幕**：放大时 context 原点被平移了 `zoomOffset`，
-         * 还用 `±height/2`（相对原点）就会有一侧缺一块 —— 放大越多次
-         * （`py` 越大）缺得越多。
+         * 竖线贯穿整屏：context 原点就在内容区中心，`±height/2` 就是屏幕上下
+         * 边缘。放大偏移只在 `matrix` 里（影响横坐标），纵向不受影响。
          */
         const height = this.clippingRect[3];
-        const top = -height / 2 - this.zoomOffset.y;
-        const bottom = height / 2 - this.zoomOffset.y;
+        const top = -height / 2;
+        const bottom = height / 2;
         const textPosY = top + this.padding;
         context.fillStyle = this.valueGridColor;
 

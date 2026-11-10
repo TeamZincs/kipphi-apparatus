@@ -250,13 +250,6 @@ export class NotesEditor extends EventTarget {
      */
     private zoomPointer: { x: number; y: number } | null = null;
 
-    /**
-     * 当前放大偏移（相对未放大的 context 原点）。
-     *
-     * `canvasPoint` 是乘过 `canvasMatrixInverted` 的 —— 它已经相对**平移后**
-     * 的原点，要还原成"绝对画布像素"就得把这个偏移加回去。
-     */
-    private zoomOffset = { x: 0, y: 0 };
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -632,31 +625,18 @@ export class NotesEditor extends EventTarget {
      * 那时候应该以**当前**指针为准。
      */
     private reanchorZoom(): void {
-        const pointer = this.absolutePointer();
+        if (!this.canvasPoint || !this.zoomAnchor) return;
 
-        if (pointer) this.zoomPointer = pointer;
-    }
+        /*
+         * `canvasPoint` 和 `matrix` 是**同一个空间**：都是"相对 context 原点"
+         * （`canvasMatrix` 只含 `translate(原点)`）。所以直接拿它当 `matrix`
+         * 的偏移，用 `matrixInverted` 反解世界坐标，一步到位、无跨帧误差。
+         */
+        this.zoomPointer = { x: this.canvasPoint.x, y: this.canvasPoint.y };
 
-    /**
-     * 指针的**绝对画布像素**坐标（不受 context 平移影响）。
-     *
-     * `canvasPoint` 是乘过 `canvasMatrixInverted` 的结果，基准是"当前（含偏移）
-     * 的 context 原点"；而缩放要的是画布上的绝对位置。所以把偏移和原点加回去。
-     */
-    private absolutePointer(): { x: number; y: number } | null {
-        if (!this.canvasPoint) return null;
+        const world = this.canvasPoint.mul(this.matrixInverted);
 
-        const [left, top, width, height] = this.clippingRect;
-
-        return {
-            x: this.canvasPoint.x + this.zoomOffset.x + left + width / 2,
-            y:
-                this.canvasPoint.y +
-                this.zoomOffset.y +
-                top +
-                height -
-                this.padding,
-        };
+        this.zoomAnchor = { x: world.x, y: world.y };
     }
 
     /** 档位切换的 0.4s 动画：逐帧重绘直到插值结束 */
@@ -709,7 +689,9 @@ export class NotesEditor extends EventTarget {
 
         // 主视图中心 / 缩放中心都锁在这里；拖动时只有 `magnifier.anchor` 跟手
         this.zoomAnchor = anchor;
-        this.zoomPointer = this.absolutePointer();
+        this.zoomPointer = this.canvasPoint
+            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
+            : null;
 
         this.magnifier.focus(
             anchor,
@@ -1563,42 +1545,26 @@ export class NotesEditor extends EventTarget {
         this.positionRatio = (width * zoom) / this.positionSpan;
         this.timeRatio = (height * zoom) / this.timeSpan;
         this.context.resetTransform();
+        this.context.translate(left + width / 2, top + height - this.padding);
 
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
 
+        /*
+         * **context 只 translate 到原点**（底部中心再抬一个 padding），
+         * 缩放偏移全部进 `matrix` —— 网格和节点共用同一个换算入口。
+         */
         if (anchor) {
             /*
-             * 缩放中心用**按下时锁定**的 `zoomPointer`，不是实时的
-             * `magnifier.pointer` —— 后者拖动时每帧都变，画面会跟着鼠标跑。
+             * 缩放中心用**按下时锁定**的 `zoomPointer`（相对原点的像素），
+             * 不是实时的 `magnifier.pointer` —— 后者拖动时每帧都变。
              */
-            const pointer = this.zoomPointer ?? {
-                x: left + width / 2,
-                y: top + height - this.padding,
-            };
-            /*
-             * 以**按住的那一点**为中心缩放：世界点 `anchor` 始终落在手指
-             * 所在的那一像素上，而不是被搬到画布中心（那样一放大整个画面
-             * 会跳一下，手底下的东西跑掉）。
-             *
-             * 偏移放进 **context**，不是只放进 `matrix`：网格是 `drawCoordination`
-             * 里按像素算的（不经过 `matrix`），只改 `matrix` 的话网格不动、
-             * 节点乱跑 —— 两边就对不上了。
-             */
-            const px = pointer.x - (left + width / 2);
-            const py = pointer.y - (top + height - this.padding);
-
-            this.context.translate(
-                left + width / 2 + px,
-                top + height - this.padding + py,
-            );
-            this.zoomOffset = { x: px, y: py };
+            const pointer = this.zoomPointer ?? { x: 0, y: 0 };
 
             this.matrix = identity
+                .translate(pointer.x, pointer.y)
                 .scale(this.positionRatio, -this.timeRatio)
                 .translate(-anchor.x, -(anchor.y - this.lastBeats));
         } else {
-            this.zoomOffset = { x: 0, y: 0 };
-            this.context.translate(left + width / 2, top + height - this.padding);
             this.matrix = identity
                 .translate(this.positionBasis, 0)
                 .scale(positionRatio, -timeRatio);
@@ -1629,38 +1595,22 @@ export class NotesEditor extends EventTarget {
         const height = viewportHeight - padding * 2;
 
         /*
-         * 网格和节点必须用同一个世界原点：
-         *   · 平时是 `positionBasis` / `beats`（用户视野）；
-         *   · 放大时是 `zoomAnchor`（`matrix` 也是围绕它平移的）。
-         * 不统一的话网格不动、节点被搬走 —— 看起来就是"网格错位"。
+         * 网格一律**过 `matrix`**，和节点同一套换算 —— 不再手算
+         * `value * ratio + basis`，那样放大时必然和节点错位。
+         *
+         * 屏幕四边（相对 context 原点）：横向 `±viewportWidth/2`；
+         * 纵向因为原点在底部中心再抬一个 padding，是
+         * `[-(viewportHeight - padding), padding]`。
          */
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
-        const originX = anchor ? -anchor.x : positionBasis;
-        const originY = anchor ? anchor.y : beats;
+        const centerBeats = anchor ? anchor.y : beats;
 
-        /*
-         * 网格要铺到**屏幕边缘**，不能按 `±width/2` 算：放大时 context 原点
-         * 被平移了 `zoomOffset`，还用 `±width/2` 会让一侧缺一整块（表现为
-         * "左边一片灰"）、标签被推出画布。
-         *
-         * 下面这几个是屏幕四边在"context 原点坐标系"里的位置。
-         */
-        const screenLeft = -viewportWidth / 2 - this.zoomOffset.x;
-        const screenRight = viewportWidth / 2 - this.zoomOffset.x;
-        /*
-         * 音符画布的原点**不在中心**：`updateMatrix` 把它放在
-         * `(left + width/2, top + height - padding)`，即底部中心再抬一个
-         * `padding`。所以纵向要按"原点下方像素"算，不能套 `±height/2`。
-         */
-        const screenTop = -(viewportHeight - padding) - this.zoomOffset.y;
-        const screenBottom = padding - this.zoomOffset.y;
+        const halfW = viewportWidth / 2;
+        const screenTop = -(viewportHeight - padding);
+        const screenBottom = padding;
 
         context.textAlign = "left";
 
-        /*
-         * 清屏 / 铺底色走**屏幕坐标**：放大时 context 原点被平移了
-         * （见 `updateMatrix`），还按 `-viewportWidth/2` 算会留下一圈残影。
-         */
         context.save();
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, canvas.width, canvas.height);
@@ -1674,9 +1624,9 @@ export class NotesEditor extends EventTarget {
         context.save();
         context.lineWidth = 5;
         context.strokeStyle = "#EEE";
-        const textPosX = screenLeft + 10;
+        const textPosX = -halfW + 10;
         // 基线
-        drawLine(context, screenLeft, 0, screenRight, 0);
+        drawLine(context, -halfW, 0, halfW, 0);
 
         context.fillStyle = "#EEE6";
         context.fillText(`Kipphi v${VERSION}`, textPosX, -70);
@@ -1690,15 +1640,14 @@ export class NotesEditor extends EventTarget {
         // 放大时把网格按 2 的幂细分：不然放大后一格稀得没法对齐（TODO #8）
         const sub = this.gridSubdivision();
         const positionStep = positionGridSpan / sub;
-        // 计算上下界
-        const upperEnd =
-            Math.ceil(
-                (screenRight - originX) / positionStep / positionRatio,
-            ) * positionStep;
-        const lowerEnd =
-            Math.ceil(
-                (screenLeft - originX) / positionStep / positionRatio,
-            ) * positionStep;
+
+        // 屏幕左右边缘对应的世界 x（反解一次，用来定遍历范围）
+        const leftWorld = new Coordinate(-halfW, 0).mul(this.matrixInverted).x;
+        const rightWorld = new Coordinate(halfW, 0).mul(this.matrixInverted).x;
+
+        const upperEnd = Math.ceil(rightWorld / positionStep) * positionStep;
+        const lowerEnd = Math.ceil(leftWorld / positionStep) * positionStep;
+
         context.strokeStyle = context.fillStyle = this.positionGridColor;
         context.lineWidth = 1;
         context.textAlign = "center";
@@ -1708,7 +1657,7 @@ export class NotesEditor extends EventTarget {
             value < upperEnd;
             value += positionStep
         ) {
-            const positionX = value * positionRatio + originX;
+            const positionX = new Coordinate(value, 0).mul(this.matrix).x;
             const major =
                 Math.abs(value / positionGridSpan - Math.round(value / positionGridSpan)) < 1e-6;
 
@@ -1727,18 +1676,22 @@ export class NotesEditor extends EventTarget {
 
         context.strokeStyle = this.timeGridColor;
         // 绘制时间线
-        const startBeats = Math.floor(originY - timeSpan / this.gridSubdivision());
-        const stopBeats = Math.ceil(originY + timeSpan / this.gridSubdivision());
+        const startBeats = Math.floor(centerBeats - timeSpan / sub);
+        const stopBeats = Math.ceil(centerBeats + timeSpan / sub);
         context.lineWidth = 3;
         const attachableTimes = [];
         const map = new Map<number, TimeT>();
         const timeDivisor = this.timeDivisor;
+
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
-            const positionY = (time - originY) * timeRatio;
-            drawLine(context, screenLeft, -positionY, screenRight, -positionY);
+            const positionY = new Coordinate(0, time - beats).mul(
+                this.matrix,
+            ).y;
+
+            drawLine(context, -halfW, positionY, halfW, positionY);
             context.save();
             context.fillStyle = this.timeGridColor;
-            context.fillText(time + "", screenRight - padding, -positionY - 4);
+            context.fillText(time + "", halfW - padding, positionY - 4);
 
             attachableTimes.push(time);
             map.set(time, [time, 0, timeDivisor]);
@@ -1757,18 +1710,14 @@ export class NotesEditor extends EventTarget {
             for (let i = 1; i < minorDivisor; i++) {
                 const minorBeats =
                     time + (i / minorDivisor) * timeGridSpan;
-                const minorPosY = (minorBeats - originY) * timeRatio;
+                const minorY = new Coordinate(0, minorBeats - beats).mul(
+                    this.matrix,
+                ).y;
 
                 map.set(minorBeats, [time, i, minorDivisor]);
                 attachableTimes.push(minorBeats);
 
-                drawLine(
-                    context,
-                    screenLeft,
-                    -minorPosY,
-                    screenRight,
-                    -minorPosY,
-                );
+                drawLine(context, -halfW, minorY, halfW, minorY);
             }
             context.restore();
         }
@@ -1777,7 +1726,7 @@ export class NotesEditor extends EventTarget {
 
         if (this.showsNNNListAttachable) {
             const nnnList = this.operationList.chart.nnnList;
-            this.lookList(nnnList, startBeats, stopBeats, originY);
+            this.lookList(nnnList, startBeats, stopBeats, beats);
         }
         //*/
     }
@@ -1789,8 +1738,8 @@ export class NotesEditor extends EventTarget {
     ) {
         const startNode = nnnList.getNodeAt(startBeats);
         const endNode = nnnList.getNodeAt(stopBeats);
-        const { attachableTimes, timeMap, context, timeRatio } = this;
-        const width = this.clippingRect[2] - 2 * this.padding;
+        const { attachableTimes, timeMap, context } = this;
+        const halfW = this.clippingRect[2] / 2;
         context.save();
         context.setLineDash([10, 10]);
         context.lineWidth = 2;
@@ -1802,8 +1751,12 @@ export class NotesEditor extends EventTarget {
         ) {
             const time: TimeT = (node as NoteNode | NNNode).startTime;
             const nodeBeats = TC.toBeats(time);
-            const posY = (nodeBeats - beats) * timeRatio;
-            drawLine(context, -width / 2, -posY, width / 2, -posY);
+            // 同样过 `matrix`，放大时才和别的网格线对齐
+            const posY = new Coordinate(0, nodeBeats - beats).mul(
+                this.matrix,
+            ).y;
+
+            drawLine(context, -halfW, posY, halfW, posY);
             if (
                 node instanceof NNNode &&
                 node.noteNodes.length === 1 &&
