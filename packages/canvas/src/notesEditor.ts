@@ -1450,6 +1450,18 @@ export class NotesEditor extends EventTarget {
                 this.state = NotesEditorState.select;
         }
     }
+    /**
+     * 放大时的网格细分倍数。
+     *
+     * 按 2 的幂取整（1x → 1、2x~3x → 2、4x~7x → 4…）：连续倍率会让步长变成
+     * 非整数，网格每帧漂一点点，看起来像在抖。
+     */
+    private gridSubdivision(
+        zoom = this.magnifier.zooming ? this.magnifier.zoom : 1
+    ): number {
+        return 2 ** Math.max(0, Math.floor(Math.log2(Math.max(1, zoom))));
+    }
+
     updateMatrix() {
         const {
             // timeSpan,
@@ -1525,35 +1537,41 @@ export class NotesEditor extends EventTarget {
         context.restore();
 
         // 绘制x坐标线
+        // 放大时把网格按 2 的幂细分：不然放大后一格稀得没法对齐（TODO #8）
+        const sub = this.gridSubdivision();
+        const positionStep = positionGridSpan / sub;
         // 计算上下界
         const upperEnd =
             Math.ceil(
-                (width / 2 - positionBasis) / positionGridSpan / positionRatio,
-            ) * positionGridSpan;
+                (width / 2 - positionBasis) / positionStep / positionRatio,
+            ) * positionStep;
         const lowerEnd =
             Math.ceil(
-                (-width / 2 - positionBasis) / positionGridSpan / positionRatio,
-            ) * positionGridSpan;
+                (-width / 2 - positionBasis) / positionStep / positionRatio,
+            ) * positionStep;
         context.strokeStyle = context.fillStyle = this.positionGridColor;
         context.lineWidth = 1;
         context.textAlign = "center";
-        let odd = true;
+
         for (
             let value = lowerEnd;
             value < upperEnd;
-            value += positionGridSpan
+            value += positionStep
         ) {
             const positionX = value * positionRatio + positionBasis;
+            const major =
+                Math.abs(value / positionGridSpan - Math.round(value / positionGridSpan)) < 1e-6;
+
             drawLine(context, positionX, -height + padding, positionX, 0);
-            if (odd) {
+
+            // 数字只标在原网格上，细分线不标
+            if (major) {
                 context.fillText(
                     Math.round(value) + "",
                     positionX,
                     -height + padding,
                 );
             }
-            odd = !odd;
-            // debugger
         }
         context.textAlign = "right";
 
@@ -1576,11 +1594,26 @@ export class NotesEditor extends EventTarget {
             map.set(time, [time, 0, timeDivisor]);
 
             context.lineWidth = 1;
-            for (let i = 1; i < timeDivisor; i++) {
-                const minorBeats = time + i / timeDivisor;
+
+            /*
+             * 小刻度也按放大倍数细分：`minorDivisor = timeDivisor * sub`。
+             *
+             * **吸附点只保留原来那几格**（`i % sub === 0`）—— 加密的是视觉
+             * 参考线，不是可落子的位置。否则放大后拖出来的会是
+             * `[3, 5, 16]` 这种奇怪的时间，导出谱面会变脏。
+             */
+            const minorDivisor = timeDivisor * sub;
+
+            for (let i = 1; i < minorDivisor; i++) {
+                const minorBeats =
+                    time + (i / minorDivisor) * timeGridSpan;
                 const minorPosY = (minorBeats - beats) * timeRatio;
-                map.set(minorBeats, [time, i, timeDivisor]);
-                attachableTimes.push(minorBeats);
+
+                if (i % sub === 0) {
+                    map.set(minorBeats, [time, i / sub, timeDivisor]);
+                    attachableTimes.push(minorBeats);
+                }
+
                 drawLine(
                     context,
                     -width / 2,
@@ -1883,13 +1916,21 @@ export class NotesEditor extends EventTarget {
             this.padding,
             this.magnifier.pointer
         );
+        const { context } = this;
 
-        this.magnifier.drawInset(
-            this.context,
-            rect,
-            (context, scale, anchor) =>
-                this.paintMagnified(context, scale, anchor, rect[2])
+        /*
+         * 必须先把变换清成屏幕坐标：`drawPreview` 出来时 context 还带着相机
+         * 变换（`translate` + 缩放），直接画的话局部视图会跑到画布外面 ——
+         * 表现就是"根本没显示"。
+         */
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
+
+        this.magnifier.drawInset(context, rect, (inner, scale, anchor) =>
+            this.paintMagnified(inner, scale, anchor, rect[2])
         );
+
+        context.restore();
     }
 
     /**
@@ -1915,8 +1956,10 @@ export class NotesEditor extends EventTarget {
         context.strokeStyle = "rgba(255, 255, 255, 0.14)";
         context.lineWidth = 1;
 
-        const gridX = this.positionGridSpan * unitX;
-        const gridT = this.timeGridSpan * unitT;
+        // 局部视图比主视图再高一档，网格也跟着再细一档
+        const subLocal = this.gridSubdivision(this.magnifier.localZoom);
+        const gridX = (this.positionGridSpan / subLocal) * unitX;
+        const gridT = (this.timeGridSpan / subLocal) * unitT;
         const steps = 6;
 
         for (let i = -steps; i <= steps; i += 1) {
