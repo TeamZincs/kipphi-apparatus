@@ -1887,9 +1887,11 @@ import {
 } from "./ui";
 import { ButtonManager, type CanvasButton } from "./buttonManager";
 import {
+    drawBeatLabel,
     formatGridValue,
     insetRect,
     Magnifier,
+    splitBeats,
     ZOOM_LEVELS,
 } from "./magnifier";
 
@@ -3586,10 +3588,15 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         }
 
         // ---------- 时间网格（横线，每根都标数值）----------
-        // 时间方向同理：主视图的拍网格再细分一档
+        /*
+         * 和主视图同一条公式：主视图一拍里有 `timeDivisor` 个小格，
+         * 小窗是下一档（再细一倍）。漏掉 `timeDivisor` 的话密度会比
+         * 主视图稀一大截，看起来"没跟上"。
+         */
+        const timeDivisor = this.parentEditorSet.timeDivisor;
         const timeStep =
             (this.timeGridInterval > 0 ? this.timeGridInterval : 1) /
-            stepFactor;
+            (timeDivisor * stepFactor);
         const startBeat =
             Math.ceil((anchor.y - halfBeats) / timeStep) * timeStep;
 
@@ -3603,11 +3610,21 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             context.lineTo(half, y);
             context.stroke();
 
+            // 拍数用带分数写：`2 1/4` 画成上下两行 + 一条横线
+            const { whole, numerator, denominator } = splitBeats(
+                beat,
+                timeStep
+            );
+
             context.fillStyle = "rgba(160, 210, 255, 0.95)";
-            context.fillText(
-                formatGridValue(beat, timeStep),
+            drawBeatLabel(
+                context,
                 -half + 2,
-                Math.max(-half + 2, y + 2)
+                Math.max(-half + 6, y),
+                whole,
+                numerator,
+                denominator,
+                Math.max(9, Math.round(size * 0.075))
             );
         }
 
@@ -3649,15 +3666,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
 
         context.restore();
 
-        // 被按住的节点就在中心，最后画、压在别的节点上面
-        this.paintNode(
-            context,
-            -this.nodeWidth / 2,
-            -this.nodeHeight / 2,
-            this.nodeWidth,
-            this.nodeHeight,
-            NODE_LINKED_COLOR,
-        );
+        /*
+         * 指针位置：画成**绿色半透明小球**，不要长得像节点 ——
+         * 否则会和"被按住的节点"混淆。
+         */
+        context.fillStyle = "rgba(80, 220, 140, 0.45)";
+        context.beginPath();
+        context.arc(0, 0, Math.max(5, this.nodeWidth * 0.3), 0, Math.PI * 2);
+        context.fill();
     }
 
     attachableValues: number[] = [];
