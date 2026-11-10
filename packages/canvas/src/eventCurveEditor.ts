@@ -388,7 +388,8 @@ export class EventSequenceEditors extends EventTarget {
                 (this.modesVisible && this.modeButtons.press(point.x, point.y)) ||
                 this.navButtons.press(point.x, point.y) ||
                 // 总览里框选按钮不画，也不能被点中
-                (this.modesVisible && this.scopeButtons.press(point.x, point.y))
+                (this.modesVisible && this.scopeButtons.press(point.x, point.y)) ||
+                this.zoomButtons.press(point.x, point.y)
             ) {
                 // 记住这次按下属于按钮：松手时**不能**再交给编辑器，
                 // 否则它的 upHandler 会把刚切好的模式又改回去（表现为"切了没用"）
@@ -443,6 +444,7 @@ export class EventSequenceEditors extends EventTarget {
             this.modeButtons.release(point.x, point.y);
             this.navButtons.release(point.x, point.y);
             this.scopeButtons.release(point.x, point.y);
+            this.zoomButtons.release(point.x, point.y);
 
             if (this.buttonPressed) {
                 this.buttonPressed = false;
@@ -552,6 +554,20 @@ export class EventSequenceEditors extends EventTarget {
         y: 14 + (40 + 6) * 2,
         gap: 6,
         align: "right"
+    });
+
+    /**
+     * 放大镜档位：**纵向**一列，贴左上角。
+     *
+     * 右上角被三排工具栏占着，塞进去会挤成一长条；纵向排也符合
+     * "逐级放大"的语义。
+     */
+    readonly zoomButtons = new ButtonManager("screen", {
+        kind: "column",
+        x: 14,
+        y: 14,
+        size: 40,
+        step: 46
     });
 
     /** 模式按钮当前是否可见（总览里不显示） */
@@ -871,9 +887,7 @@ export class EventSequenceEditors extends EventTarget {
                 icon: "info" as IconName,
                 disabled: !this.activatedEditor.selectedNode,
                 onClick: () => this.dispatchEvent(new Event("inspect"))
-            },
-            // 放大镜档位：按住节点时才出现
-            ...this.activatedEditor.magnifierButtons()
+            }
         );
 
         return buttons;
@@ -953,6 +967,11 @@ export class EventSequenceEditors extends EventTarget {
         if (this.modesVisible) {
             this.scopeButtons.draw(context, this.scopeButtonList());
         }
+
+        this.zoomButtons.draw(
+            context,
+            this.activatedEditor.magnifierButtons()
+        );
 
         context.restore();
     }
@@ -1335,7 +1354,12 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     drawMagnifier(): void {
         if (!this.magnifier.active) return;
 
-        const rect = insetRect(this.innerWidth, this.innerHeight, 10);
+        const rect = insetRect(
+            this.innerWidth,
+            this.innerHeight,
+            10,
+            this.magnifier.pointer
+        );
         const { context } = this;
 
         // 工具栏和局部视图都画在**屏幕坐标**上（子编辑器 draw 里是相机变换）
@@ -1620,7 +1644,13 @@ export abstract class EventSequenceEditorBase extends EventTarget {
 
         context.lineWidth = 3;
 
-        const yZero = innerHeight * timeBasis;
+        /*
+         * 用 `timeSpan * timeBasis * timeRatio` 而不是 `innerHeight * timeBasis`：
+         * 矩阵里的 y 平移是 `-timeSpan * timeBasis`（会随 `timeRatio` 一起被
+         * 放大镜缩放），网格这边拿固定的 `innerHeight` 算，放大后两边就对不齐
+         * —— 节点会跑到格点外面。未放大时两者相等（`timeRatio = innerHeight/timeSpan`）。
+         */
+        const yZero = this.timeSpan * timeBasis * timeRatio;
         const stopBeats =
             Math.ceil(
                 (beats + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
@@ -2391,10 +2421,14 @@ export abstract class EventSequenceEditor<
             return;
         }
 
-        this.magnifier.focus({
-            x: (node as EventStartNode<VT>).value as number,
-            y: TC.toBeats(node.time),
-        });
+        this.magnifier.focus(
+            {
+                x: (node as EventStartNode<VT>).value as number,
+                y: TC.toBeats(node.time),
+            },
+            // 手指位置决定局部视图放哪一角（别被挡住）
+            this.canvasPoint
+        );
     }
     nodesSelection: Set<EventStartNode<VT>> = new Set();
 
@@ -2723,7 +2757,13 @@ export abstract class EventSequenceEditor<
 
         context.lineWidth = 3;
 
-        const yZero = innerHeight * timeBasis;
+        /*
+         * 用 `timeSpan * timeBasis * timeRatio` 而不是 `innerHeight * timeBasis`：
+         * 矩阵里的 y 平移是 `-timeSpan * timeBasis`（会随 `timeRatio` 一起被
+         * 放大镜缩放），网格这边拿固定的 `innerHeight` 算，放大后两边就对不齐
+         * —— 节点会跑到格点外面。未放大时两者相等（`timeRatio = innerHeight/timeSpan`）。
+         */
+        const yZero = this.timeSpan * timeBasis * timeRatio;
         const stopBeats =
             Math.ceil(
                 (beats + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
@@ -3561,6 +3601,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                         ) !== null;
                     // 放大镜以这个节点为中心（松手才收起）
                     this.focusMagnifier();
+                    // 按住不动也要把局部视图画出来，不等下一次 move
+                    this.parentEditorSet.draw(this.lastBeats);
                     this.dispatchEvent(
                         new KPANodeSelectedEvent(this.selectedNode),
                     );

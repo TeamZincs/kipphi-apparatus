@@ -102,13 +102,25 @@ describe("Magnifier", () => {
 });
 
 describe("insetRect", () => {
-    it("画在右侧，边长不超过画布宽度的 30%", () => {
+    it("默认画在左下角，边长不超过画布宽度的 30%", () => {
         const [left, top, size, height] = insetRect(400, 800, 10);
 
         expect(size).toBeCloseTo(120, 5);
         expect(height).toBe(size);
-        expect(top).toBe(10);
-        expect(left).toBe(400 - size - 10);
+        expect(left).toBe(10);
+        expect(top).toBe(800 - size - 10);
+    });
+
+    it("手指压在左下角时挪到右下角", () => {
+        const [left] = insetRect(400, 800, 10, { x: 40, y: 700 });
+
+        expect(left).toBe(400 - 120 - 10);
+    });
+
+    it("手指在别处时仍然留在左下角", () => {
+        expect(insetRect(400, 800, 10, { x: 40, y: 40 })[0]).toBe(10);
+        // 右下角的手指也不影响（局部视图本来就在左边）
+        expect(insetRect(400, 800, 10, { x: 360, y: 700 })[0]).toBe(10);
     });
 
     it("窄画布下也不会超过高度的一半", () => {

@@ -28,16 +28,28 @@ export interface MagnifierAnchor {
     y: number;
 }
 
-/** 局部视图画在画布右侧：宽 = min(画布宽 * 0.3, 160)，正方形 */
+/**
+ * 局部视图的位置：默认**左下角**，手指正好压在左下就换到右下角。
+ *
+ * 放右上会被工具栏挡住（按钮在那儿），放顶部又容易被手掌盖住 —— 手指按住
+ * 元素时，空着的通常是它对面的那个角。
+ */
 export function insetRect(
     width: number,
     height: number,
-    padding: number
+    padding: number,
+    pointer?: { x: number; y: number } | null
 ): [number, number, number, number] {
     const size = Math.min(Math.min(width * 0.3, 160), height * 0.4);
-    const left = width - size - padding;
+    const top = height - size - padding;
+    const left = padding;
+    const right = width - size - padding;
 
-    return [left, padding, size, size];
+    // 手指在左下象限 → 挪到右下，别挡住
+    const covered =
+        !!pointer && pointer.x < width / 2 && pointer.y > height / 2;
+
+    return [covered ? right : left, top, size, size];
 }
 
 export class Magnifier {
@@ -53,6 +65,13 @@ export class Magnifier {
 
     /** 局部视图的中心（世界坐标）；为 `null` 时不画局部视图 */
     anchor: MagnifierAnchor | null = null;
+
+    /**
+     * 按住的那一下在画布上的位置（屏幕坐标）。
+     *
+     * 用来决定局部视图放左下还是右下 —— 别被手指挡住。
+     */
+    pointer: { x: number; y: number } | null = null;
 
     /** 当前生效的倍率（动画中是插值） */
     get zoom(): number {
@@ -95,13 +114,14 @@ export class Magnifier {
     }
 
     /** 按住元素时定住局部视图中心 */
-    focus(anchor: MagnifierAnchor): void {
+    focus(anchor: MagnifierAnchor, pointer?: { x: number; y: number }): void {
         const changed =
             !this.anchor ||
             this.anchor.x !== anchor.x ||
             this.anchor.y !== anchor.y;
 
         this.anchor = anchor;
+        this.pointer = pointer ?? null;
 
         // 换了元素就从头开始（档位也回 1x）
         if (changed) this.setIndex(0, true);
@@ -110,6 +130,7 @@ export class Magnifier {
     /** 松手：回到 1x，并收起局部视图 */
     reset(): void {
         this.anchor = null;
+        this.pointer = null;
         this.setIndex(0, true);
     }
 

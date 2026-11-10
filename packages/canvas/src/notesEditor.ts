@@ -227,8 +227,8 @@ export class NotesEditor extends EventTarget {
     /** 放大镜：按住音符时放大主视图 + 侧边局部视图 */
     readonly magnifier = new Magnifier();
 
-    /** 进放大镜之前的横向朝向（松手还原） */
-    private zoomBaseline: number | null = null; // 取消弱引用的使用
+    /** 进放大镜之前的视野（松手还原） */
+    private zoomBaseline: { positionBasis: number; beats: number } | null = null; // 取消弱引用的使用
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -543,6 +543,20 @@ export class NotesEditor extends EventTarget {
         gap: 6
     });
 
+    /**
+     * 放大镜档位：**纵向**一列，贴右上角。
+     *
+     * 之前塞在第二排末尾，横向排成一长条，档位一多就横穿整个画布；
+     * 纵向排也更符合"逐级放大"的语义。
+     */
+    readonly zoomButtons = new ButtonManager("screen", {
+        kind: "column",
+        x: 0,
+        y: 14,
+        size: 40,
+        step: 46
+    });
+
     /** 切到上一条 / 下一条判定线，并通知页面（它才是 `selectedLineId` 的拥有者） */
     private stepLine(delta: number): void {
         const chart = this.operationList?.chart;
@@ -611,10 +625,14 @@ export class NotesEditor extends EventTarget {
             return;
         }
 
-        this.magnifier.focus({
-            x: note.positionX,
-            y: TC.toBeats(note.startTime),
-        });
+        this.magnifier.focus(
+            {
+                x: note.positionX,
+                y: TC.toBeats(note.startTime),
+            },
+            // 手指位置决定局部视图放哪一角（别被挡住）
+            this.canvasPoint
+        );
     }
 
     /** 第二排按钮表 */
@@ -702,8 +720,6 @@ export class NotesEditor extends EventTarget {
                     this.dispatchEvent(new Event("inspect"));
                 },
             },
-            // 放大镜档位：按住元素时才出现；点第 N 个就到 N 档
-            ...this.magnifierButtons(),
         ];
     }
 
@@ -844,6 +860,17 @@ export class NotesEditor extends EventTarget {
         this.buttons.draw(this.context, this.toolbarButtons());
         this.navButtons.draw(this.context, this.navButtonList());
         this.scopeButtons.draw(this.context, this.scopeButtonList());
+
+        // 档位按钮贴右边缘：x 依赖画布宽度，每帧重算
+        this.zoomButtons.setLayout({
+            kind: "column",
+            x: this.context.canvas.width - 40 - 14,
+            y: 14,
+            size: 40,
+            step: 46
+        });
+        this.zoomButtons.draw(this.context, this.magnifierButtons());
+
         this.context.restore();
     }
 
@@ -898,7 +925,8 @@ export class NotesEditor extends EventTarget {
         const hit =
             this.buttons.press(x, y) !== null ||
             this.navButtons.press(x, y) !== null ||
-            this.scopeButtons.press(x, y) !== null;
+            this.scopeButtons.press(x, y) !== null ||
+            this.zoomButtons.press(x, y) !== null;
 
         this.toolbarPressed = hit;
 
@@ -1295,6 +1323,8 @@ export class NotesEditor extends EventTarget {
                     this.selectedNote = isTail ? tar.note : tar;
                     // 放大镜以这个音符为中心（松手才收起）
                     this.focusMagnifier();
+                    // 按住不动也得把局部视图画出来 —— 否则要等下一次 move 才看得见
+                    this.draw(this.lastBeats);
                     this.dispatchEvent(
                         new KPANoteSelectedEvent(this.selectedNote),
                     );
@@ -1337,6 +1367,7 @@ export class NotesEditor extends EventTarget {
             this.buttons.release(point.x, point.y);
             this.navButtons.release(point.x, point.y);
             this.scopeButtons.release(point.x, point.y);
+            this.zoomButtons.release(point.x, point.y);
         }
 
         // 这次手势属于按钮（onRelease 已在上面处理过），别再走画布那套
@@ -1620,11 +1651,22 @@ export class NotesEditor extends EventTarget {
         const magnified = this.magnifier.anchor;
 
         if (magnified && this.magnifier.zooming) {
-            this.zoomBaseline ??= this.positionBasis;
+            this.zoomBaseline ??= {
+                positionBasis: this.positionBasis,
+                beats: this.lastBeats,
+            };
             this.positionBasis = -magnified.x;
             beats = magnified.y - this.timeSpan / (2 * this.magnifier.zoom);
+
+            /*
+             * `lastBeats` 必须同步：`moveHandler` 里算绝对拍用的是
+             * `y + this.lastBeats`。不同步的话拖出来的时刻和手指对不上，
+             * 放大倍数越大偏得越远。
+             */
+            this.lastBeats = beats;
         } else if (this.zoomBaseline !== null) {
-            this.positionBasis = this.zoomBaseline;
+            this.positionBasis = this.zoomBaseline.positionBasis;
+            this.lastBeats = this.zoomBaseline.beats;
             this.zoomBaseline = null;
         }
 
@@ -1834,8 +1876,13 @@ export class NotesEditor extends EventTarget {
     private drawMagnifier(): void {
         if (!this.magnifier.active) return;
 
-        const [left, top, width, height] = this.clippingRect;
-        const rect = insetRect(width, height, this.padding);
+        const [, , width, height] = this.clippingRect;
+        const rect = insetRect(
+            width,
+            height,
+            this.padding,
+            this.magnifier.pointer
+        );
 
         this.magnifier.drawInset(
             this.context,
