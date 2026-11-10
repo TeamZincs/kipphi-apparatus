@@ -53,33 +53,6 @@ export function insetRect(
 }
 
 /**
- * 按**可见范围**挑一个好看的网格步长（1 / 2 / 5 × 10ⁿ）。
- *
- * 局部视图不能直接套主视图的绝对步长：`moveX` 的 `valueGridSpan` 是 1，
- * 而值域有 1350 —— 160px 的小窗格里塞一千多条线就是一片实心。
- *
- * @param visibleSpan 窗口里能装下的世界长度
- * @param target      期望画几条线（4~6 比较舒服）
- */
-export function pickGridStep(visibleSpan: number, target = 5): number {
-    if (!(visibleSpan > 0) || !(target > 0)) return 1;
-
-    const rough = visibleSpan / target;
-    const power = 10 ** Math.floor(Math.log10(rough));
-    const candidates = [power, power * 2, power * 5, power * 10];
-
-    let best = candidates[0]!;
-
-    for (const candidate of candidates) {
-        if (Math.abs(candidate - rough) < Math.abs(best - rough)) {
-            best = candidate;
-        }
-    }
-
-    return best;
-}
-
-/**
  * 网格线标签：整数步长不带小数，小数步长按**步长自己的位数**补零。
  *
  * 不能用 `-log10(step)` 估位数：`0.25` 会算成 1 位，写出 "0.3"。

@@ -1849,7 +1849,6 @@ import {
     formatGridValue,
     insetRect,
     Magnifier,
-    pickGridStep,
     ZOOM_LEVELS,
 } from "./magnifier";
 
@@ -3512,12 +3511,19 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         context.textBaseline = "top";
         context.lineWidth = 1;
 
-        // ---------- 值网格（竖线，每根都标数值）----------
         /*
-         * 步长按**窗口可见范围**挑，不能套 `currentValueGridStep`：
-         * 主视图那个对 `moveX` 可能是 1，窗口里一百多个单位就是一片实心。
+         * 局部视图 = 主视图的**下一档**，所以网格也按同一套 `chooseGridStep`
+         * 往前推一档 —— 不另造十进步长，那样和主视图对不上。
          */
-        const valueStep = pickGridStep(halfValue * 2, 5);
+        const stepFactor =
+            this.magnifier.localZoom / Math.max(1, this.magnifier.zoom);
+
+        // ---------- 值网格（竖线，每根都标数值）----------
+        const valueStep = chooseGridStep(
+            this.currentValueGridStep > 0 ? this.currentValueGridStep : 1,
+            stepFactor,
+            lengthOf(this.valueRange),
+        );
         const startValue =
             Math.ceil((anchor.x - halfValue) / valueStep) * valueStep;
 
@@ -3539,7 +3545,10 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         }
 
         // ---------- 时间网格（横线，每根都标数值）----------
-        const timeStep = pickGridStep(halfBeats * 2, 4);
+        // 时间方向同理：主视图的拍网格再细分一档
+        const timeStep =
+            (this.timeGridInterval > 0 ? this.timeGridInterval : 1) /
+            stepFactor;
         const startBeat =
             Math.ceil((anchor.y - halfBeats) / timeStep) * timeStep;
 
@@ -4040,17 +4049,21 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     xPanning = false;
 
     adjust(values: number[]): void {
-        if (this.state !== EventCurveEditorState.select) {
-            return;
-        }
-        const valueRange = this.valueRange;
-        const distinctValueCount = new Set(values).size;
-
         /*
          * 放大 / 横向拖动时视野每帧都在变，必须**无条件**重算 attachable。
-         * 下面两条早退的本意是"没什么变化就别折腾"，这时候不适用。
+         *
+         * 注意 `state` 那条早退也要让路：按住节点时 `state` 是 `selecting`
+         * （不是 `select`），排在前面的 `return` 会让这里永远跑不到 ——
+         * `currentValueGridStep` 就停在初始值 1，局部视图于是一片密线。
          */
         const liveView = this.magnifier.active || this.xPanning;
+
+        if (this.state !== EventCurveEditorState.select && !liveView) {
+            return;
+        }
+
+        const valueRange = this.valueRange;
+        const distinctValueCount = new Set(values).size;
 
         if (
             !liveView &&

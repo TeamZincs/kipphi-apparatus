@@ -39,7 +39,6 @@ import {
     formatGridValue,
     insetRect,
     Magnifier,
-    pickGridStep,
     ZOOM_LEVELS,
 } from "./magnifier";
 import { scaleFont } from "./ui";
@@ -2000,10 +1999,12 @@ export class NotesEditor extends EventTarget {
         context.lineWidth = 1;
 
         /*
-         * 步长按**窗口可见范围**挑，不能套主视图的 `positionGridSpan`：
-         * 那个对 `moveX` 可能是 1，窗口里一百多个单位就是一片实心竖线。
+         * 局部视图 = 主视图的**下一档**，网格也按同一套 `gridSubdivision`
+         * 往前推一档（`drawCoordination` 用 `gridSubdivision(zoom)`，
+         * 这里用 `gridSubdivision(localZoom)`），两边才是同一条规则。
          */
-        const valueStep = pickGridStep(halfValue * 2, 5);
+        const subLocal = this.gridSubdivision(this.magnifier.localZoom);
+        const valueStep = this.positionGridSpan / subLocal;
         const startValue =
             Math.ceil((anchor.x - halfValue) / valueStep) * valueStep;
 
@@ -2024,7 +2025,7 @@ export class NotesEditor extends EventTarget {
             );
         }
 
-        const timeStep = pickGridStep(halfBeats * 2, 4);
+        const timeStep = this.timeGridSpan / subLocal;
         const startBeat =
             Math.ceil((anchor.y - halfBeats) / timeStep) * timeStep;
 
