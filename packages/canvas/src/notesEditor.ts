@@ -1627,6 +1627,16 @@ export class NotesEditor extends EventTarget {
         } = this;
         const width = viewportWidth - padding * 2;
         const height = viewportHeight - padding * 2;
+
+        /*
+         * 网格和节点必须用同一个世界原点：
+         *   · 平时是 `positionBasis` / `beats`（用户视野）；
+         *   · 放大时是 `zoomAnchor`（`matrix` 也是围绕它平移的）。
+         * 不统一的话网格不动、节点被搬走 —— 看起来就是"网格错位"。
+         */
+        const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
+        const originX = anchor ? -anchor.x : positionBasis;
+        const originY = anchor ? anchor.y : beats;
         context.textAlign = "left";
 
         /*
@@ -1665,11 +1675,11 @@ export class NotesEditor extends EventTarget {
         // 计算上下界
         const upperEnd =
             Math.ceil(
-                (width / 2 - positionBasis) / positionStep / positionRatio,
+                (width / 2 - originX) / positionStep / positionRatio,
             ) * positionStep;
         const lowerEnd =
             Math.ceil(
-                (-width / 2 - positionBasis) / positionStep / positionRatio,
+                (-width / 2 - originX) / positionStep / positionRatio,
             ) * positionStep;
         context.strokeStyle = context.fillStyle = this.positionGridColor;
         context.lineWidth = 1;
@@ -1680,7 +1690,7 @@ export class NotesEditor extends EventTarget {
             value < upperEnd;
             value += positionStep
         ) {
-            const positionX = value * positionRatio + positionBasis;
+            const positionX = value * positionRatio + originX;
             const major =
                 Math.abs(value / positionGridSpan - Math.round(value / positionGridSpan)) < 1e-6;
 
@@ -1699,14 +1709,14 @@ export class NotesEditor extends EventTarget {
 
         context.strokeStyle = this.timeGridColor;
         // 绘制时间线
-        const startBeats = Math.floor(beats);
-        const stopBeats = Math.ceil(beats + timeSpan);
+        const startBeats = Math.floor(originY - timeSpan / this.gridSubdivision());
+        const stopBeats = Math.ceil(originY + timeSpan / this.gridSubdivision());
         context.lineWidth = 3;
         const attachableTimes = [];
         const map = new Map<number, TimeT>();
         const timeDivisor = this.timeDivisor;
         for (let time = startBeats; time < stopBeats; time += timeGridSpan) {
-            const positionY = (time - beats) * timeRatio;
+            const positionY = (time - originY) * timeRatio;
             drawLine(context, -width / 2, -positionY, width / 2, -positionY);
             context.save();
             context.fillStyle = this.timeGridColor;
@@ -1729,7 +1739,7 @@ export class NotesEditor extends EventTarget {
             for (let i = 1; i < minorDivisor; i++) {
                 const minorBeats =
                     time + (i / minorDivisor) * timeGridSpan;
-                const minorPosY = (minorBeats - beats) * timeRatio;
+                const minorPosY = (minorBeats - originY) * timeRatio;
 
                 map.set(minorBeats, [time, i, minorDivisor]);
                 attachableTimes.push(minorBeats);
@@ -1749,7 +1759,7 @@ export class NotesEditor extends EventTarget {
 
         if (this.showsNNNListAttachable) {
             const nnnList = this.operationList.chart.nnnList;
-            this.lookList(nnnList, startBeats, stopBeats, beats);
+            this.lookList(nnnList, startBeats, stopBeats, originY);
         }
         //*/
     }

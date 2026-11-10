@@ -1791,15 +1791,20 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         context.lineWidth = 3;
 
         /*
-         * 用 `timeSpan * timeBasis * timeRatio` 而不是 `innerHeight * timeBasis`：
-         * 矩阵里的 y 平移是 `-timeSpan * timeBasis`（会随 `timeRatio` 一起被
-         * 放大镜缩放），网格这边拿固定的 `innerHeight` 算，放大后两边就对不齐
-         * —— 节点会跑到格点外面。未放大时两者相等（`timeRatio = innerHeight/timeSpan`）。
+         * 网格的纵向基准必须和 `matrix` 一致：
+         *   · 平时：`matrix` 平移 `-timeSpan * timeBasis`，网格 `yZero` 取同一个值；
+         *   · 放大时：`matrix` 平移 `-(anchor.y - beats)`，网格也要跟着走。
+         * 两边不一致的话节点会跑到格点外面。
          */
-        const yZero = this.timeSpan * timeBasis * timeRatio;
+        const anchor = this.magnifier?.zooming ? this.zoomAnchor : null;
+        const center = anchor ? anchor.y : beats;
+        const yZero = anchor
+            ? (anchor.y - beats) * timeRatio
+            : this.timeSpan * timeBasis * timeRatio;
+
         const stopBeats =
             Math.ceil(
-                (beats + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
+                (center + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
             ) * timeGridSpan;
         const startBeats =
             Math.ceil(
@@ -2955,15 +2960,20 @@ export abstract class EventSequenceEditor<
         context.lineWidth = 3;
 
         /*
-         * 用 `timeSpan * timeBasis * timeRatio` 而不是 `innerHeight * timeBasis`：
-         * 矩阵里的 y 平移是 `-timeSpan * timeBasis`（会随 `timeRatio` 一起被
-         * 放大镜缩放），网格这边拿固定的 `innerHeight` 算，放大后两边就对不齐
-         * —— 节点会跑到格点外面。未放大时两者相等（`timeRatio = innerHeight/timeSpan`）。
+         * 网格的纵向基准必须和 `matrix` 一致：
+         *   · 平时：`matrix` 平移 `-timeSpan * timeBasis`，网格 `yZero` 取同一个值；
+         *   · 放大时：`matrix` 平移 `-(anchor.y - beats)`，网格也要跟着走。
+         * 两边不一致的话节点会跑到格点外面。
          */
-        const yZero = this.timeSpan * timeBasis * timeRatio;
+        const anchor = this.magnifier?.zooming ? this.zoomAnchor : null;
+        const center = anchor ? anchor.y : beats;
+        const yZero = anchor
+            ? (anchor.y - beats) * timeRatio
+            : this.timeSpan * timeBasis * timeRatio;
+
         const stopBeats =
             Math.ceil(
-                (beats + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
+                (center + this.timeSpan * (0.5 + timeBasis)) / timeGridSpan,
             ) * timeGridSpan;
         const startBeats =
             Math.ceil(
