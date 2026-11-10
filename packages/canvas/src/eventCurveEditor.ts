@@ -3785,13 +3785,13 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.pointedTime = [pointedBeats, beatFraction, timeDivisor];
 
         /*
-         * 局部视图跟着节点走：不刷新的话，拖走以后小窗口还停在原位，
+         * 局部视图跟着指针走：不刷新的话，拖走以后小窗口还停在原位，
          * 看到的是一块空白。`track` 只更新锚点，不动档位 / 动画。
+         *
+         * 传**原始**值而不是 `pointedValue`：后者已经吸附到最近的网格上，
+         * 小窗里的绿球会被横向拽到吸附线上，看起来只有纵向自由。
          */
-        this.magnifier.track(
-            { x: this.pointedValue, y: accurateBeats },
-            this.canvasPoint,
-        );
+        this.magnifier.track({ x: value, y: accurateBeats }, this.canvasPoint);
 
         switch (this.state) {
             case EventCurveEditorState.selecting: {

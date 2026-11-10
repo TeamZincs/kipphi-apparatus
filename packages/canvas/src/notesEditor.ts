@@ -491,13 +491,13 @@ export class NotesEditor extends EventTarget {
         this.pointedTime = timeT;
 
         /*
-         * 局部视图要跟着节点走：不刷新的话，按住拖走以后小窗口还停在原地，
+         * 局部视图要跟着指针走：不刷新的话，按住拖走以后小窗口还停在原地，
          * 看到的是一块空白。这里只更新锚点（`track` 不动档位 / 动画）。
+         *
+         * 传**原始**坐标而不是吸附后的 `pointedPositionX` / `attached`：
+         * 否则小窗里的球会被拽到网格上，只有纵向自由。
          */
-        this.magnifier.track(
-            { x: this.pointedPositionX, y: attached },
-            this.canvasPoint
-        );
+        this.magnifier.track({ x, y: accurateBeats }, this.canvasPoint);
 
         switch (this.state) {
             case NotesEditorState.selecting:
@@ -2066,26 +2066,16 @@ export class NotesEditor extends EventTarget {
 
         context.restore();
 
-        // 音符：和主视图**同一个贴图、同一个尺寸**，只按倍率摆位置
-        const note = this.selectedNote;
-
-        if (!note) return;
-
-        const width = this.noteWidth;
-        const height = this.noteHeight;
-
-        context.drawImage(
-            this.respack.getNoteFromType(note.type),
-            -width / 2,
-            -height / 2,
-            width,
-            height
-        );
-
-        // 中心点：和主视图的选中态一致（细描边，不糊住贴图）
-        context.strokeStyle = "#4c8dff";
-        context.lineWidth = 1.5;
-        context.strokeRect(-width / 2, -height / 2, width, height);
+        /*
+         * 指针位置：和事件小窗一致，画成**绿色半透明小球**。
+         *
+         * 不画音符贴图 —— 那玩意儿在小窗里就是"一个节点"，容易让人以为
+         * 它是可以点/拖的对象，实际这里只是指示手指落在哪。
+         */
+        context.fillStyle = "rgba(80, 220, 140, 0.45)";
+        context.beginPath();
+        context.arc(0, 0, Math.max(5, this.noteWidth * 0.3), 0, Math.PI * 2);
+        context.fill();
     }
     /**
      *
