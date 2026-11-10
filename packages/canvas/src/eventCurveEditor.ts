@@ -1474,9 +1474,18 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      */
     protected zoomAnchor: { x: number; y: number } | null = null;
 
+    /**
+     * 缩放中心在画布上的**屏幕位置**（按下那一刻，锁死）。
+     *
+     * 不能用 `magnifier.pointer`：那个拖动时每帧更新（局部视图靠它选角落），
+     * 拿它当缩放中心会让画面跟着鼠标一起跑 —— 表现为"元素飞到对侧"。
+     */
+    protected zoomPointer: { x: number; y: number } | null = null;
+
     /** 松手 / 取消选中：收起放大镜 */
     resetMagnifier(): void {
         this.zoomAnchor = null;
+        this.zoomPointer = null;
         this.magnifier.reset();
     }
 
@@ -2554,6 +2563,7 @@ export abstract class EventSequenceEditor<
 
         if (!node) {
             this.zoomAnchor = null;
+            this.zoomPointer = null;
             this.magnifier.reset();
 
             return;
@@ -2564,8 +2574,11 @@ export abstract class EventSequenceEditor<
             y: TC.toBeats(node.time),
         };
 
-        // 主视图中心锁在这里；拖动时只有 `magnifier.anchor` 跟手
+        // 主视图中心 / 缩放中心都锁在这里；拖动时只有 `magnifier.anchor` 跟手
         this.zoomAnchor = anchor;
+        this.zoomPointer = this.canvasPoint
+            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
+            : null;
 
         this.magnifier.focus(
             anchor,
@@ -3706,10 +3719,10 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
 
         if (anchor) {
             /*
-             * 指针位置来自 `canvasPoint` —— 桌面端鼠标拖 / 选节点时同样有。
-             * 真没指针（从没碰过画布）就退回内容区中心。
+             * 缩放中心用**按下时锁定**的 `zoomPointer`，不是实时的
+             * `magnifier.pointer` —— 后者拖动时每帧都变，画面会跟着鼠标跑。
              */
-            const pointer = this.magnifier.pointer ?? {
+            const pointer = this.zoomPointer ?? {
                 x: this.clippingRect[0] + this.innerWidth / 2,
                 y: this.clippingRect[1] + this.innerHeight / 2,
             };

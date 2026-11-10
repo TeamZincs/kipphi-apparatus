@@ -241,6 +241,14 @@ export class NotesEditor extends EventTarget {
      * 否则视野会跟着节点一起跑（自激）。
      */
     private zoomAnchor: { x: number; y: number } | null = null; // 取消弱引用的使用
+
+    /**
+     * 缩放中心在画布上的**屏幕位置**（按下那一刻，锁死）。
+     *
+     * 不能用 `magnifier.pointer`：那个拖动时每帧更新（局部视图靠它选角落），
+     * 拿它当缩放中心会让画面跟着鼠标一起跑 —— 表现为"元素飞到对侧"。
+     */
+    private zoomPointer: { x: number; y: number } | null = null;
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -645,6 +653,7 @@ export class NotesEditor extends EventTarget {
 
         if (!note) {
             this.zoomAnchor = null;
+            this.zoomPointer = null;
             this.magnifier.reset();
 
             return;
@@ -655,8 +664,11 @@ export class NotesEditor extends EventTarget {
             y: TC.toBeats(note.startTime),
         };
 
-        // 主视图中心锁在这里；拖动时只有 `magnifier.anchor` 跟手
+        // 主视图中心 / 缩放中心都锁在这里；拖动时只有 `magnifier.anchor` 跟手
         this.zoomAnchor = anchor;
+        this.zoomPointer = this.canvasPoint
+            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
+            : null;
 
         this.magnifier.focus(
             anchor,
@@ -1420,6 +1432,7 @@ export class NotesEditor extends EventTarget {
         // 松手：放大镜回到 1x（选中状态保留）
         this.magnifier.reset();
         this.zoomAnchor = null;
+        this.zoomPointer = null;
 
         const canvasCoord = getCanvasCoordFromEvent(
             event,
@@ -1514,10 +1527,10 @@ export class NotesEditor extends EventTarget {
 
         if (anchor) {
             /*
-             * 指针位置来自 `canvasPoint` —— 桌面端用鼠标拖 / 选元素时同样有，
-             * 不是"只有触屏才有"。真没指针（从没碰过画布）就退回内容区中心。
+             * 缩放中心用**按下时锁定**的 `zoomPointer`，不是实时的
+             * `magnifier.pointer` —— 后者拖动时每帧都变，画面会跟着鼠标跑。
              */
-            const pointer = this.magnifier.pointer ?? {
+            const pointer = this.zoomPointer ?? {
                 x: left + width / 2,
                 y: top + height - this.padding,
             };
