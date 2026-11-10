@@ -29,7 +29,7 @@ import MacroSheet from "./MacroSheet.grain";
     import SheetShell from "./SheetShell.grain";
 
     import { resolveSeekTarget } from "#/playback";
-    import { scheduleSave } from "#/save";
+    import { startAutoSave, stopAutoSave } from "#/save";
     import {
         chart,
         chartId,
@@ -299,11 +299,14 @@ import MacroSheet from "./MacroSheet.grain";
 
             if (ops) {
                 player.watch(ops);
-
-                for (const type of ["do", "undo", "redo"] as const) {
-                    ops.addEventListener(type, () => scheduleSave());
-                }
             }
+
+            /*
+             * 自动保存走固定间隔（和桌面端一样），**不要**挂在每个操作上：
+             * 那样操作间隔超过去抖时间时，每个操作都会生成一个历史版本，
+             * 磁盘很快撑满。
+             */
+            startAutoSave();
 
             if (!musicUrl) player.offlineTime = 0;
 
@@ -968,6 +971,8 @@ import MacroSheet from "./MacroSheet.grain";
             return;
         }
 
+        // 离开谱面就把定时器停掉，别让它在下个页面继续往磁盘里写
+        stopAutoSave();
         back();
     }
 
