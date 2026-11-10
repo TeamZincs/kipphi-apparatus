@@ -3703,9 +3703,16 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
          * 刷新），拿它算会自激。
          */
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
-        const pointer = this.magnifier.pointer;
 
-        if (anchor && pointer) {
+        if (anchor) {
+            /*
+             * 指针位置来自 `canvasPoint` —— 桌面端鼠标拖 / 选节点时同样有。
+             * 真没指针（从没碰过画布）就退回内容区中心。
+             */
+            const pointer = this.magnifier.pointer ?? {
+                x: this.clippingRect[0] + this.innerWidth / 2,
+                y: this.clippingRect[1] + this.innerHeight / 2,
+            };
             /*
              * 以按住的那一点为中心缩放：世界点 `anchor` 始终落在手指所在
              * 的那一像素上，而不是被搬到画布中心（那样一放大画面会跳）。

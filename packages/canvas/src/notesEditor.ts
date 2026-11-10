@@ -1511,9 +1511,16 @@ export class NotesEditor extends EventTarget {
         this.context.translate(left + width / 2, top + height - this.padding);
 
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
-        const pointer = this.magnifier.pointer;
 
-        if (anchor && pointer) {
+        if (anchor) {
+            /*
+             * 指针位置来自 `canvasPoint` —— 桌面端用鼠标拖 / 选元素时同样有，
+             * 不是"只有触屏才有"。真没指针（从没碰过画布）就退回内容区中心。
+             */
+            const pointer = this.magnifier.pointer ?? {
+                x: left + width / 2,
+                y: top + height - this.padding,
+            };
             /*
              * 以**按住的那一点**为中心缩放：世界点 `anchor` 始终落在手指
              * 所在的那一像素上，而不是被搬到画布中心（那样一放大整个画面
