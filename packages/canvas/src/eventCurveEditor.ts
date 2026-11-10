@@ -1278,6 +1278,18 @@ const computeAttach = (sortedAttachable: number[], value: number) => {
  * @param linear 一次函数的两个系数
  * @param range 显示范围
  */
+/**
+ * 去掉浮点误差的尾巴：保留 6 位小数。
+ *
+ * `1.1 * 3` 会得到 `3.3000000000000003`，一路带到网格标签、节点值、导出的
+ * 谱面里都非常难看。所有"算出来的值"落盘 / 落屏之前都过一遍这里。
+ */
+export function roundValue(value: number): number {
+    if (!Number.isFinite(value)) return value;
+
+    return Math.round(value * 1e6) / 1e6;
+}
+
 function generateAttachable(
     linear: [k: number, b: number],
     range: readonly [number, number],
@@ -1292,8 +1304,9 @@ function generateAttachable(
     const startingX = Math.floor((left - b) / k);
     const attachable: number[] = [];
     for (let i = startingX; ; i++) {
-        const val = k * i + b;
-        attachable.push(k * i + b);
+        // 累加出来的值每次都过一遍 `roundValue`，别让误差滚雪球
+        const val = roundValue(k * i + b);
+        attachable.push(val);
         if (val > right) break;
     }
     return attachable;
@@ -1413,7 +1426,11 @@ export function pickValueGridSpan(
     let priority = 0;
 
     for (const raw of values) {
-        const candidate = Math.abs(raw);
+        /*
+         * 节点值本身可能带误差（拖到 5.5 实际是 5.500000000000001），先规整再
+         * 参与整除判断 —— 否则会挑出 `1.1000000000000003` 这种步长。
+         */
+        const candidate = roundValue(Math.abs(raw));
 
         if (!(candidate > 0)) continue;
 
@@ -1428,7 +1445,7 @@ export function pickValueGridSpan(
         }
     }
 
-    span = divideOrMul(span, 10 / (rangeLength / span));
+    span = roundValue(divideOrMul(span, 10 / (rangeLength / span)));
 
     // 兜底：负 / NaN / 0 一律退回类型默认步长
     return span > 0 && Number.isFinite(span) ? span : baseSpan;
@@ -3780,6 +3797,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             [config.valueGridSpan, 0],
             this.valueRange,
         );
+        this.baseValueGridStep = config.valueGridSpan;
 
         this.updateMatrix();
     }
@@ -3894,7 +3912,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             drawLine(context, positionX, top, positionX, bottom);
             const posY =
                 useDifferentPos && i % 2 == 1 ? textPosY + 16 : textPosY;
-            context.fillText(value + "", positionX, posY);
+            // 标签也过一遍 `roundValue`：`5.500000000000001` 直接写出来太丑
+            context.fillText(roundValue(value) + "", positionX, posY);
         }
         context.restore();
     }
@@ -4239,6 +4258,15 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     protected currentValueGridStep = 1;
 
     /**
+     * **1x 时**的值网格步长。
+     *
+     * 拖动 / 放大期间保持不变（`adjust` 里 `liveView` 分支跳过重算），
+     * 免得网格跟着手指一跳一跳；`currentValueGridStep` 是它按倍率细分后的
+     * 实际显示值。
+     */
+    protected baseValueGridStep = 1;
+
+    /**
      * 正在轴向横向拖动（外层 `panBy` 设置）。
      *
      * 这时视野每帧都在变，`attachableValues` 必须无条件重算。
@@ -4299,13 +4327,25 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         // 根据这个值能够整除多少个值。
 
         const baseGridSpan = eventTypeMap[this.type]!.valueGridSpan;
-        const valueGridSpan = this.valueGridInterval
-            ? this.valueGridInterval
-            : pickValueGridSpan(
-                  values,
-                  baseGridSpan,
-                  lengthOf(this.valueRange),
-              );
+
+        /*
+         * 拖动 / 放大期间**不重新分配**步长。
+         *
+         * 拖动过程中节点值每帧都变（6 → 5.5 → 5.3…），跟着它重算会挑出
+         * 1.1、0.7333… 这种诡异的间隔，网格线一帧一变。用户在拖的时候关心的
+         * 是"落在哪根线上"，不是"网格该多密"，所以沿用静止时的步长。
+         */
+        if (!liveView) {
+            this.baseValueGridStep = this.valueGridInterval
+                ? this.valueGridInterval
+                : pickValueGridSpan(
+                      values,
+                      baseGridSpan,
+                      lengthOf(this.valueRange),
+                  );
+        }
+
+        const valueGridSpan = this.baseValueGridStep;
         /*
          * 放大时按倍率细分（`chooseGridStep` 里有条数上下限和整数约束）。
          * 只在 1x 算出来的步长基础上细分，不叠加 —— 否则松手再放大两份，

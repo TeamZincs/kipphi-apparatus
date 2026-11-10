@@ -27,6 +27,7 @@ let pickValueGridSpan: (
     baseSpan: number,
     rangeLength: number
 ) => number;
+let roundValue: (value: number) => number;
 
 beforeAll(async () => {
     const window = new Window();
@@ -42,7 +43,7 @@ beforeAll(async () => {
     };
 
     ({ EventStartNode, EventEndNode } = await import("kipphi"));
-    ({ sameValuePartner, chooseGridStep, pickValueGridSpan } =
+    ({ sameValuePartner, chooseGridStep, pickValueGridSpan, roundValue } =
         await import("./eventCurveEditor"));
 });
 
@@ -200,5 +201,34 @@ describe("pickValueGridSpan（负值不该把网格压成 1）", () => {
     it("正常值仍按能整除最多个数的来", () => {
         // 10 能整除 10 / 20 / 30 三个
         expect(pickValueGridSpan([10, 20, 30], 1, 100)).toBe(10);
+    });
+});
+
+describe("roundValue（去掉浮点误差尾巴）", () => {
+    it("1.1 * 3 不再拖一串 0", () => {
+        expect(roundValue(1.1 * 3)).toBe(3.3);
+    });
+
+    it("5.500000000000001 收敛成 5.5", () => {
+        expect(roundValue(5.500000000000001)).toBe(5.5);
+    });
+
+    it("整数原样返回", () => {
+        expect(roundValue(6)).toBe(6);
+    });
+
+    it("NaN / Infinity 不炸", () => {
+        expect(Number.isNaN(roundValue(NaN))).toBe(true);
+        expect(roundValue(Infinity)).toBe(Infinity);
+    });
+});
+
+describe("拖动产生的脏值不该改网格步长", () => {
+    it("5.500000000000001 不会被当成候选值", () => {
+        // 5.5 不整除 6，命中的还是 6 自己 → 步长是干净的 6（不是 5.5 / 1.1）
+        const span = pickValueGridSpan([6, 5.500000000000001], 1, 100);
+
+        expect(span).toBe(6);
+        expect(Number.isInteger(span)).toBe(true);
     });
 });
