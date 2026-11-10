@@ -617,6 +617,18 @@ export class NotesEditor extends EventTarget {
         this.draw(this.lastBeats);
     }
 
+    /**
+     * 每次切档重新锚定到"此刻的指针位置"。
+     *
+     * 缩放中心不是"按下那一刻"就定死了 —— 用户可能已经拖到别处再点下一档，
+     * 那时候应该以**当前**指针为准。
+     */
+    private reanchorZoom(): void {
+        if (!this.canvasPoint) return;
+
+        this.zoomPointer = { x: this.canvasPoint.x, y: this.canvasPoint.y };
+    }
+
     /** 档位切换的 0.4s 动画：逐帧重绘直到插值结束 */
     private animateZoom(): void {
         if (!this.magnifier.animatingNow) return;
@@ -642,6 +654,7 @@ export class NotesEditor extends EventTarget {
 
         if (!this.magnifier.anchor) return;
 
+        this.reanchorZoom();
         this.magnifier.step(delta);
         this.animateZoom();
         this.draw(this.lastBeats);
@@ -784,6 +797,7 @@ export class NotesEditor extends EventTarget {
                 label: `${ZOOM_LEVELS[level]}x`,
                 active: this.magnifier.levelIndex === level,
                 onClick: () => {
+                    this.reanchorZoom();
                     this.magnifier.setIndex(level);
                     this.animateZoom();
                     this.draw(this.lastBeats);
@@ -1521,7 +1535,6 @@ export class NotesEditor extends EventTarget {
         this.positionRatio = (width * zoom) / this.positionSpan;
         this.timeRatio = (height * zoom) / this.timeSpan;
         this.context.resetTransform();
-        this.context.translate(left + width / 2, top + height - this.padding);
 
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
 
@@ -1539,16 +1552,23 @@ export class NotesEditor extends EventTarget {
              * 所在的那一像素上，而不是被搬到画布中心（那样一放大整个画面
              * 会跳一下，手底下的东西跑掉）。
              *
-             * `px` / `py` 是相对 context 原点（内容区左下中心）的偏移。
+             * 偏移放进 **context**，不是只放进 `matrix`：网格是 `drawCoordination`
+             * 里按像素算的（不经过 `matrix`），只改 `matrix` 的话网格不动、
+             * 节点乱跑 —— 两边就对不上了。
              */
             const px = pointer.x - (left + width / 2);
             const py = pointer.y - (top + height - this.padding);
 
+            this.context.translate(
+                left + width / 2 + px,
+                top + height - this.padding + py,
+            );
+
             this.matrix = identity
-                .translate(px, py)
                 .scale(this.positionRatio, -this.timeRatio)
                 .translate(-anchor.x, -(anchor.y - this.lastBeats));
         } else {
+            this.context.translate(left + width / 2, top + height - this.padding);
             this.matrix = identity
                 .translate(this.positionBasis, 0)
                 .scale(positionRatio, -timeRatio);
@@ -1578,21 +1598,20 @@ export class NotesEditor extends EventTarget {
         const width = viewportWidth - padding * 2;
         const height = viewportHeight - padding * 2;
         context.textAlign = "left";
-        context.clearRect(
-            -viewportWidth / 2,
-            -viewportHeight,
-            viewportWidth,
-            viewportHeight,
-        );
+
+        /*
+         * 清屏 / 铺底色走**屏幕坐标**：放大时 context 原点被平移了
+         * （见 `updateMatrix`），还按 `-viewportWidth/2` 算会留下一圈残影。
+         */
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = "#333d";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.restore();
+
         context.fillStyle = "#333d";
         context.font = `${scaleFont(30, this.canvas.width)}px Phigros`;
-
-        context.fillRect(
-            -viewportWidth / 2,
-            padding - viewportHeight,
-            viewportWidth,
-            viewportHeight,
-        );
 
         context.save();
         context.lineWidth = 5;

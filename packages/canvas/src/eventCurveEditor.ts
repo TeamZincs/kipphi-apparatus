@@ -1559,6 +1559,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
                 label: `${ZOOM_LEVELS[level]}x`,
                 active: this.magnifier.levelIndex === level,
                 onClick: () => {
+                    this.reanchorZoom();
                     this.magnifier.setIndex(level);
                     this.animateZoom();
                     this.parentEditorSet.draw(this.lastBeats);
@@ -1759,19 +1760,17 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         } = this;
 
         const timeDivisor = this.parentEditorSet.timeDivisor;
-        context.clearRect(
-            -boundWidth / 2,
-            -boundHeight / 2,
-            boundWidth,
-            boundHeight,
-        );
+
+        /*
+         * 清屏 / 铺底色走**屏幕坐标**：放大时 context 原点被平移了
+         * （见 `updateMatrix`），还按 `-boundWidth/2` 算会留下一圈残影。
+         */
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         context.fillStyle = "#333d";
-        context.fillRect(
-            -boundWidth / 2,
-            -boundHeight / 2,
-            boundWidth,
-            boundHeight,
-        );
+        context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        context.restore();
         // const beatCents = beats * 100
         // const middleValue = Math.round(-this.basis / this.valueRatio)
         // const basis = -medianOf(valueRange) / lengthOf(valueRange) * this.innerHeight;
@@ -2552,9 +2551,22 @@ export abstract class EventSequenceEditor<
 
         if (!this.magnifier.anchor) return;
 
+        this.reanchorZoom();
         this.magnifier.step(delta);
         this.animateZoom();
         this.parentEditorSet.draw(this.lastBeats);
+    }
+
+    /**
+     * 每次切档重新锚定到"此刻的指针位置"。
+     *
+     * 缩放中心不是"按下那一刻"就定死了 —— 用户可能已经拖到别处再点下一档，
+     * 那时候应该以**当前**指针为准。
+     */
+    reanchorZoom(): void {
+        if (!this.canvasPoint) return;
+
+        this.zoomPointer = { x: this.canvasPoint.x, y: this.canvasPoint.y };
     }
 
     /** 按住节点 → 定住放大镜中心 */
@@ -2889,19 +2901,17 @@ export abstract class EventSequenceEditor<
         } = this;
 
         const timeDivisor = this.parentEditorSet.timeDivisor;
-        context.clearRect(
-            -boundWidth / 2,
-            -boundHeight / 2,
-            boundWidth,
-            boundHeight,
-        );
+
+        /*
+         * 清屏 / 铺底色走**屏幕坐标**：放大时 context 原点被平移了
+         * （见 `updateMatrix`），还按 `-boundWidth/2` 算会留下一圈残影。
+         */
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         context.fillStyle = "#333d";
-        context.fillRect(
-            -boundWidth / 2,
-            -boundHeight / 2,
-            boundWidth,
-            boundHeight,
-        );
+        context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        context.restore();
         // const beatCents = beats * 100
         // const middleValue = Math.round(-this.basis / this.valueRatio)
         // const basis = -medianOf(valueRange) / lengthOf(valueRange) * this.innerHeight;
@@ -3717,26 +3727,38 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
          */
         const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
 
+        const [left, top, width, height] = this.clippingRect;
+
         if (anchor) {
             /*
              * 缩放中心用**按下时锁定**的 `zoomPointer`，不是实时的
              * `magnifier.pointer` —— 后者拖动时每帧都变，画面会跟着鼠标跑。
              */
             const pointer = this.zoomPointer ?? {
-                x: this.clippingRect[0] + this.innerWidth / 2,
-                y: this.clippingRect[1] + this.innerHeight / 2,
+                x: left + this.innerWidth / 2,
+                y: top + this.innerHeight / 2,
             };
             /*
              * 以按住的那一点为中心缩放：世界点 `anchor` 始终落在手指所在
              * 的那一像素上，而不是被搬到画布中心（那样一放大画面会跳）。
              *
-             * `px` / `py` 相对 context 原点 —— 基类把原点放在内容区中心。
+             * 偏移放进 **context**，不是只放进 `matrix`：网格是
+             * `drawCoordination` 里按像素算的（不经过 `matrix`），只改
+             * `matrix` 的话网格不动、节点乱跑 —— 两边就对不上了。
              */
-            const px = pointer.x - (this.clippingRect[0] + this.innerWidth / 2);
-            const py = pointer.y - (this.clippingRect[1] + this.innerHeight / 2);
+            const px = pointer.x - (left + this.innerWidth / 2);
+            const py = pointer.y - (top + this.innerHeight / 2);
+
+            this.context.setTransform(
+                1,
+                0,
+                0,
+                1,
+                left + this.innerWidth / 2 + px,
+                top + this.innerHeight / 2 + py,
+            );
 
             this.matrix = identity
-                .translate(px, py)
                 .scale(this.valueRatio, -this.timeRatio)
                 .translate(-anchor.x, -(anchor.y - this.lastBeats));
         } else {
