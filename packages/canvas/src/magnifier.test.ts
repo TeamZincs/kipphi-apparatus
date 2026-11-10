@@ -4,6 +4,7 @@ import {
     formatGridValue,
     insetRect,
     Magnifier,
+    splitBeats,
     ZOOM_LEVELS
 } from "./magnifier";
 
@@ -145,3 +146,38 @@ describe("formatGridValue", () => {
         expect(formatGridValue(0.25, 0.25)).toBe("0.25");
     });
 });
+
+describe("splitBeats（带分数）", () => {
+    it("整数只给整数部分", () => {
+        expect(splitBeats(2, 0.25)).toEqual({
+            whole: 2,
+            numerator: 0,
+            denominator: 4
+        });
+    });
+
+    it("四分之一拍拆成 2 1/4", () => {
+        expect(splitBeats(2.25, 0.25)).toEqual({
+            whole: 2,
+            numerator: 1,
+            denominator: 4
+        });
+    });
+
+    it("浮点累加误差不会拆出 0.2499999", () => {
+        expect(splitBeats(2.2500000001, 0.25)).toEqual({
+            whole: 2,
+            numerator: 1,
+            denominator: 4
+        });
+    });
+
+    it("八分音符", () => {
+        expect(splitBeats(1.125, 0.125)).toEqual({
+            whole: 1,
+            numerator: 1,
+            denominator: 8
+        });
+    });
+});
+

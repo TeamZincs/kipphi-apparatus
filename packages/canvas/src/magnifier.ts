@@ -71,6 +71,101 @@ export function formatGridValue(value: number, step: number): string {
     return value.toFixed(digits);
 }
 
+/**
+ * 把拍数拆成「整 + 分子/分母」，按步长对齐到刻度上。
+ *
+ * `step` 是 1/den 的整数倍（`1/4`、`1/8`…），所以分母直接取 `1/step`。
+ * 用 `Math.round(value / step)` 先换成整数刻度再拆，避免浮点累加误差
+ * 把 `2.25` 变成 `2.2499999`。
+ */
+export function splitBeats(
+    value: number,
+    step: number
+): { whole: number; numerator: number; denominator: number } {
+    const denominator = Math.max(1, Math.round(1 / step));
+    const ticks = Math.round(value / step);
+
+    let whole = Math.floor(ticks / denominator);
+    let numerator = ticks - whole * denominator;
+
+    // 负数刻度（理论上拍数不会负，兜一下）：借一位
+    if (numerator < 0) {
+        numerator += denominator;
+        whole -= 1;
+    }
+
+    return { whole, numerator, denominator };
+}
+
+/**
+ * 画一个「带分数」标签：整数在左，分数用上下两行 + 一条横线。
+ *
+ * ```
+ *    1
+ * 2 ——
+ *    4
+ * ```
+ *
+ * 整数（`numerator === 0`）只写数字。
+ */
+export function drawBeatLabel(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    whole: number,
+    numerator: number,
+    denominator: number,
+    fontSize: number
+): void {
+    context.save();
+    context.textAlign = "left";
+    context.textBaseline = "middle";
+    context.font = `${fontSize}px system-ui, sans-serif`;
+
+    let cursor = x;
+
+    if (numerator === 0) {
+        context.fillText(String(whole), cursor, y);
+        context.restore();
+
+        return;
+    }
+
+    if (whole !== 0) {
+        const text = String(whole);
+
+        context.fillText(text, cursor, y);
+        cursor += context.measureText(text).width + 2;
+    }
+
+    // 分子 / 分母用小一号的字，分数线用 stroke 画
+    const fractionSize = Math.max(8, Math.round(fontSize * 0.8));
+
+    context.font = `${fractionSize}px system-ui, sans-serif`;
+    context.textAlign = "center";
+
+    const numeratorText = String(numerator);
+    const denominatorText = String(denominator);
+    const width =
+        Math.max(
+            context.measureText(numeratorText).width,
+            context.measureText(denominatorText).width
+        ) + 2;
+    const halfHeight = fractionSize * 0.58;
+
+    context.fillText(numeratorText, cursor + width / 2, y - halfHeight);
+    context.fillText(denominatorText, cursor + width / 2, y + halfHeight);
+
+    context.strokeStyle = context.fillStyle;
+    context.lineWidth = Math.max(1, fontSize * 0.09);
+    context.beginPath();
+    context.moveTo(cursor, y);
+    context.lineTo(cursor + width, y);
+    context.stroke();
+
+    context.restore();
+}
+
 export class Magnifier {
     /** 当前档位下标（`ZOOM_LEVELS` 的下标） */
     private index = 0;

@@ -36,9 +36,11 @@ import {
 } from "./util";
 import { ButtonManager, type CanvasButton } from "./buttonManager";
 import {
+    drawBeatLabel,
     formatGridValue,
     insetRect,
     Magnifier,
+    splitBeats,
     ZOOM_LEVELS,
 } from "./magnifier";
 import { scaleFont } from "./ui";
@@ -478,8 +480,11 @@ export class NotesEditor extends EventTarget {
 
         // const {width, height} = this.canvas
         // const {padding} = this;
-        this.pointedPositionX =
-            Math.round(x / this.positionGridSpan) * this.positionGridSpan;
+        // 横向同理：放大后画出来的细分线也要能吸附
+        const positionStep =
+            this.positionGridSpan / this.gridSubdivision();
+
+        this.pointedPositionX = Math.round(x / positionStep) * positionStep;
         const accurateBeats = y + this.lastBeats;
         const attached = computeAttach(this.attachableTimes, accurateBeats);
         const timeT: TimeT = this.timeMap.get(attached);
@@ -1625,11 +1630,11 @@ export class NotesEditor extends EventTarget {
             context.lineWidth = 1;
 
             /*
-             * 小刻度也按放大倍数细分：`minorDivisor = timeDivisor * sub`。
+             * 小刻度按放大倍数细分：`minorDivisor = timeDivisor * sub`。
              *
-             * **吸附点只保留原来那几格**（`i % sub === 0`）—— 加密的是视觉
-             * 参考线，不是可落子的位置。否则放大后拖出来的会是
-             * `[3, 5, 16]` 这种奇怪的时间，导出谱面会变脏。
+             * 细分出来的线**同样参与吸附** —— 放大后画出密线却吸不上，
+             * 等于白画（用户要的是"线在哪儿就能落在哪儿"）。
+             * `TimeT` 的分母跟着变大（4 → 8 → 16），是合法值。
              */
             const minorDivisor = timeDivisor * sub;
 
@@ -1638,10 +1643,8 @@ export class NotesEditor extends EventTarget {
                     time + (i / minorDivisor) * timeGridSpan;
                 const minorPosY = (minorBeats - beats) * timeRatio;
 
-                if (i % sub === 0) {
-                    map.set(minorBeats, [time, i / sub, timeDivisor]);
-                    attachableTimes.push(minorBeats);
-                }
+                map.set(minorBeats, [time, i, minorDivisor]);
+                attachableTimes.push(minorBeats);
 
                 drawLine(
                     context,
@@ -2025,7 +2028,12 @@ export class NotesEditor extends EventTarget {
             );
         }
 
-        const timeStep = this.timeGridSpan / subLocal;
+        /*
+         * 时间方向要和主视图**同一个密度**：主视图一拍里有 `timeDivisor`
+         * 个小格，放大时再乘 `gridSubdivision`；小窗口是再高一档，
+         * 所以用 `localZoom` 的细分。
+         */
+        const timeStep = this.timeGridSpan / (this.timeDivisor * subLocal);
         const startBeat =
             Math.ceil((anchor.y - halfBeats) / timeStep) * timeStep;
 
@@ -2038,11 +2046,21 @@ export class NotesEditor extends EventTarget {
             context.lineTo(half, y);
             context.stroke();
 
+            // 拍数用带分数写：`2 1/4` 画成上下两行 + 一条横线
+            const { whole, numerator, denominator } = splitBeats(
+                beat,
+                timeStep
+            );
+
             context.fillStyle = "rgba(160, 210, 255, 0.95)";
-            context.fillText(
-                formatGridValue(beat, timeStep),
+            drawBeatLabel(
+                context,
                 -half + 2,
-                Math.max(-half + 2, y + 2)
+                Math.max(-half + 6, y),
+                whole,
+                numerator,
+                denominator,
+                Math.max(9, Math.round(size * 0.075))
             );
         }
 
