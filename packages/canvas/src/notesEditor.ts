@@ -1275,7 +1275,7 @@ export class NotesEditor extends EventTarget {
             this.context.globalAlpha = 0.55;
 
             for (const ghost of this.pasteGhosts) {
-                const start = TC.toBeats(ghost.time) - beats;
+                const start = TC.toBeats(ghost.time) - this.matrixBeats;
                 const { x, y } = new Coordinate(ghost.positionX, start).mul(
                     this.matrix,
                 );
@@ -1298,7 +1298,7 @@ export class NotesEditor extends EventTarget {
 
         if (!preview) return;
 
-        const start = TC.toBeats(preview.time) - beats;
+        const start = TC.toBeats(preview.time) - this.matrixBeats;
         const { x, y } = new Coordinate(preview.positionX, start).mul(
             this.matrix,
         );
@@ -1885,7 +1885,7 @@ export class NotesEditor extends EventTarget {
                 if (!scale) {
                     continue;
                 }
-                const y = -(i * averageBeats - beats) * timeRatio;
+                const y = -(i * averageBeats - this.matrixBeats) * timeRatio;
                 // console.log(i, y)
                 if (Array.isArray(scale)) {
                     for (let j = 0; j < MINOR_SCALE_COUNT; j++) {
@@ -1936,7 +1936,7 @@ export class NotesEditor extends EventTarget {
                     if (!scale) {
                         continue;
                     }
-                    const y = -(i * averageBeats - beats) * timeRatio;
+                    const y = -(i * averageBeats - this.matrixBeats) * timeRatio;
                     // console.log(i, y)
                     if (Array.isArray(scale)) {
                         for (let j = 0; j < MINOR_SCALE_COUNT; j++) {
@@ -2212,8 +2212,8 @@ export class NotesEditor extends EventTarget {
 
             respack,
         } = this;
-        const start = TC.toBeats(note.startTime) - beats;
-        const end = TC.toBeats(note.endTime) - beats;
+        const start = TC.toBeats(note.startTime) - this.matrixBeats;
+        const end = TC.toBeats(note.endTime) - this.matrixBeats;
         const { x: posX, y: posY } = new Coordinate(note.positionX, start).mul(
             matrix,
         );
