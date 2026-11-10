@@ -249,6 +249,14 @@ export class NotesEditor extends EventTarget {
      * 拿它当缩放中心会让画面跟着鼠标一起跑 —— 表现为"元素飞到对侧"。
      */
     private zoomPointer: { x: number; y: number } | null = null;
+
+    /**
+     * 当前放大偏移（相对未放大的 context 原点）。
+     *
+     * `canvasPoint` 是乘过 `canvasMatrixInverted` 的 —— 它已经相对**平移后**
+     * 的原点，要还原成"绝对画布像素"就得把这个偏移加回去。
+     */
+    private zoomOffset = { x: 0, y: 0 };
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -624,9 +632,31 @@ export class NotesEditor extends EventTarget {
      * 那时候应该以**当前**指针为准。
      */
     private reanchorZoom(): void {
-        if (!this.canvasPoint) return;
+        const pointer = this.absolutePointer();
 
-        this.zoomPointer = { x: this.canvasPoint.x, y: this.canvasPoint.y };
+        if (pointer) this.zoomPointer = pointer;
+    }
+
+    /**
+     * 指针的**绝对画布像素**坐标（不受 context 平移影响）。
+     *
+     * `canvasPoint` 是乘过 `canvasMatrixInverted` 的结果，基准是"当前（含偏移）
+     * 的 context 原点"；而缩放要的是画布上的绝对位置。所以把偏移和原点加回去。
+     */
+    private absolutePointer(): { x: number; y: number } | null {
+        if (!this.canvasPoint) return null;
+
+        const [left, top, width, height] = this.clippingRect;
+
+        return {
+            x: this.canvasPoint.x + this.zoomOffset.x + left + width / 2,
+            y:
+                this.canvasPoint.y +
+                this.zoomOffset.y +
+                top +
+                height -
+                this.padding,
+        };
     }
 
     /** 档位切换的 0.4s 动画：逐帧重绘直到插值结束 */
@@ -679,9 +709,7 @@ export class NotesEditor extends EventTarget {
 
         // 主视图中心 / 缩放中心都锁在这里；拖动时只有 `magnifier.anchor` 跟手
         this.zoomAnchor = anchor;
-        this.zoomPointer = this.canvasPoint
-            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
-            : null;
+        this.zoomPointer = this.absolutePointer();
 
         this.magnifier.focus(
             anchor,
@@ -1563,11 +1591,13 @@ export class NotesEditor extends EventTarget {
                 left + width / 2 + px,
                 top + height - this.padding + py,
             );
+            this.zoomOffset = { x: px, y: py };
 
             this.matrix = identity
                 .scale(this.positionRatio, -this.timeRatio)
                 .translate(-anchor.x, -(anchor.y - this.lastBeats));
         } else {
+            this.zoomOffset = { x: 0, y: 0 };
             this.context.translate(left + width / 2, top + height - this.padding);
             this.matrix = identity
                 .translate(this.positionBasis, 0)

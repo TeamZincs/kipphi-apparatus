@@ -1482,6 +1482,14 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      */
     protected zoomPointer: { x: number; y: number } | null = null;
 
+    /**
+     * 当前放大偏移（相对未放大的 context 原点）。
+     *
+     * `canvasPoint` 是乘过 `canvasMatrixInverted` 的 —— 它已经相对**平移后**
+     * 的原点，要还原成"绝对画布像素"就得把这个偏移加回去。
+     */
+    protected zoomOffset = { x: 0, y: 0 };
+
     /** 松手 / 取消选中：收起放大镜 */
     resetMagnifier(): void {
         this.zoomAnchor = null;
@@ -2564,9 +2572,34 @@ export abstract class EventSequenceEditor<
      * 那时候应该以**当前**指针为准。
      */
     reanchorZoom(): void {
-        if (!this.canvasPoint) return;
+        const pointer = this.absolutePointer();
 
-        this.zoomPointer = { x: this.canvasPoint.x, y: this.canvasPoint.y };
+        if (pointer) this.zoomPointer = pointer;
+    }
+
+    /**
+     * 指针的**绝对画布像素**坐标（不受 context 平移影响）。
+     *
+     * `canvasPoint` 乘过 `canvasMatrixInverted`，基准是"当前（含偏移）的
+     * context 原点"；缩放要的是画布上的绝对位置，所以把偏移和原点加回去。
+     */
+    protected absolutePointer(): { x: number; y: number } | null {
+        if (!this.canvasPoint) return null;
+
+        const [left, top] = this.clippingRect;
+
+        return {
+            x:
+                this.canvasPoint.x +
+                this.zoomOffset.x +
+                left +
+                this.innerWidth / 2,
+            y:
+                this.canvasPoint.y +
+                this.zoomOffset.y +
+                top +
+                this.innerHeight / 2,
+        };
     }
 
     /** 按住节点 → 定住放大镜中心 */
@@ -2588,9 +2621,7 @@ export abstract class EventSequenceEditor<
 
         // 主视图中心 / 缩放中心都锁在这里；拖动时只有 `magnifier.anchor` 跟手
         this.zoomAnchor = anchor;
-        this.zoomPointer = this.canvasPoint
-            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
-            : null;
+        this.zoomPointer = this.absolutePointer();
 
         this.magnifier.focus(
             anchor,
@@ -3757,11 +3788,23 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 left + this.innerWidth / 2 + px,
                 top + this.innerHeight / 2 + py,
             );
+            this.zoomOffset = { x: px, y: py };
 
             this.matrix = identity
                 .scale(this.valueRatio, -this.timeRatio)
                 .translate(-anchor.x, -(anchor.y - this.lastBeats));
         } else {
+            // 松手回 1x：context 也要复原，否则偏移会一直留着
+            this.zoomOffset = { x: 0, y: 0 };
+            this.context.setTransform(
+                1,
+                0,
+                0,
+                1,
+                left + this.innerWidth / 2,
+                top + this.innerHeight / 2,
+            );
+
             this.matrix = identity
                 .scale(this.valueRatio, -this.timeRatio)
                 .translate(
