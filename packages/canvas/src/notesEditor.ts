@@ -258,6 +258,17 @@ export class NotesEditor extends EventTarget {
      */
     private matrixBeats = 0;
 
+    /**
+     * 拖动开始那一刻的矩阵逆。
+     *
+     * 输入映射（指针 → 世界坐标）用它在整个拖动期间保持**固定**，而视野
+     * （`matrix`）跟着节点走 —— 两者解耦才不会自激：节点动 → 视野动 →
+     * 世界坐标变 → 节点又动。
+     *
+     * 每次切档 / 松手时清空，下一帧重新快照。
+     */
+    private dragMatrixInverted: Matrix33 | null = null;
+
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -483,7 +494,14 @@ export class NotesEditor extends EventTarget {
             .mul(this.elementMatrixInverted)
             .mul(this.canvasMatrixInverted));
 
-        const { x, y } = canvasCoord.mul(this.matrixInverted);
+        /*
+         * 输入映射用**拖动开始时的矩阵快照**：视野（`matrix`）在放大时会
+         * 跟着节点走，如果这里也用实时的逆，就会形成"节点动 → 视野动 →
+         * 世界坐标变 → 节点又动"的反馈，表现为拖不住 / 越拖越远。
+         */
+        this.dragMatrixInverted ??= this.matrixInverted;
+
+        const { x, y } = canvasCoord.mul(this.dragMatrixInverted);
 
         // 正在轴向拖动：只做平移，不做吸附/选中
         if (this.pan) {
@@ -626,27 +644,6 @@ export class NotesEditor extends EventTarget {
         this.draw(this.lastBeats);
     }
 
-    /**
-     * 每次切档重新锚定到"此刻的指针位置"。
-     *
-     * 缩放中心不是"按下那一刻"就定死了 —— 用户可能已经拖到别处再点下一档，
-     * 那时候应该以**当前**指针为准。
-     */
-    private reanchorZoom(): void {
-        if (!this.canvasPoint || !this.zoomAnchor) return;
-
-        /*
-         * `canvasPoint` 和 `matrix` 是**同一个空间**：都是"相对 context 原点"
-         * （`canvasMatrix` 只含 `translate(原点)`）。所以直接拿它当 `matrix`
-         * 的偏移，用 `matrixInverted` 反解世界坐标，一步到位、无跨帧误差。
-         */
-        this.zoomPointer = { x: this.canvasPoint.x, y: this.canvasPoint.y };
-
-        const world = this.canvasPoint.mul(this.matrixInverted);
-
-        this.zoomAnchor = { x: world.x, y: world.y };
-    }
-
     /** 档位切换的 0.4s 动画：逐帧重绘直到插值结束 */
     private animateZoom(): void {
         if (!this.magnifier.animatingNow) return;
@@ -672,8 +669,9 @@ export class NotesEditor extends EventTarget {
 
         if (!this.magnifier.anchor) return;
 
-        this.reanchorZoom();
         this.magnifier.step(delta);
+        // 档位变了，输入映射的快照作废，下一帧按新倍率重建
+        this.dragMatrixInverted = null;
         this.animateZoom();
         this.draw(this.lastBeats);
     }
@@ -686,6 +684,7 @@ export class NotesEditor extends EventTarget {
             this.zoomAnchor = null;
             this.zoomPointer = null;
             this.magnifier.reset();
+            this.dragMatrixInverted = null;
 
             return;
         }
@@ -815,8 +814,8 @@ export class NotesEditor extends EventTarget {
                 label: `${ZOOM_LEVELS[level]}x`,
                 active: this.magnifier.levelIndex === level,
                 onClick: () => {
-                    this.reanchorZoom();
                     this.magnifier.setIndex(level);
+                    this.dragMatrixInverted = null;
                     this.animateZoom();
                     this.draw(this.lastBeats);
                 },
@@ -1463,6 +1462,7 @@ export class NotesEditor extends EventTarget {
 
         // 松手：放大镜回到 1x（选中状态保留）
         this.magnifier.reset();
+        this.dragMatrixInverted = null;
         this.zoomAnchor = null;
         this.zoomPointer = null;
 
@@ -1558,18 +1558,22 @@ export class NotesEditor extends EventTarget {
         // 记下矩阵用的视野起点，网格会读它（保证和节点同源）
         this.matrixBeats = this.lastBeats;
 
-        const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
+        /*
+         * 缩放中心用**实时**的 `magnifier.anchor` / `magnifier.pointer`：
+         * 拖动时节点位置变了，锚点必须跟着走，否则节点会离开指针。
+         *
+         * 这不会自激 —— `moveHandler` 用的是拖动开始那一刻的矩阵快照
+         * （`dragMatrixInverted`），指针 → 世界坐标的映射在这一轮拖动里是
+         * 固定的；只有"视野"跟着节点跑。
+         */
+        const anchor = this.magnifier.zooming ? this.magnifier.anchor : null;
 
         /*
          * **context 只 translate 到原点**（底部中心再抬一个 padding），
          * 缩放偏移全部进 `matrix` —— 网格和节点共用同一个换算入口。
          */
         if (anchor) {
-            /*
-             * 缩放中心用**按下时锁定**的 `zoomPointer`（相对原点的像素），
-             * 不是实时的 `magnifier.pointer` —— 后者拖动时每帧都变。
-             */
-            const pointer = this.zoomPointer ?? { x: 0, y: 0 };
+            const pointer = this.magnifier.pointer ?? { x: 0, y: 0 };
 
             this.matrix = identity
                 .translate(pointer.x, pointer.y)
