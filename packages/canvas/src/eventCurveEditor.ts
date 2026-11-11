@@ -2606,52 +2606,16 @@ export abstract class EventSequenceEditor<
         return false;
     }
 
-    /** 桌面 D / A：放大 / 缩小一级（没有按住时用当前选中的节点） */
-    stepZoom(delta: number): void {
-        if (!this.magnifier.anchor && this.selectedNode) {
-            this.focusMagnifier();
-        }
+    /**
+     * 桌面 D / A：放大 / 缩小一级。
+     *
+     * 基类不做 —— 放大镜只对**有值维度**的曲线编辑器有意义，
+     * 实现在 `NumericEventCurveEditor`。
+     */
+    stepZoom(_delta: number): void {}
 
-        if (!this.magnifier.anchor) return;
-
-        // 只有放大才重新锚定；降档沿用放大到该级时的中心
-
-        this.magnifier.step(delta);
-        // 档位变了，输入映射的快照作废
-        this.dragMatrixInverted = null;
-        this.animateZoom();
-        this.parentEditorSet.draw(this.lastBeats);
-    }
-
-    /** 按住节点 → 定住放大镜中心 */
-    protected focusMagnifier(): void {
-        const node = this.selectedNode;
-
-        if (!node) {
-            this.zoomAnchor = null;
-            this.zoomPointer = null;
-            this.magnifier.reset();
-
-            return;
-        }
-
-        const anchor = {
-            x: (node as EventStartNode<VT>).value as number,
-            y: TC.toBeats(node.time),
-        };
-
-        // 主视图中心 / 缩放中心都锁在这里；拖动时只有 `magnifier.anchor` 跟手
-        this.zoomAnchor = anchor;
-        this.zoomPointer = this.canvasPoint
-            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
-            : null;
-
-        this.magnifier.focus(
-            anchor,
-            // 手指位置决定局部视图放哪一角（别被挡住）
-            this.canvasPoint
-        );
-    }
+    /** 按住节点 → 定住放大镜中心（数值曲线编辑器实现） */
+    protected focusMagnifier(): void {}
     nodesSelection: Set<EventStartNode<VT>> = new Set();
 
     constructor(
@@ -3777,6 +3741,43 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.baseValueGridStep = config.valueGridSpan;
 
         this.updateMatrix();
+    }
+
+    /**
+     * 桌面 D / A：放大 / 缩小一级（没有按住时用当前选中的节点）。
+     */
+    override stepZoom(delta: number): void {
+        if (!this.magnifier.anchor && this.selectedNode) {
+            this.focusMagnifier();
+        }
+
+        if (!this.magnifier.anchor) return;
+
+        this.magnifier.step(delta);
+        // 档位变了，输入映射的快照作废
+        this.dragMatrixInverted = null;
+        this.animateZoom();
+        this.parentEditorSet.draw(this.lastBeats);
+    }
+
+    /** 按住节点 → 定住放大镜中心（局部视图 + 主视图锚点） */
+    protected override focusMagnifier(): void {
+        const node = this.selectedNode;
+
+        if (!node) {
+            this.magnifier.reset();
+
+            return;
+        }
+
+        this.magnifier.focus(
+            {
+                x: node.value as number,
+                y: TC.toBeats(node.time),
+            },
+            // 手指位置决定局部视图放哪一角（别被挡住）
+            this.canvasPoint,
+        );
     }
 
     /**
