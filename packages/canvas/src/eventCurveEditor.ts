@@ -3765,16 +3765,29 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         const node = this.selectedNode;
 
         if (!node) {
+            this.zoomAnchor = null;
+            this.zoomPointer = null;
             this.magnifier.reset();
 
             return;
         }
 
+        const anchor = {
+            x: node.value as number,
+            y: TC.toBeats(node.time),
+        };
+
+        /*
+         * 主视图的锚点**锁在按下那一刻**（放大后视野固定，拖动时只有节点动）。
+         * 局部视图靠 `magnifier.anchor` 跟手，两者分开。
+         */
+        this.zoomAnchor = anchor;
+        this.zoomPointer = this.canvasPoint
+            ? { x: this.canvasPoint.x, y: this.canvasPoint.y }
+            : null;
+
         this.magnifier.focus(
-            {
-                x: node.value as number,
-                y: TC.toBeats(node.time),
-            },
+            anchor,
             // 手指位置决定局部视图放哪一角（别被挡住）
             this.canvasPoint,
         );
@@ -3800,17 +3813,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.timeRatio = (this.innerHeight * zoom) / this.timeSpan;
 
         /*
-         * 缩放中心用**实时**的 `magnifier.anchor` / `magnifier.pointer`。
+         * 缩放中心和它在屏幕上的落点**都锁在按下那一刻**（`zoomAnchor` /
+         * `zoomPointer`）。
          *
-         * 两者必须同时实时：
-         *   · `anchor` 实时、`pointer` 固定 → 节点被钉在固定像素上（"节点不动"）
-         *     而网格随 anchor 平移（"网格在动"）；
-         *   · 都实时 → 节点跟着指针走，网格相对节点平移（正常手感）。
-         *
-         * 不会自激 —— `moveHandler` 用拖动开始时的矩阵快照
-         * （`dragMatrixInverted`），输入映射在这一轮拖动里是固定的。
+         * 这样放大后视野是**固定**的：拖动节点时它按世界坐标移动（跟手），
+         * 网格不动。若改成实时（`magnifier.anchor` / `magnifier.pointer`），
+         * 视野会跟着节点跑，看起来"节点和网格都在动"。
          */
-        const anchor = this.magnifier.zooming ? this.magnifier.anchor : null;
+        const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
 
         /*
          * **context 只 translate 到原点**（`initContext` 已设好，这里不再动）。
@@ -3818,7 +3828,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
          * 不会出现"网格铺在原点、节点被搬走"的错位。
          */
         if (anchor) {
-            const pointer = this.magnifier.pointer ?? { x: 0, y: 0 };
+            const pointer = this.zoomPointer ?? { x: 0, y: 0 };
 
             this.matrix = identity
                 .translate(pointer.x, pointer.y)
