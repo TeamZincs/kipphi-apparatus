@@ -3800,16 +3800,15 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.timeRatio = (this.innerHeight * zoom) / this.timeSpan;
 
         /*
-         * 缩放中心是**按下那一刻**的锚点（`zoomAnchor`），不是
-         * `magnifier.anchor` —— 后者拖动时每帧跟着节点走（局部视图靠它
-         * 刷新），拿它算会自激。
-         */
-        /*
-         * 缩放中心用**实时**的 `magnifier.anchor`：拖动时节点位置变了，
-         * 锚点必须跟着走，否则节点会离开指针。
+         * 缩放中心用**实时**的 `magnifier.anchor` / `magnifier.pointer`。
+         *
+         * 两者必须同时实时：
+         *   · `anchor` 实时、`pointer` 固定 → 节点被钉在固定像素上（"节点不动"）
+         *     而网格随 anchor 平移（"网格在动"）；
+         *   · 都实时 → 节点跟着指针走，网格相对节点平移（正常手感）。
          *
          * 不会自激 —— `moveHandler` 用拖动开始时的矩阵快照
-         * （`dragMatrixInverted`），输入映射固定，只有视野跟着节点跑。
+         * （`dragMatrixInverted`），输入映射在这一轮拖动里是固定的。
          */
         const anchor = this.magnifier.zooming ? this.magnifier.anchor : null;
 
@@ -3819,12 +3818,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
          * 不会出现"网格铺在原点、节点被搬走"的错位。
          */
         if (anchor) {
-            /*
-             * 缩放中心用**按下时锁定**的 `zoomPointer`（相对原点的像素），
-             * 不是实时的 `magnifier.pointer` —— 后者拖动时每帧都变，
-             * 拿它当偏移会让画面跟着鼠标跑。
-             */
-            const pointer = this.zoomPointer ?? { x: 0, y: 0 };
+            const pointer = this.magnifier.pointer ?? { x: 0, y: 0 };
 
             this.matrix = identity
                 .translate(pointer.x, pointer.y)
@@ -3910,13 +3904,19 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.pointedTime = [pointedBeats, beatFraction, timeDivisor];
 
         /*
-         * 局部视图跟着指针走：不刷新的话，拖走以后小窗口还停在原位，
-         * 看到的是一块空白。`track` 只更新锚点，不动档位 / 动画。
+         * 主视图的缩放中心 = `magnifier.anchor`，必须用**吸附后的节点落点**
+         * （`pointedValue` / `pointedTime`）。用原始鼠标值的话，节点被吸到
+         * 网格上、视野却跟着鼠标 —— 拖动时网格会往反方向跑。
          *
-         * 传**原始**值而不是 `pointedValue`：后者已经吸附到最近的网格上，
-         * 小窗里的绿球会被横向拽到吸附线上，看起来只有纵向自由。
+         * 小窗里的绿球用 `magnifier.pointer`（原始指针），仍然自由。
          */
-        this.magnifier.track({ x: value, y: accurateBeats }, this.canvasPoint);
+        this.magnifier.track(
+            {
+                x: this.pointedValue,
+                y: TC.toBeats(this.pointedTime),
+            },
+            this.canvasPoint,
+        );
 
         switch (this.state) {
             case EventCurveEditorState.selecting: {
