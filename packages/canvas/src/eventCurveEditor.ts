@@ -3910,22 +3910,13 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.pointedTime = [pointedBeats, beatFraction, timeDivisor];
 
         /*
-         * 局部视图 / 主视图的锚点都跟着**节点实际位置**走（吸附后的
-         * `pointedValue` / `pointedTime`）。
+         * 局部视图跟着指针走：不刷新的话，拖走以后小窗口还停在原位，
+         * 看到的是一块空白。`track` 只更新锚点，不动档位 / 动画。
          *
-         * 不能传原始值：主视图的缩放中心就是 `magnifier.anchor`，拿未吸附的
-         * 鼠标位置当中心，节点被吸到网格上、视野却跟着鼠标 —— 表现为
-         * "拖动节点时网格往反方向跑"。
-         *
-         * 小窗里的绿球用的是 `magnifier.pointer`（原始指针），不受影响。
+         * 传**原始**值而不是 `pointedValue`：后者已经吸附到最近的网格上，
+         * 小窗里的绿球会被横向拽到吸附线上，看起来只有纵向自由。
          */
-        this.magnifier.track(
-            {
-                x: this.pointedValue,
-                y: TC.toBeats(this.pointedTime),
-            },
-            this.canvasPoint,
-        );
+        this.magnifier.track({ x: value, y: accurateBeats }, this.canvasPoint);
 
         switch (this.state) {
             case EventCurveEditorState.selecting: {
