@@ -3914,19 +3914,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         this.pointedTime = [pointedBeats, beatFraction, timeDivisor];
 
         /*
-         * 主视图的缩放中心 = `magnifier.anchor`，必须用**吸附后的节点落点**
-         * （`pointedValue` / `pointedTime`）。用原始鼠标值的话，节点被吸到
-         * 网格上、视野却跟着鼠标 —— 拖动时网格会往反方向跑。
+         * 局部视图的中心用**原始指针**（未吸附）。
          *
-         * 小窗里的绿球用 `magnifier.pointer`（原始指针），仍然自由。
+         * 这样小窗里：绿球在中心 = 手指位置，节点画在它**吸附后**的偏移处
+         * —— 才看得出"会落在哪一格"。传吸附后的值，两者就永远重合。
+         *
+         * 主视图不受影响：它用的是按下时锁定的 `zoomAnchor`。
          */
-        this.magnifier.track(
-            {
-                x: this.pointedValue,
-                y: TC.toBeats(this.pointedTime),
-            },
-            this.canvasPoint,
-        );
+        this.magnifier.track({ x: value, y: accurateBeats }, this.canvasPoint);
 
         switch (this.state) {
             case EventCurveEditorState.selecting: {
