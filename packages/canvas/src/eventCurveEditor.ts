@@ -1492,14 +1492,6 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     protected zoomAnchor: { x: number; y: number } | null = null;
 
     /**
-     * 拖动开始那一刻的矩阵逆。
-     *
-     * 输入映射（指针 → 世界坐标）用它在整个拖动期间保持**固定**，而视野
-     * （`matrix`）跟着节点走 —— 两者解耦才不会自激。
-     */
-    protected dragMatrixInverted: Matrix33 | null = null;
-
-    /**
      * 缩放中心在画布上的**屏幕位置**（按下那一刻，锁死）。
      *
      * 不能用 `magnifier.pointer`：那个拖动时每帧更新（局部视图靠它选角落），
@@ -1512,7 +1504,6 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         this.zoomAnchor = null;
         this.zoomPointer = null;
         this.magnifier.reset();
-        this.dragMatrixInverted = null;
     }
 
     /** 侧边局部放大视图（按住节点时才有） */
@@ -1590,7 +1581,6 @@ export abstract class EventSequenceEditorBase extends EventTarget {
                     }
 
                     this.magnifier.setIndex(level);
-                    this.dragMatrixInverted = null;
                     this.animateZoom();
                     this.parentEditorSet.draw(this.lastBeats);
                 },
@@ -3754,8 +3744,6 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         if (!this.magnifier.anchor) return;
 
         this.magnifier.step(delta);
-        // 档位变了，输入映射的快照作废
-        this.dragMatrixInverted = null;
         this.animateZoom();
         this.parentEditorSet.draw(this.lastBeats);
     }
@@ -3893,13 +3881,13 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         const timeDivisor = parentEditorSet.timeDivisor;
 
         /*
-         * 输入映射用**拖动开始时的矩阵快照**：视野（`matrix`）在放大时跟着
-         * 节点走，这里若用实时逆会形成反馈（节点动 → 视野动 → 世界坐标变
-         * → 节点又动），表现为拖不住。
+         * 用**实时**的矩阵逆。
+         *
+         * 不能快照：放大动画里 `valueRatio` / `timeRatio` 每帧都在变，快照会
+         * 过期 → 手指位置算偏。锚点固定在 `zoomAnchor`，矩阵不依赖输入，
+         * 所以实时也不会形成反馈闭环。
          */
-        this.dragMatrixInverted ??= this.matrixInverted;
-
-        const { x: value, y: beats } = canvasCoord.mul(this.dragMatrixInverted);
+        const { x: value, y: beats } = canvasCoord.mul(this.matrixInverted);
         this.pointedValue = computeAttach(this.attachableValues, value);
 
         const accurateBeats = beats + this.lastBeats;

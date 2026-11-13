@@ -258,17 +258,6 @@ export class NotesEditor extends EventTarget {
      */
     private matrixBeats = 0;
 
-    /**
-     * 拖动开始那一刻的矩阵逆。
-     *
-     * 输入映射（指针 → 世界坐标）用它在整个拖动期间保持**固定**，而视野
-     * （`matrix`）跟着节点走 —— 两者解耦才不会自激：节点动 → 视野动 →
-     * 世界坐标变 → 节点又动。
-     *
-     * 每次切档 / 松手时清空，下一帧重新快照。
-     */
-    private dragMatrixInverted: Matrix33 | null = null;
-
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -495,13 +484,13 @@ export class NotesEditor extends EventTarget {
             .mul(this.canvasMatrixInverted));
 
         /*
-         * 输入映射用**拖动开始时的矩阵快照**：视野（`matrix`）在放大时会
-         * 跟着节点走，如果这里也用实时的逆，就会形成"节点动 → 视野动 →
-         * 世界坐标变 → 节点又动"的反馈，表现为拖不住 / 越拖越远。
+         * 用**实时**的矩阵逆。
+         *
+         * 不能快照：放大动画里比例每帧都在变，快照会过期 → 手指位置算偏。
+         * 锚点是固定的（`zoomAnchor`），矩阵不依赖输入，所以这里实时也不会
+         * 形成反馈闭环。
          */
-        this.dragMatrixInverted ??= this.matrixInverted;
-
-        const { x, y } = canvasCoord.mul(this.dragMatrixInverted);
+        const { x, y } = canvasCoord.mul(this.matrixInverted);
 
         // 正在轴向拖动：只做平移，不做吸附/选中
         if (this.pan) {
@@ -670,8 +659,6 @@ export class NotesEditor extends EventTarget {
         if (!this.magnifier.anchor) return;
 
         this.magnifier.step(delta);
-        // 档位变了，输入映射的快照作废，下一帧按新倍率重建
-        this.dragMatrixInverted = null;
         this.animateZoom();
         this.draw(this.lastBeats);
     }
@@ -684,7 +671,6 @@ export class NotesEditor extends EventTarget {
             this.zoomAnchor = null;
             this.zoomPointer = null;
             this.magnifier.reset();
-            this.dragMatrixInverted = null;
 
             return;
         }
@@ -815,7 +801,6 @@ export class NotesEditor extends EventTarget {
                 active: this.magnifier.levelIndex === level,
                 onClick: () => {
                     this.magnifier.setIndex(level);
-                    this.dragMatrixInverted = null;
                     this.animateZoom();
                     this.draw(this.lastBeats);
                 },
@@ -1462,7 +1447,6 @@ export class NotesEditor extends EventTarget {
 
         // 松手：放大镜回到 1x（选中状态保留）
         this.magnifier.reset();
-        this.dragMatrixInverted = null;
         this.zoomAnchor = null;
         this.zoomPointer = null;
 
@@ -1559,21 +1543,23 @@ export class NotesEditor extends EventTarget {
         this.matrixBeats = this.lastBeats;
 
         /*
-         * 缩放中心用**实时**的 `magnifier.anchor` / `magnifier.pointer`：
-         * 拖动时节点位置变了，锚点必须跟着走，否则节点会离开指针。
+         * 锚点锁在**按下那一刻**（`zoomAnchor` / `zoomPointer`），不跟随节点。
          *
-         * 这不会自激 —— `moveHandler` 用的是拖动开始那一刻的矩阵快照
-         * （`dragMatrixInverted`），指针 → 世界坐标的映射在这一轮拖动里是
-         * 固定的；只有"视野"跟着节点跑。
+         * 关键：矩阵不依赖输入（`pointedValue`），所以 `matrixInverted` 可以
+         * 每帧用实时的 —— 放大动画里 `positionRatio` / `timeRatio` 每帧都在
+         * 变，用实时的才不会让"手到世界的换算"错位。
+         *
+         * 反过来说：只要 anchor 来自输入，就必须用拖动首帧的快照来断闭环，
+         * 而快照在比例变化后就是错的 —— 那正是偏差的来源。
          */
-        const anchor = this.magnifier.zooming ? this.magnifier.anchor : null;
+        const anchor = this.magnifier.zooming ? this.zoomAnchor : null;
 
         /*
          * **context 只 translate 到原点**（底部中心再抬一个 padding），
          * 缩放偏移全部进 `matrix` —— 网格和节点共用同一个换算入口。
          */
         if (anchor) {
-            const pointer = this.magnifier.pointer ?? { x: 0, y: 0 };
+            const pointer = this.zoomPointer ?? { x: 0, y: 0 };
 
             this.matrix = identity
                 .translate(pointer.x, pointer.y)
