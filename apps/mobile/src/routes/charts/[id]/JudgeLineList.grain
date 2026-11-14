@@ -9,7 +9,8 @@
 
     import { chart, chartLoaded, registerReflow } from "#/store";
 
-    import JudgeLineRow from "./JudgeLineRow.grain";
+    import JudgeLineGroups from "./JudgeLineGroups.grain";
+    import JudgeLineRows from "./JudgeLineRows.grain";
 
     /** 三种布局，跟桌面端 `JudgeLinesManager` 一致 */
     type Layout = "ordered" | "tree" | "grouped";
@@ -105,32 +106,15 @@
         -->
         {#if layout === "ordered"}
             <div class="rows">
-                {#for line of orderedLines with key = line}
-                    <JudgeLineRow target={line} flat />
-                {/for}
+                <JudgeLineRows lines={orderedLines} flat />
             </div>
         {:else if layout === "tree"}
             <div class="rows">
-                {#for line of treeLines with key = line}
-                    <JudgeLineRow target={line} />
-                {/for}
+                <JudgeLineRows lines={treeLines} />
             </div>
         {:else}
             <div class="rows">
-                {#for group of groups with key = group}
-                    <div class="group" data-group={group.name}>
-                        <span class="caret {foldedGroups.includes(group.name) ? 'folded' : ''}">▾</span>
-                        <span class="group-name">{group.name}</span>
-                        <span class="count">{group.judgeLines.length}</span>
-                    </div>
-
-                    {#if !foldedGroups.includes(group.name)}
-                        <!-- 分组是**平铺**的：组内只列本组的线，不再展开子判定线（树只属于树形布局） -->
-                        {#for line of group.judgeLines with key = line}
-                            <JudgeLineRow target={line} level={1} flat />
-                        {/for}
-                    {/if}
-                {/for}
+                <JudgeLineGroups groups={groups} folded={foldedGroups} />
             </div>
         {/if}
     </div>
@@ -167,37 +151,4 @@
     padding: 0;
 }
 
-.group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 14px;
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--border);
-    color: var(--text-dim);
-    font-size: 12px;
-}
-
-.group-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.count {
-    color: var(--text-dim);
-}
-
-.caret {
-    flex: none;
-    width: 14px;
-    font-size: 11px;
-    text-align: center;
-    transition: transform 0.15s ease;
-}
-
-.caret.folded {
-    transform: rotate(-90deg);
-}
 </style>

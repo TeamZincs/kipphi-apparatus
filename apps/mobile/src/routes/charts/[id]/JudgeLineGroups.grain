@@ -1,0 +1,75 @@
+<script>
+    /*
+     * 分组布局：每个分组一个标题（可折叠），组内平铺本组的线。
+     *
+     * 和 `JudgeLineRows` 同样的理由：`{#if}` 里不直接写 `{#for}`，避免
+     * 编译器把组件实例生成在循环体作用域里。
+     */
+    import type { JudgeLine } from "kipphi";
+
+    import JudgeLineRow from "./JudgeLineRow.grain";
+
+    interface Group {
+        name: string;
+        judgeLines: JudgeLine[];
+    }
+
+    let { groups, folded = [] } = $props<{
+        groups: Group[];
+        /** 折叠中的分组名 */
+        folded?: string[];
+    }>();
+
+    /** 折叠的组返回空列表 —— 用"空 `{#for}`"代替 `{#if}` 包 `{#for}` */
+    const rowsOf = (group: Group): JudgeLine[] =>
+        folded.includes(group.name) ? [] : group.judgeLines;
+</script>
+
+{#for group of groups with key = group}
+    <div class="group" data-group={group.name}>
+        <span class="caret {folded.includes(group.name) ? 'folded' : ''}">▾</span>
+        <span class="group-name">{group.name}</span>
+        <span class="count">{group.judgeLines.length}</span>
+    </div>
+
+    {#for line of rowsOf(group) with key = line}
+        <JudgeLineRow target={line} level={1} flat />
+    {/for}
+{/for}
+
+<style>
+    /* 从 `JudgeLineList` 搬过来的：样式是 scoped 的，留在那边不生效 */
+    .group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 14px;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 12px;
+    }
+
+    .group-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .count {
+        color: var(--text-dim);
+    }
+
+    .caret {
+        flex: none;
+        width: 14px;
+        font-size: 11px;
+        text-align: center;
+        transition: transform 0.15s ease;
+    }
+
+    .caret.folded {
+        transform: rotate(-90deg);
+    }
+</style>

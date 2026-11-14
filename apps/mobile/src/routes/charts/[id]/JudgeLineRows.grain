@@ -1,0 +1,30 @@
+<script>
+    /*
+     * 平铺一列判定线。
+     *
+     * 为什么单独一个组件：`JudgeLineList` 原来是 `{#if}` 里直接套 `{#for}`，
+     * 编译器把 `const update$N = JudgeLineRow.create(...)` 生成在**循环体函数**
+     * 内部，而分支的 `dispose` 在外层引用它 —— 切布局时抛
+     * `ReferenceError: update$N is not defined`。
+     *
+     * `{#if}` 里直接是组件、`{#for}` 留在组件内部，就不会跨作用域。
+     */
+    import type { JudgeLine } from "kipphi";
+
+    import JudgeLineRow from "./JudgeLineRow.grain";
+
+    let {
+        lines,
+        flat = false,
+        level = 0
+    } = $props<{
+        lines: JudgeLine[];
+        /** 不展开子判定线（顺序 / 分组布局用） */
+        flat?: boolean;
+        level?: number;
+    }>();
+</script>
+
+{#for line of lines with key = line}
+    <JudgeLineRow target={line} flat={flat} level={level} />
+{/for}
