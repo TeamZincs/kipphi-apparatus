@@ -78,7 +78,7 @@
     <div class="field">
         <span>值增量</span>
         <NumField
-            bind:value={{
+            value={{
                 get: () => offsetValue,
                 set: (value: string) => {
                     offsetValue = value;
@@ -90,7 +90,7 @@
     <div class="field">
         <span>时间增量（拍）</span>
         <NumField
-            bind:value={{
+            value={{
                 get: () => offsetBeats,
                 set: (value: string) => {
                     offsetBeats = value;

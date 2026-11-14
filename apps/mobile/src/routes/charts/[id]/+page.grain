@@ -913,9 +913,7 @@
      * 它们各自持有自己需要的状态，页面不再掺和。
      */
     let sheetOpen = $state(false);
-    let sheetKind = $state<
-        "note" | "node" | "macro" | "line" | "multiNote" | "multiNode"
-    >("note");
+    let sheetKind = $state<"note" | "node" | "macro" | "line" | "multiNote" | "multiNode">("note");
     /** 框选出来的音符 / 节点（批量编辑入口与面板共用） */
     let multiNotes = $state<Note[]>([]);
     let multiNodes = $state<any[]>([]);

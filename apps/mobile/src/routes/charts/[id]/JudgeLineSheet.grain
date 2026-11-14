@@ -218,7 +218,7 @@
     <div class="field">
         <span>横向位置</span>
         <NumField
-            bind:value={{
+            value={{
                 get: () => String(line.anchor[0]),
                 set: (value: string) => commitNumber("anchorX", value)
             }}
@@ -228,7 +228,7 @@
     <div class="field">
         <span>纵向位置</span>
         <NumField
-            bind:value={{
+            value={{
                 get: () => String(line.anchor[1]),
                 set: (value: string) => commitNumber("anchorY", value)
             }}
@@ -239,7 +239,7 @@
         <span>层级（zOrder）</span>
         <NumField
             inputmode="numeric"
-            bind:value={{
+            value={{
                 get: () => String(line.zOrder),
                 set: (value: string) => commitNumber("zOrder", value)
             }}
@@ -249,7 +249,7 @@
     <div class="field">
         <span>遮罩（0~1）</span>
         <NumField
-            bind:value={{
+            value={{
                 get: () => String(line.cover),
                 set: (value: string) => commitNumber("cover", value)
             }}
@@ -259,7 +259,7 @@
     <div class="field">
         <span>跟随父线旋转</span>
         <Switch
-            bind:checked={{
+            checked={{
                 get: () => line.rotatesWithFather,
                 set: (value: boolean) => commit("rotatesWithFather", value)
             }}
@@ -269,10 +269,9 @@
     <div class="field">
         <span>分组</span>
         <select
-            bind:value={{
-                get: () => line.group?.name ?? "",
-                set: (value: string) => commitGroup(value)
-            }}
+            value={line.group?.name ?? ""}
+            onchange={(event: Event) =>
+                commitGroup((event.currentTarget as HTMLSelectElement).value)}
         >
             {#for name of groupOptions with key = name}
                 <option value={name}>{name}</option>
@@ -283,10 +282,9 @@
     <div class="field">
         <span>父判定线</span>
         <select
-            bind:value={{
-                get: () => String(line.father?.id ?? -1),
-                set: (value: string) => commitFather(value)
-            }}
+            value={String(line.father?.id ?? -1)}
+            onchange={(event: Event) =>
+                commitFather((event.currentTarget as HTMLSelectElement).value)}
         >
             <option value="-1">（无）</option>
             {#for item of fatherOptions with key = item.id}
@@ -300,11 +298,11 @@
     <div class="field">
         <span>贴图</span>
         <select
-            bind:value={{
-                get: () => line.texture || "line.png",
-                set: (value: string) => {
-                    void selectTexture(value);
-                }
+            value={line.texture || "line.png"}
+            onchange={(event: Event) => {
+                void selectTexture(
+                    (event.currentTarget as HTMLSelectElement).value,
+                );
             }}
         >
             {#for name of textures with key = name}
