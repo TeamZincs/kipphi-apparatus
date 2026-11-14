@@ -1,4 +1,4 @@
-- 画布编辑器
+﻿- 画布编辑器
   - 设计语言以圆角矩形和方形为主。可以考虑为圆角矩形按钮专开一个处理机制。尽量多用英文缩写或者图标，省去i18n。
   - 取消背后那些state之类的文字，改为用圆角方形按钮显示状态。按钮大概只有select、selectScope和edit，如果画布编辑器模式变为selecting那么就往select按钮后面加ing（因为像这种模式不会通过按钮进入）。最好用图标，select用手掌或者手指，selecting用握起的手掌，edit用笔，selectScope用虚线框，selectingScope用只有角的实线框（跟全屏图案差不多）。
   - 音符画布显示四种音符的按钮，按那个按钮直接切入edit模式，并把将要放的音符设为对应音符类型。如果是在按住的情况下指针离开按钮，那么直接在离开的地方放一个相应的note，并使其被选中（selecting）。
@@ -106,6 +106,54 @@
   - 不显示速率与撤销重做
   - 右中加锁定按钮（类 B 站）：锁定时除它本身都不显示，再点解锁；用于跟打
 
+### Operation.done 与 PreparedComplexOperation（追加3）
+
+- 现状：`Operation` 无 `done` 字段；`OperationList.do` 没有实例级防护，唯一去重是 `rewrite()` 合并
+- `done` 在**容器侧**维护（`OperationList` + `ComplexOperation`），63 个操作子类不动
+  - 障碍：`rewrite()` 会对已 do 的子操作再次 do（`note.ts:293` 的 300 / 302 / 307 / 310 行）
+- 新增 `PreparedComplexOperation`：do 前先 `prepare()` 所有 `LazyOperation`（只构造不执行）
+  - 顺带修掉 `ComplexOperation` 第 k 个失败时前 k-1 个不回滚的隐患
+
+### 多音符 / 多事件编辑（追加4）
+
+- 桌面端现成：`MultiNoteEditor.grain` / `MultiNodeEditor.grain`（二级侧栏，不是折叠面板）
+- 移动端没接 scope 事件，只有单选；集合本身现成（`notesSelection` / `nodesSelection`）
+- 做法：监听 `notescopeselected` / `nodescopeselected` → 有选中时画布 tab 顶部出「批量编辑」按钮
+  - 面板用 `SheetShell`（移动端没有 Collapsible 组件）
+  - 表单 `NumField` + `Segmented`，不上 JS 代码框
+  - 提交走 `Op.ComplexOperation`
+- 图标待定：`⊞` / `⧉` / `∀` / `☰`
+
+### 判定线信息编辑（追加4）
+
+- 现状：`JudgeLineRow.grain:257` 的 `openSettings()` 是空槽，只把左滑收回
+- 字段照搬桌面 `JudgeLineEditor.grain`：group / cover / father / rotatesWithFather / anchor / zOrder / texture
+- 用 `SheetShell` 呈现，走 `Op.JudgeLinePropChangeOperation`；father 要移植循环校验
+
+### 亮色主题（追加4）
+
+- `theme.ts` + `app.css` 已就绪；缺的是画布
+- 画布底色写死 `#333d`（`notesEditor.ts:1618`、`eventCurveEditor.ts:1805` / `2920`），且与标签文字色混用
+  - 先拆成 `backgroundColor` / `gridTextColor` 两个字段
+- 暗色从偏蓝改中性灰：`#1c1c1e` / `#26262a`（待定）
+
+### 分段按钮无框形式（追加4）
+
+- `Segmented.grain` 加 `variant: "solid" | "plain"`
+- plain：无底无框、项间竖线、选中项只把文字改成 `var(--accent)`
+- 应用到 `JudgeLineList.grain:89` 的布局三选项
+
+### 边缘自动滚动（追加4）
+
+- 指针进边缘 1/6 → rAF 按距离比例 `panBy`，上限约 `0.15 * timeSpan / 秒`
+- 加 `edgeScrollEnabled` 开关；放大期间禁用；两个编辑器都要
+
+### 画布设置 tab（追加4）
+
+- 字段：`timeDivisor`（两个编辑器）、`timeSpan` / `positionSpan`、音符 `positionGridSpan`、
+  事件网格密度（需加实例字段覆盖 `eventTypeMap`）、`showsNNNListAttachable`、边缘滚动开关
+- 桌面端 `SecondarySidebar.GENERAL` 只有 `timeDivisor` 有 UI，其余两端都没有入口
+
 ### 实施进度
 
 | # | 条目 | 状态 |
@@ -130,6 +178,13 @@
 | 13 | 三种范围选择状态按钮（替换/并集/补集，两端） | ✅ |
 | 14 | 复制/粘贴按钮（粘贴走拖出/点按 + 预览） | 音符 ✅ / 事件 ✅ |
 | 15 | select 模式点空白处轴向拖动（追加2） | 音符 ✅ / 事件 ✅ |
+| 16 | Operation.done + `PreparedComplexOperation`（追加3） | ⬜ 未做 |
+| 17 | 多音符 / 多事件编辑（追加4） | ⬜ 未做 |
+| 18 | 判定线信息编辑（追加4） | ⬜ 未做 |
+| 19 | 亮色主题（追加4） | ⬜ 未做 |
+| 20 | 分段按钮无框形式（追加4） | ⬜ 未做 |
+| 21 | 边缘自动滚动（追加4） | ⬜ 未做 |
+| 22 | 画布设置 tab（追加4） | ⬜ 未做 |
 
 ### 建议实施顺序
 
@@ -142,6 +197,8 @@
 7. 播放器三件（速率 / 撤销重做 / 全屏锁定）
 8. Tabs 操作栈
 9. 事件编辑器细节（按钮圆角、动画变量名称下移）
+10. 追加3（内核：`done` + `PreparedComplexOperation`）→ 判定线信息 → 多元素编辑
+    → 画布设置 tab → 边缘自动滚动 → 亮色主题 → 无框分段按钮
 
 ### 待确认
 
@@ -157,6 +214,9 @@
 6. 操作栈：只读列表，还是可以点某一步回退到那一步？    只读列表
 7. 速率：固定档位（0.5 / 0.75 / 1.0 …）还是连续可调？ 固定档位
 8. 全屏锁定：怎么进入锁定（长按？双击？），解锁手势是什么？ 锁定只要点一下，解锁要长按
+9. 多元素编辑的入口图标用哪个？                          `⊞` / `⧉` / `∀` / `☰`
+10. 多元素编辑在移动端的形态？                           `SheetShell` 底部面板（倾向）/ 新写折叠面板组件
+11. 暗色主题的中性灰取哪个？                             `#1c1c1e` / `#26262a`
 
 
 
@@ -170,125 +230,20 @@
 - select模式下点没东西的地方可以轴向拖动，至于拖动什么看画布锁定横轴还是锁定时间轴
 
 # 追加3（对kipphi内核）
-
-> 调研结论（`D:\zes\VSCode\kipphi`）：
-> · `Operation` 基类在 `src/operation/basic.ts:305`，只有 `do` / `undo` / `rewrite`，
->   **没有** `done` / `isDone` / `performed` 任何状态字段（全库 0 命中）。
-> · `OperationList.do`（`basic.ts:203`）没有实例级防护，唯一去重是 `rewrite()` 合并
->   （`basic.ts:216-229`：新操作与栈顶同构造器时尝试并入上一条）。
-> · **最大障碍**：`rewrite()` 内部会对**已经 do 过的子操作再次 do**
->   —— `note.ts:293 NoteTimeChangeOperation.rewrite` 的 300 / 302 / 307 / 310 行。
-> · `PreparedComplexOperation` / `prepare` 全库 0 命中，是全新功能。
-> · `ComplexOperation.do`（`basic.ts:456`）无 try/catch、无回滚：第 k 个子操作抛异常时，
->   前 k-1 个的副作用留在场上（`OperationList.do` 只是派发 error 后 return）。
-
-- [ ] Operation 加 `done`，禁止重复 do / 重复 undo
-  - 状态在**容器侧**维护，子类仍只实现 `do` / `undo`（63 个操作类不用改）：
-    - `OperationList.do`：已 done 则跳过；成功后 `done = true`
-    - `OperationList.undo`：未 done 则跳过；成功后 `done = false`
-    - `ComplexOperation.do` / `undo`：遍历子操作时做同样的检查 + 置位
-  - `rewrite()` 那 4 处重复 do → 抽一个 `executeIfNeeded(op)`（内部先 `done = false` 再 `do`）
-  - 回归重点：`tests/operation.test.ts:103-120` 的 rewrite 合并用例（“合并掉的变更只算一次 do”）
-  - 工作量约 1 天
-
-- [ ] 新增 `PreparedComplexOperation`（不动现有 `ComplexOperation`）
-  - `LazyOperation` 加 `prepare(chart?)`：`this.operation ??= new this.operationClass(...this.args)`
-    —— 只构造，不执行
-  - 新类 override `do`：先遍历子操作，`LazyOperation` 全 `prepare()`，再 `super.do(chart)`
-  - 收益：把 `LazyOperation` 的**构造期异常**提前到执行之前暴露，避免“跑了一半失败且不回滚”
-  - 工作量约 0.5 天
-  - **先做追加3**：追加4 的多选编辑重度依赖 `ComplexOperation`
+- Operation添加done属性标记完成，所有Operation完成时标记为done: true，撤销时标记false。禁止重复do或重复undo一个操作。
+- LazyOperation加一个prepare方法，这个方法只构造并把操作赋值给自身属性而不执行。ComplexOperation里如果使用LazyOperation，先把所有为Lazy的子操作prepare。（感觉好像也不太对）
+  - 不不不，改为增加新的类PreparedComplexOperation，这个类在prepare时会把所有子操作都prepare，然后再执行。ComplexOperation保持原样。
 
 # 追加4
+- 添加多音符和多事件编辑，参考桌面端代码
+  - 桌面端的那个线性音符填充不做了，后面单开一个功能页来搞。
+  - 这两者都放到折叠面板里面
+  - 当nodesSelection或notesSelection中有东西，在相应画布编辑器中显示一个按钮以进入多元素编辑，用什么图标需要你考虑一下，与我讨论。
+- 添加判定线信息编辑，通过判定线项左滑的齿轮按钮（之前已做）进入，呈现到折叠面板里。参考桌面端。
+- 画布添加亮色主题，移动端整体都添加亮色主题。暗色主题的整体背景色调整为更为中性的灰色而不是目前偏蓝的灰色。
+- 排形按钮加一种无框形式，这种形式下只有文本和文本间的竖线，被选择的选项变为主题色。然后将该种样式应用到判定线布局选择的那三个选项处。
+- 当拖着一个音符到画布编辑器边缘1/6时，尝试移动网格（很传统的操作模型），移动速度要合适。这个功能应当有开关。
+- 加一个画布设置的tab，里面可以调整timeDivisor（拍数分母）、时间跨度、值跨度、网格竖线密度（note和event都加）还有音符画布那个showsNNN。
 
-> 调研结论（`D:\zes\VSCode\kipphi-apparatus`）：
-> · 桌面端多选编辑在**二级侧栏**里：`routes/charts/[id]/MultiNoteEditor.grain`、`MultiNodeEditor.grain`（不是折叠面板）
-> · 移动端**完全没接** `notescopeselected` / `nodescopeselected`（`apps/mobile/src` 0 命中），只有单选
-> · 集合本身现成：`notesEditor.ts:228 notesSelection`、`eventCurveEditor.ts:2609 nodesSelection`，都会派发 scope 事件
-> · 移动端**没有** Collapsible / Accordion 组件；只有 `SheetShell.grain`（底部弹出面板，`NoteSheet`/`EventSheet`/`MacroSheet` 共用）
-> · `theme.ts` + `app.css` 主题机制已完整（`data-theme` 切换 + 持久化）
-> · `Segmented.grain` 已有（实心 pill），判定线布局三选项已用它
-> · 桌面 `SecondarySidebar.GENERAL` 只有 `timeDivisor` 有 UI；`timeSpan` / `positionSpan` 两端都没入口
 
-- [ ] 多音符 / 多事件编辑
-  - 桌面端那个线性音符填充不做了，后面单开一个功能页来搞
-  - 现状：桌面字段表可直接搬（音符 13 个字段全部走 JS 代码框批量求值；事件只有 `value` / `time`
-    + start/end/背靠背/面对面 四种取法）
-  - 移动端做法：
-    1. 页面加 `notescopeselected` / `nodescopeselected` 监听（参照桌面 `+page.grain:551-567`）
-    2. 有选中时在对应画布 tab 顶部显示「批量编辑」按钮
-    3. 点开用 `SheetShell` **底部面板**（移动端没有折叠面板组件，`SheetShell` 才是现有交互）
-    4. 表单用 `NumField` + `Segmented`，**不上 JS 代码框**（移动端键盘敲代码体验差）
-    5. 提交：收集操作 → `Op.ComplexOperation`（和桌面一致）
-  - 入口图标待定：`⊞`（倾向）/ `⧉` / `∀` / `☰`
-  - 工作量约 2.5 天（音符 + 事件各 ~1 天，公共按钮/面板 0.5 天）
-
-- [ ] 判定线信息编辑
-  - 现状：`JudgeLineRow.grain:257-260` 是**空槽**——`openSettings()` 只把左滑收回，什么都不做
-  - 桌面 `JudgeLineEditor.grain` 字段齐全：`group` / `cover` / `father`（带 `checkFather()` 循环校验）/
-    `rotatesWithFather` / `anchor.x,y` / `zOrder` / `texture`，全部走 `Op.JudgeLinePropChangeOperation`
-  - 做法：`openSettings()` → 打开 `SheetShell`，字段照搬桌面，`father` 要移植循环检测
-  - 工作量约 1.5 天
-
-- [ ] 多元素面板入口图标（依赖上面第一条）
-  - 我倾向 `⊞`（多选/批量），备选 `⧉` `∀` `☰`
-
-- [ ] 画布 + 移动端亮色主题
-  - 现状：`theme.ts` 已完整（`writable` + `data-theme` + `localStorage` + `prefers-color-scheme`），
-    `app.css` 里 `:root`（亮色）和 `[data-theme='dark']`（暗色）都有
-  - **唯一的硬伤**：画布底色写死 `"#333d"` —— `notesEditor.ts:1618`、`eventCurveEditor.ts:1805` / `2920`，
-    而且同一个值还被当**标签文字色**用，要先拆成两个字段（`backgroundColor` / `gridTextColor`）
-  - 做法：页面订阅 `theme` → 写给两个编辑器 → `draw()`
-  - 暗色底色从 `#333d`（偏蓝）改中性灰，候选 `#1c1c1e` / `#26262a`
-  - 工作量约 1 天
-
-- [ ] 排形按钮（分段控件）加无框形式
-  - 现状：`components/Segmented.grain` 已存在（实心 pill，`.seg.on` 用 accent 底）
-  - 做法：加 `variant: "solid" | "plain"`；plain 下 `background: none; border: none`，
-    项间 `border-left: 1px solid var(--border)`，选中项只把**文字**改成 `var(--accent)`
-  - 应用到 `JudgeLineList.grain:89-96` 的布局三选项
-  - 工作量约 0.5 天
-
-- [ ] 拖到画布边缘 1/6 时自动滚动
-  - 现状：没有。只有滚轮（`notesEditor.ts:1011` 每格 `timeSpan/10`）和 `panBy`
-  - 做法：
-    1. `moveHandler` 判断指针是否落在左右（横向画布）/ 上下边缘 1/6 内
-    2. `requestAnimationFrame` 按“越靠边越快”调 `panBy`，上限约 `0.15 * timeSpan / 秒`
-    3. 编辑器加 `edgeScrollEnabled`（默认 true），暴露到画布设置 tab
-    4. 两个编辑器都要；放大期间禁用（避免和放大镜打架）
-  - 不会再引入坐标偏移：输入映射现在用实时矩阵逆（不走快照）
-  - 工作量约 1 天
-
-- [ ] 画布设置 tab
-  - 现状：桌面 `SecondarySidebar.GENERAL` 只有 `timeDivisor` 有 UI；`timeSpan` / `positionSpan` 两端都没有入口
-  - 移动端加第 6 个 tab（`settings`），字段与落地方式：
-    | 设置 | 落地 |
-    |---|---|
-    | `timeDivisor` | `notesEditor.timeDivisor` + `eventSequenceEditors.timeDivisor`，改完 `draw()` |
-    | `timeSpan` / `positionSpan` | 直接赋值 + `updateMatrix()` |
-    | 网格竖线密度（音符）| `positionGridSpan` |
-    | 网格竖线密度（事件）| **需先加实例字段**，现在只在 `eventTypeMap` 常量里（加 `valueGridSpanOverride`）|
-    | `showsNNNListAttachable` | 直接赋值 |
-    | 边缘滚动开关 | 上一条的字段 |
-  - 工作量约 1.5 天（含事件侧 `valueGridSpan` 实例化改造）
-
-## 追加4 建议顺序
-
-| # | 条目 | 理由 | 工作量 |
-|---|---|---|---|
-| 1 | 追加3（3.1 + 3.2）| 内核地基，多选编辑依赖它 | 1.5 天 |
-| 2 | 判定线信息 | 空槽、收益直接、不依赖其他 | 1.5 天 |
-| 3 | 多元素编辑 | 依赖 3.2 | 2.5 天 |
-| 4 | 画布设置 tab | 承载边缘滚动开关 | 1.5 天 |
-| 5 | 边缘自动滚动 | 依赖上一条的开关位 | 1 天 |
-| 6 | 亮色主题 | 独立，可任意插入 | 1 天 |
-| 7 | 无框分段按钮 | 随手做 | 0.5 天 |
-
-合计约 9.5 天。
-
-## 待决策
-
-1. 多元素编辑入口图标：`⊞` / `⧉` / `∀` / `☰`
-2. 多元素编辑在移动端的形态：`SheetShell` 底部面板（倾向）vs 真做一个折叠面板组件
-3. 暗色主题的中性灰取值：`#1c1c1e` vs `#26262a`
 
