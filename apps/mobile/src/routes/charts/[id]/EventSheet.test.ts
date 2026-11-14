@@ -319,14 +319,34 @@ async function mountSheet(
     };
 }
 
+/**
+ * 轮询直到条件成立。
+ *
+ * 不要用固定 `setTimeout(20)` 等挂载：走 `SheetShell` 那条路有 240ms 入场
+ * 动画，机器一忙 20ms 根本等不到，就是假失败。
+ */
+const waitFor = async (check: () => boolean, timeout = 3000) => {
+    const started = Date.now();
+
+    while (!check()) {
+        if (Date.now() - started > timeout) return;
+
+        await new Promise((done) => setTimeout(done, 16));
+    }
+};
+
 describe("EventSheet 求值器分支", () => {
     it.each([false, true])(
         "切到表达式后旧分支全部移除（经 SheetShell = %s）",
         async (throughShell) => {
         const { target } = await mountSheet(throughShell);
 
-        // 等命令式挂载的那一帧
-        await new Promise((done) => setTimeout(done, 20));
+        // 等命令式挂载**和异步画布**都就绪（`SheetShell` 那条路还要等入场动画）
+        await waitFor(
+            () =>
+                target.querySelectorAll("button.seg").length > 0 &&
+                target.querySelectorAll(".orphan-canvas").length === 1
+        );
 
         const buttons = [
             ...target.querySelectorAll("button.seg")
@@ -389,8 +409,10 @@ describe("EventSheet 求值器分支", () => {
         expect(target.querySelectorAll(".stub-canvas").length).toBe(1);
         expect(target.querySelector(".stub-canvas")).not.toBe(canvasBefore);
 
-        // 新分支的异步挂载也要等一帧
-        await new Promise((done) => setTimeout(done, 20));
+        // 新分支的异步挂载
+        await waitFor(
+            () => target.querySelectorAll(".orphan-canvas").length === 1
+        );
 
         expect(target.querySelectorAll(".orphan-canvas").length).toBe(1);
         expect(target.querySelectorAll("canvas").length).toBe(2);

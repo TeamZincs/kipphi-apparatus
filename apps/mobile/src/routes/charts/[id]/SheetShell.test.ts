@@ -113,7 +113,21 @@ const clickHandle = (handle: HTMLElement) => {
     handle.dispatchEvent(new window.Event("pointerup", { bubbles: true }));
 };
 
-const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
+/**
+ * 轮询直到条件成立。
+ *
+ * 不要用固定 `sleep(320)` 等收起动画（约 240ms）：机器一忙定时器就延迟，
+ * 差那几十毫秒就是假失败。
+ */
+const waitFor = async (check: () => boolean, timeout = 3000) => {
+    const started = Date.now();
+
+    while (!check()) {
+        if (Date.now() - started > timeout) return;
+
+        await new Promise((done) => setTimeout(done, 16));
+    }
+};
 
 describe("SheetShell", () => {
     beforeEach(() => {
@@ -138,7 +152,7 @@ describe("SheetShell", () => {
         expect(sheet.classList.contains("closing")).toBe(true);
         expect(closings.length).toBe(0);
 
-        await sleep(320);
+        await waitFor(() => closings.length === 1);
 
         expect(closings.length).toBe(1);
     });
@@ -147,7 +161,7 @@ describe("SheetShell", () => {
         const { handle, sheet, closings } = await mountShell();
 
         clickHandle(handle);
-        await sleep(320);
+        await waitFor(() => closings.length === 1);
 
         expect(closings.length).toBe(1);
 
