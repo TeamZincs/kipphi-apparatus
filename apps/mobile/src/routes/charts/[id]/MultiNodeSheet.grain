@@ -11,6 +11,11 @@
     import { Op, type TimeT } from "kipphi";
 
     import CodeField from "#/components/CodeField.grain";
+    import {
+        compileExpression,
+        EXPRESSION_HELP,
+        type ExpressionEvaluator
+    } from "#/expression";
     import { operationList, refreshAll } from "#/store";
 
     let { nodes, onclose } = $props<{
@@ -29,13 +34,11 @@
     function apply(): void {
         if (!operationList || !nodes.length) return;
 
-        let fn: (value: any, node: any) => any;
+        let fn: ExpressionEvaluator;
 
         try {
-            fn = new Function("val", "node", `return (${code})`) as (
-                value: any,
-                node: any,
-            ) => any;
+            // 注入 TC / NoteType / easing* —— 和 kipphi 自己的求值器同一套
+            fn = compileExpression(code);
         } catch (error) {
             console.error("表达式语法错误", error);
 
@@ -98,7 +101,8 @@
     <button class="apply" onclick={apply}>应用</button>
 
     <p class="hint">
-        `val` 是当前值 / 时刻，`node` 是节点对象。例：`val + 10`、`val * 2`。
+        {EXPRESSION_HELP}
+        例：`val + 10`、`TC.toBeats(val)`、`easingFns.easeInOutSine(0.5)`。
         时间字段要写完整时间，例如 `[3, 0, 1]`。
     </p>
 </div>

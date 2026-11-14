@@ -8,9 +8,14 @@
      *
      * 表达式里的 `NoteType` 是可用的（页面全局注入了 kipphi 的命名空间）。
      */
-    import { NoteType, Op, type Note } from "kipphi";
+    import { Op, type Note } from "kipphi";
 
     import CodeField from "#/components/CodeField.grain";
+    import {
+        compileExpression,
+        EXPRESSION_HELP,
+        type ExpressionEvaluator
+    } from "#/expression";
     import { operationList, refreshAll } from "#/store";
 
     let { notes, onclose } = $props<{
@@ -99,29 +104,16 @@
     function apply(): void {
         if (!operationList || !notes.length) return;
 
-        let evaluate: (value: any, note: Note, types: any) => any;
+        let fn: ExpressionEvaluator;
 
         try {
-            /*
-             * `NoteType` 作为**参数**注入，不挂到 `window` 上。
-             *
-             * 这样表达式里能写 `NoteType.hold`，又不用污染全局（桌面端是
-             * 用 snippet 提示的，移动端直接给它）。
-             */
-            evaluate = new Function(
-                "val",
-                "note",
-                "NoteType",
-                `return (${code})`,
-            ) as (value: any, note: Note, types: any) => any;
+            // 注入 TC / NoteType / easing* —— 和 kipphi 自己的求值器同一套
+            fn = compileExpression(code);
         } catch (error) {
             console.error("表达式语法错误", error);
 
             return;
         }
-
-        const fn = (value: any, note: Note): any =>
-            evaluate(value, note, NoteType);
 
         const operations: Op.Operation[] = [];
 
@@ -172,8 +164,8 @@
     <button class="apply" onclick={apply}>应用</button>
 
     <p class="hint">
-        `val` 是该字段当前值，`note` 是音符对象（可读 `note.positionX` 等）。
-        例：`val + 10`、`val * 2`、`true`、`NoteType.hold`。
+        {EXPRESSION_HELP}
+        例：`val + 10`、`true`、`NoteType.hold`、`TC.toBeats(val)`。
         时间字段要写完整时间，例如 `[3, 0, 1]`。
     </p>
 </div>
