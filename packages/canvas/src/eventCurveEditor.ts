@@ -954,12 +954,24 @@ export class EventSequenceEditors extends EventTarget {
 
     /** 「批量编辑」按钮：框选到节点才给 */
     private multiButtonList(): CanvasButton[] {
-        if (this.nodeSelectionSize() === 0) return [];
+        const count = this.nodeSelectionSize();
+
+        if (count === 0) return [];
 
         return [
             {
                 id: "multi-edit",
                 icon: "multiEdit",
+                // 两格宽：左边图标、右边数量
+                paint: (context, x, y, _size, color) =>
+                    drawIconWithCount(
+                        context,
+                        "multiEdit",
+                        x,
+                        y,
+                        color,
+                        count,
+                    ),
                 onClick: () =>
                     this.dispatchEvent(new KPAEvent("multiedit")),
             },
@@ -1981,6 +1993,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
 import {
     DEFAULT_PALETTE,
     drawButton,
+    drawIconWithCount,
     roundRectPath,
     scaleFont,
     type ButtonPalette,

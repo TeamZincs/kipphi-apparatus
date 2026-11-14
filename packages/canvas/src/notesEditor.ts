@@ -43,7 +43,7 @@ import {
     splitBeats,
     ZOOM_LEVELS,
 } from "./magnifier";
-import { scaleFont } from "./ui";
+import { drawIconWithCount, scaleFont } from "./ui";
 
 const DRAWS_NN = true;
 const COLOR_1 = "#66ccff";
@@ -833,10 +833,22 @@ export class NotesEditor extends EventTarget {
     private multiButtonList(): CanvasButton[] {
         if (this.notesSelection.size === 0) return [];
 
+        const count = this.notesSelection.size;
+
         return [
             {
                 id: "multi-edit",
                 icon: "multiEdit",
+                // 两格宽：左边图标、右边数量
+                paint: (context, x, y, _size, color) =>
+                    drawIconWithCount(
+                        context,
+                        "multiEdit",
+                        x,
+                        y,
+                        color,
+                        count,
+                    ),
                 onClick: () =>
                     this.dispatchEvent(new KPAEvent("multiedit")),
             },

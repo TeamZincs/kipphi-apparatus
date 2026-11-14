@@ -190,6 +190,40 @@ export function drawIcon(
     context.restore();
 }
 
+/**
+ * 图标 + 数字**并排**画在按钮中心。
+ *
+ * 给「两格宽」的按钮用（批量编辑：左边图标、右边数量），普通方形按钮用
+ * `drawIcon` 就够了。
+ */
+export function drawIconWithCount(
+    context: CanvasRenderingContext2D,
+    name: IconName,
+    cx: number,
+    cy: number,
+    color: string,
+    count: number,
+    iconSize = 20
+): void {
+    const text = String(count);
+    const gap = 8;
+
+    context.save();
+    context.font = "600 15px system-ui, sans-serif";
+    context.textAlign = "left";
+    context.textBaseline = "middle";
+
+    const textWidth = context.measureText(text).width;
+    const total = iconSize + gap + textWidth;
+    const left = cx - total / 2;
+
+    drawIcon(context, name, left + iconSize / 2, cy, iconSize, color);
+
+    context.fillStyle = color;
+    context.fillText(text, left + iconSize + gap, cy);
+    context.restore();
+}
+
 /** 设计基准宽度：原版所有字号都是按 600 宽的画布定的 */
 export const DESIGN_WIDTH = 600;
 
