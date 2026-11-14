@@ -9,11 +9,12 @@
      * 时间批量偏移涉及 `EventNodePairTimeChangeOperation` 与背靠背配对，
      * 单独一轮再做。
      */
-    import { Op } from "kipphi";
+    import { Op, TC } from "kipphi";
 
     import NumField from "#/components/NumField.grain";
 
     import { operationList, refreshAll } from "#/store";
+    import { toTime } from "#/time";
 
     let { nodes, onclose } = $props<{
         nodes: any[];
@@ -22,21 +23,45 @@
 
     /** 值增量（相对每个节点各自的值） */
     let offsetValue = $state("0");
+    /** 时间增量（拍，相对） */
+    let offsetBeats = $state("0");
 
     function apply(): void {
         if (!operationList || !nodes.length) return;
 
-        const delta = Number(offsetValue);
+        const dv = Number(offsetValue);
+        const dBeats = Number(offsetBeats);
+        const hasValue = Number.isFinite(dv) && dv !== 0;
+        const hasTime = Number.isFinite(dBeats) && dBeats !== 0;
 
-        if (!Number.isFinite(delta) || delta === 0) return;
+        if (!hasValue && !hasTime) return;
 
-        const operations = nodes.map(
-            (node) =>
-                new Op.EventNodeValueChangeOperation(
-                    node,
-                    (node.value as number) + delta,
-                ),
-        );
+        const operations: Op.Operation[] = [];
+
+        for (const node of nodes) {
+            if (hasValue) {
+                operations.push(
+                    new Op.EventNodeValueChangeOperation(
+                        node,
+                        (node.value as number) + dv,
+                    ),
+                );
+            }
+
+            /*
+             * 时间：和桌面 `MultiNodeEditor` 的 `time` 分支一致，用
+             * `EventNodePairTimeChangeOperation` —— 它内部会找背靠背的
+             * 另一个节点，整对一起移动。
+             */
+            if (hasTime) {
+                operations.push(
+                    new Op.EventNodePairTimeChangeOperation(
+                        node,
+                        toTime(TC.toBeats(node.time) + dBeats),
+                    ),
+                );
+            }
+        }
 
         operationList.do(new Op.ComplexOperation(...operations));
         refreshAll();
@@ -62,10 +87,22 @@
         />
     </div>
 
+    <div class="field">
+        <span>时间增量（拍）</span>
+        <NumField
+            bind:value={{
+                get: () => offsetBeats,
+                set: (value: string) => {
+                    offsetBeats = value;
+                }
+            }}
+        />
+    </div>
+
     <button class="apply" onclick={apply}>应用</button>
 
     <p class="hint">
-        增量是相对每个节点各自的值，0 表示不动。背靠背的一对会一起变。
+        增量是相对每个节点各自的值 / 时刻，0 表示不动。背靠背的一对会一起变。
     </p>
 </div>
 

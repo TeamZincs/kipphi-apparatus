@@ -9,11 +9,12 @@
      * 只做最常用、最安全的几项：横位置偏移、大小、透明度。时间 / 速度涉及
      * NNN 结构（`NoteTimeChangeOperation` 要 `getNodeOf`），单独一轮再做。
      */
-    import { Op, type Note } from "kipphi";
+    import { Op, TC, type Note } from "kipphi";
 
     import NumField from "#/components/NumField.grain";
 
     import { operationList, refreshAll } from "#/store";
+    import { toTime } from "#/time";
 
     let { notes, onclose } = $props<{
         notes: Note[];
@@ -22,6 +23,10 @@
 
     /** 横位置增量（相对） */
     let offsetX = $state("0");
+    /** 时间增量（拍，相对） */
+    let offsetBeats = $state("0");
+    /** 速度增量（相对） */
+    let offsetSpeed = $state("0");
     /** 大小（绝对，留空不改） */
     let size = $state("");
     /** 透明度（绝对，0~255，留空不改） */
@@ -31,6 +36,8 @@
         if (!operationList || !notes.length) return;
 
         const dx = Number(offsetX);
+        const dBeats = Number(offsetBeats);
+        const dSpeed = Number(offsetSpeed);
         const sizeValue = size.trim() === "" ? null : Number(size);
         const alphaValue = alpha.trim() === "" ? null : Number(alpha);
 
@@ -43,6 +50,35 @@
                         note,
                         "positionX",
                         note.positionX + dx,
+                    ),
+                );
+            }
+
+            /*
+             * 时间：整条音符重新挂到新时刻。
+             *
+             * 和桌面 `MultiNoteEditor` 的 `startTime` 分支完全一致 ——
+             * `NoteTimeChangeOperation` 要的是**目标时刻对应的 NN 节点**，
+             * 不是时间本身。目标时刻没有 NN 节点就跳过这一条（桌面端由用户在
+             * JS 里自负，这里给个兜底）。
+             */
+            if (Number.isFinite(dBeats) && dBeats !== 0) {
+                const next = toTime(TC.toBeats(note.startTime) + dBeats);
+                const node = note.parentNode.parentSeq.getNodeOf(next);
+
+                if (node) {
+                    operations.push(
+                        new Op.NoteTimeChangeOperation(note, node),
+                    );
+                }
+            }
+
+            if (Number.isFinite(dSpeed) && dSpeed !== 0) {
+                operations.push(
+                    new Op.NoteSpeedChangeOperation(
+                        note,
+                        note.speed + dSpeed,
+                        note.parentNode.parentSeq.parentLine,
                     ),
                 );
             }
@@ -86,6 +122,30 @@
                 get: () => offsetX,
                 set: (value: string) => {
                     offsetX = value;
+                }
+            }}
+        />
+    </div>
+
+    <div class="field">
+        <span>时间增量（拍）</span>
+        <NumField
+            bind:value={{
+                get: () => offsetBeats,
+                set: (value: string) => {
+                    offsetBeats = value;
+                }
+            }}
+        />
+    </div>
+
+    <div class="field">
+        <span>速度增量</span>
+        <NumField
+            bind:value={{
+                get: () => offsetSpeed,
+                set: (value: string) => {
+                    offsetSpeed = value;
                 }
             }}
         />
