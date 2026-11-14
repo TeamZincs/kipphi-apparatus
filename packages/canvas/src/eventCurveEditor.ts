@@ -3918,6 +3918,9 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             let node: any = seq.getNodeAt(anchor.y - halfBeats);
 
             for (let guard = 0; node && guard < 512; guard += 1) {
+                // `getNodeAt` 可能直接给到 tail（没有 `time`），到头了
+                if (!node.time) break;
+
                 const beats = TC.toBeats(node.time);
 
                 if (beats > anchor.y + halfBeats) break;
