@@ -260,6 +260,16 @@ export class NotesEditor extends EventTarget {
      */
     private matrixBeats = 0;
 
+    /** 拖到边缘 1/6 时自动滚动视野（设置面板里可以关掉） */
+    edgeScrollEnabled = true;
+
+    /** 当前滚动方向：`-1` 往回 / `1` 往前 / `0` 不滚 */
+    private edgeScroll = 0;
+    /** `0~1`，越靠边越快 */
+    private edgeScrollStrength = 0;
+    private edgeScrollRaf = 0;
+    private edgeScrollLast = 0;
+
     // end
 
     showsNNNListAttachable: boolean = true;
@@ -485,24 +495,33 @@ export class NotesEditor extends EventTarget {
             .mul(this.elementMatrixInverted)
             .mul(this.canvasMatrixInverted));
 
-        /*
-         * 用**实时**的矩阵逆。
-         *
-         * 不能快照：放大动画里比例每帧都在变，快照会过期 → 手指位置算偏。
-         * 锚点是固定的（`zoomAnchor`），矩阵不依赖输入，所以这里实时也不会
-         * 形成反馈闭环。
-         */
-        const { x, y } = canvasCoord.mul(this.matrixInverted);
+        // 边缘自动滚动：指针停在上下 1/6 就持续滚（和拖动同时进行）
+        this.updateEdgeScroll(event);
 
         // 正在轴向拖动：只做平移，不做吸附/选中
         if (this.pan) {
+            const { y } = canvasCoord.mul(this.matrixInverted);
+
             this.panBy(y, this.pointerInBitmap(event).x);
 
             return;
         }
 
-        // const {width, height} = this.canvas
-        // const {padding} = this;
+        this.applyDragAt(canvasCoord);
+    }
+
+    /**
+     * 指针 → 世界坐标 → 吸附 → 提交操作。
+     *
+     * 拖动和**边缘自动滚动**共用：滚动时视野变了，得按同一个 `canvasPoint`
+     * 重新算一次，节点才会一直待在手指下面。
+     *
+     * 用**实时**的矩阵逆 —— 放大动画里比例每帧都在变，快照会过期。
+     * 锚点是固定的（`zoomAnchor`），矩阵不依赖输入，所以不会形成反馈闭环。
+     */
+    private applyDragAt(canvasCoord: Coordinate): void {
+        const { x, y } = canvasCoord.mul(this.matrixInverted);
+
         // 横向同理：放大后画出来的细分线也要能吸附
         const positionStep =
             this.positionGridSpan / this.gridSubdivision();
@@ -524,8 +543,6 @@ export class NotesEditor extends EventTarget {
 
         switch (this.state) {
             case NotesEditorState.selecting:
-                console.log("det");
-                console.log(this.selectedNote);
                 if (!this.selectedNote) {
                     console.warn(
                         "Unexpected error: selected note does not exist",
@@ -561,6 +578,105 @@ export class NotesEditor extends EventTarget {
                 }
         }
     }
+
+    //#region 边缘自动滚动
+    /**
+     * 指针停在上 / 下边缘 1/6 内就持续滚视野（时间方向）。
+     *
+     * 只做时间：横向范围由 `positionSpan` 定，值域是固定的，没有"滚出去"的
+     * 概念。越靠边滚得越快（`strength` 线性到 1）。
+     */
+    private updateEdgeScroll(event: TouchEvent | MouseEvent): void {
+        if (
+            !this.edgeScrollEnabled ||
+            this.pan ||
+            this.state !== NotesEditorState.selecting
+        ) {
+            this.stopEdgeScroll();
+
+            return;
+        }
+
+        const point = this.pointerInBitmap(event);
+        const [, top, , height] = this.clippingRect;
+        const localY = point.y - top;
+        const zone = height / 6;
+
+        if (!Number.isFinite(localY) || zone <= 0) {
+            this.stopEdgeScroll();
+
+            return;
+        }
+
+        let direction = 0;
+        let strength = 0;
+
+        if (localY < zone) {
+            // 贴近顶部（时间更晚的方向）→ 视野往前推
+            direction = 1;
+            strength = 1 - Math.max(0, localY) / zone;
+        } else if (localY > height - zone) {
+            direction = -1;
+            strength = 1 - (height - localY) / zone;
+        }
+
+        this.edgeScroll = direction;
+        this.edgeScrollStrength = Math.max(0, Math.min(1, strength));
+
+        if (direction === 0) {
+            this.stopEdgeScroll();
+        } else {
+            this.startEdgeScroll();
+        }
+    }
+
+    private startEdgeScroll(): void {
+        if (this.edgeScrollRaf) return;
+        if (typeof requestAnimationFrame !== "function") return;
+
+        this.edgeScrollLast = 0;
+        this.edgeScrollRaf = requestAnimationFrame((now) =>
+            this.tickEdgeScroll(now),
+        );
+    }
+
+    private tickEdgeScroll(now: number): void {
+        if (!this.edgeScroll || !this.canvasPoint) {
+            this.edgeScrollRaf = 0;
+
+            return;
+        }
+
+        const dt = Math.min(64, now - (this.edgeScrollLast || now));
+
+        this.edgeScrollLast = now;
+
+        // 上限：每秒滚半个视野，太快会看不清
+        const speed =
+            (this.timeSpan / 2) * this.edgeScrollStrength * (dt / 1000);
+
+        this.lastBeats += this.edgeScroll * speed;
+
+        // 视野动了，节点要按同一根手指重新吸附
+        this.applyDragAt(this.canvasPoint);
+        this.draw();
+
+        this.edgeScrollRaf = requestAnimationFrame((next) =>
+            this.tickEdgeScroll(next),
+        );
+    }
+
+    private stopEdgeScroll(): void {
+        this.edgeScroll = 0;
+        this.edgeScrollStrength = 0;
+
+        if (this.edgeScrollRaf && typeof cancelAnimationFrame === "function") {
+            cancelAnimationFrame(this.edgeScrollRaf);
+        }
+
+        this.edgeScrollRaf = 0;
+    }
+    //#endregion
     /** 左上角的模式按钮（select / selectScope / edit） */
     /**
      * 左上角的按钮条（模式 + 音符类型）。
@@ -1466,6 +1582,9 @@ export class NotesEditor extends EventTarget {
         }
     }
     upHandler(event: TouchEvent | MouseEvent) {
+        // 边缘滚动只在拖动期间有效
+        this.stopEdgeScroll();
+
         {
             // 先按松手的位置更新指针指向（拖出即放要落在"离开的地方"），
             // 再把事件交给按钮管理器 —— `onRelease` 是在 release 里触发的

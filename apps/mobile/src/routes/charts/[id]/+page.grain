@@ -645,6 +645,12 @@
         notesEditor.showsNNNListAttachable = value;
         notesEditor.draw();
     }
+
+    function applyEdgeScroll(value: boolean): void {
+        if (!notesEditor) return;
+
+        notesEditor.edgeScrollEnabled = value;
+    }
     //#endregion
 
     /** 判定线切换时把两个编辑器指过去 */
@@ -1477,6 +1483,15 @@
                         <Switch
                             bind:checked={get: () => notesEditor?.showsNNNListAttachable ?? true, set: (value: boolean) => {
                                 applyShowsNNN(value);
+                            }}
+                        />
+                    </div>
+
+                    <div class="setting">
+                        <span>拖到边缘自动滚动</span>
+                        <Switch
+                            bind:checked={get: () => notesEditor?.edgeScrollEnabled ?? true, set: (value: boolean) => {
+                                applyEdgeScroll(value);
                             }}
                         />
                     </div>
