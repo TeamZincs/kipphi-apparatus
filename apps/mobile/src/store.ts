@@ -1,12 +1,13 @@
 /**
- * 只放**跨模块**的东西：当前谱面、操作列表、选中的判定线。
+ * 只放**跨模块**的东西：当前谱面、操作列表、选中的判定线、播放器实例。
  *
- * 播放器相关的时间 / 播放状态 / 控制条可见性都是页面私有的，
- * 留在 `routes/charts/[id]/+page.grain` 里（跟桌面端一样），不要塞这里。
+ * 播放器实例本身在这里（桌面端 `store.ts` 也是这么放的），但它的时间 /
+ * 播放状态 / 控制条可见性仍是页面私有的，不要塞进来。
  */
 import { writable } from '@graints/runtime';
 
 import { Chart, JudgeLine, KPAError, Op } from 'kipphi';
+import type { Player } from 'kipphi-player';
 
 import { getChartProject } from './background';
 import { isTauri } from './tauri';
@@ -21,6 +22,19 @@ export let illustration: ImageBitmap | null = null;
 
 /** 当前谱面 id（贴图 / 视频 / 着色器要从这个目录读） */
 export let chartId: string | null = null;
+
+/**
+ * 播放器实例。
+ *
+ * 面板要直接改 `player.textureMapping`（换贴图要立刻生效），所以放在这里
+ * 而不是只留在页面里 —— 桌面端 `store.ts` 也是同样的做法。
+ */
+export let player: Player | null = null;
+
+/** 页面创建 / 销毁播放器时写入 */
+export function setPlayer(instance: Player | null): void {
+    player = instance;
+}
 
 /** 当前选中的判定线（编辑器与判定线列表共用） */
 export const selectedLineId = writable<number | null>(null);

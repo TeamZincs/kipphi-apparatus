@@ -41,7 +41,8 @@ import MacroSheet from "./MacroSheet.grain";
         musicUrl,
         operationList,
         refreshAll,
-        selectedLineId
+        selectedLineId,
+        setPlayer
     } from "#/store";
     import { readDefaultRespackFile } from "#/tauri";
 
@@ -258,6 +259,8 @@ import MacroSheet from "./MacroSheet.grain";
                 { renderer: "webgl1" }
             );
             player.hitEffectNoFollows = true;
+            // 面板要直接改 player.textureMapping（换贴图立刻生效）
+            setPlayer(player);
 
             // 贴图 / 视频 / 着色器都从谱面目录读
             if (chartId) {

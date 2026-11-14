@@ -14,10 +14,23 @@
      */
     import { JudgeLine, Op } from "kipphi";
 
+    import {
+        fetchTexture,
+        getTextures,
+        uploadTexture
+    } from "@kpa/shared/background/tauri";
+
     import NumField from "#/components/NumField.grain";
     import Switch from "#/components/Switch.grain";
 
-    import { chart, operationList, refreshAll, reflowAll } from "#/store";
+    import {
+        chart,
+        chartId,
+        operationList,
+        player,
+        refreshAll,
+        reflowAll
+    } from "#/store";
 
     let { line, onclose } = $props<{
         line: JudgeLine;
@@ -109,6 +122,91 @@
         );
         refreshAll();
     }
+
+    //#region 贴图
+    /** 默认贴图：随资源包走，不在谱面目录里 */
+    const DEFAULT_TEXTURE = "line.png";
+
+    /** 谱面目录里现有的贴图 */
+    let textures = $state<string[]>([]);
+    let uploading = $state(false);
+
+    /** 上传按钮用的隐藏 `<input type="file">` */
+    let fileInput: HTMLInputElement;
+
+    async function reloadTextures(): Promise<void> {
+        if (!chartId) {
+            textures = [DEFAULT_TEXTURE];
+
+            return;
+        }
+
+        try {
+            const list = await getTextures(chartId);
+
+            textures = list.includes(DEFAULT_TEXTURE)
+                ? list
+                : [DEFAULT_TEXTURE, ...list];
+        } catch (error) {
+            console.error(error);
+            textures = [DEFAULT_TEXTURE];
+        }
+    }
+
+    /**
+     * 选中贴图：改数据 + 立刻写进播放器的贴图表。
+     *
+     * 桌面端 `JudgeLineEditor.pickTexture()` 是同一套流程；播放器实例从
+     * store 拿（那边也是这么放的），所以这里能主动去设。
+     */
+    async function selectTexture(name: string): Promise<void> {
+        if (!chart || !name) return;
+
+        operationList?.do(
+            new Op.JudgeLinePropChangeOperation(line, "texture", name),
+        );
+
+        if (name === DEFAULT_TEXTURE || !chartId) {
+            refreshAll();
+
+            return;
+        }
+
+        try {
+            const bitmap = await fetchTexture(chartId, name);
+
+            if (bitmap) player?.textureMapping.set(name, bitmap);
+        } catch (error) {
+            console.error(error);
+        }
+
+        refreshAll();
+    }
+
+    async function onUpload(event: Event): Promise<void> {
+        const input = event.currentTarget as HTMLInputElement;
+        const file = input.files?.[0];
+
+        // 不清空的话，再选同一个文件不会再触发 change
+        input.value = "";
+
+        if (!file || !chartId) return;
+
+        uploading = true;
+
+        try {
+            await uploadTexture(chartId, file);
+            await reloadTextures();
+            await selectTexture(file.name);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            uploading = false;
+        }
+    }
+
+    void reloadTextures();
+    //#endregion
 </script>
 
 <div class="panel">
@@ -199,7 +297,39 @@
         </select>
     </div>
 
-    <p class="todo">贴图编辑还没做（选图 / 上传）</p>
+    <div class="field">
+        <span>贴图</span>
+        <select
+            bind:value={{
+                get: () => line.texture || "line.png",
+                set: (value: string) => {
+                    void selectTexture(value);
+                }
+            }}
+        >
+            {#for name of textures with key = name}
+                <option value={name}>{name}</option>
+            {/for}
+        </select>
+    </div>
+
+    <div class="field">
+        <span>上传贴图</span>
+        <button
+            class="upload"
+            disabled={uploading}
+            onclick={() => fileInput?.click()}
+        >
+            {uploading ? "上传中…" : "选择图片"}
+        </button>
+        <input
+            bind:this={fileInput}
+            class="file"
+            type="file"
+            accept="image/png,image/jpeg"
+            onchange={onUpload}
+        />
+    </div>
 </div>
 
 <style>
@@ -257,10 +387,22 @@
         font-size: 13px;
     }
 
-    .todo {
-        margin: 14px 0 0;
-        font-size: 12px;
-        line-height: 1.6;
-        color: var(--text-dim);
+    .upload {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .upload:disabled {
+        opacity: 0.5;
+    }
+
+    /* 真正的 file input 藏起来，用上面的按钮触发 */
+    .file {
+        display: none;
     }
 </style>
