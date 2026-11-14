@@ -168,3 +168,127 @@
 
 # 追加2
 - select模式下点没东西的地方可以轴向拖动，至于拖动什么看画布锁定横轴还是锁定时间轴
+
+# 追加3（对kipphi内核）
+
+> 调研结论（`D:\zes\VSCode\kipphi`）：
+> · `Operation` 基类在 `src/operation/basic.ts:305`，只有 `do` / `undo` / `rewrite`，
+>   **没有** `done` / `isDone` / `performed` 任何状态字段（全库 0 命中）。
+> · `OperationList.do`（`basic.ts:203`）没有实例级防护，唯一去重是 `rewrite()` 合并
+>   （`basic.ts:216-229`：新操作与栈顶同构造器时尝试并入上一条）。
+> · **最大障碍**：`rewrite()` 内部会对**已经 do 过的子操作再次 do**
+>   —— `note.ts:293 NoteTimeChangeOperation.rewrite` 的 300 / 302 / 307 / 310 行。
+> · `PreparedComplexOperation` / `prepare` 全库 0 命中，是全新功能。
+> · `ComplexOperation.do`（`basic.ts:456`）无 try/catch、无回滚：第 k 个子操作抛异常时，
+>   前 k-1 个的副作用留在场上（`OperationList.do` 只是派发 error 后 return）。
+
+- [ ] Operation 加 `done`，禁止重复 do / 重复 undo
+  - 状态在**容器侧**维护，子类仍只实现 `do` / `undo`（63 个操作类不用改）：
+    - `OperationList.do`：已 done 则跳过；成功后 `done = true`
+    - `OperationList.undo`：未 done 则跳过；成功后 `done = false`
+    - `ComplexOperation.do` / `undo`：遍历子操作时做同样的检查 + 置位
+  - `rewrite()` 那 4 处重复 do → 抽一个 `executeIfNeeded(op)`（内部先 `done = false` 再 `do`）
+  - 回归重点：`tests/operation.test.ts:103-120` 的 rewrite 合并用例（“合并掉的变更只算一次 do”）
+  - 工作量约 1 天
+
+- [ ] 新增 `PreparedComplexOperation`（不动现有 `ComplexOperation`）
+  - `LazyOperation` 加 `prepare(chart?)`：`this.operation ??= new this.operationClass(...this.args)`
+    —— 只构造，不执行
+  - 新类 override `do`：先遍历子操作，`LazyOperation` 全 `prepare()`，再 `super.do(chart)`
+  - 收益：把 `LazyOperation` 的**构造期异常**提前到执行之前暴露，避免“跑了一半失败且不回滚”
+  - 工作量约 0.5 天
+  - **先做追加3**：追加4 的多选编辑重度依赖 `ComplexOperation`
+
+# 追加4
+
+> 调研结论（`D:\zes\VSCode\kipphi-apparatus`）：
+> · 桌面端多选编辑在**二级侧栏**里：`routes/charts/[id]/MultiNoteEditor.grain`、`MultiNodeEditor.grain`（不是折叠面板）
+> · 移动端**完全没接** `notescopeselected` / `nodescopeselected`（`apps/mobile/src` 0 命中），只有单选
+> · 集合本身现成：`notesEditor.ts:228 notesSelection`、`eventCurveEditor.ts:2609 nodesSelection`，都会派发 scope 事件
+> · 移动端**没有** Collapsible / Accordion 组件；只有 `SheetShell.grain`（底部弹出面板，`NoteSheet`/`EventSheet`/`MacroSheet` 共用）
+> · `theme.ts` + `app.css` 主题机制已完整（`data-theme` 切换 + 持久化）
+> · `Segmented.grain` 已有（实心 pill），判定线布局三选项已用它
+> · 桌面 `SecondarySidebar.GENERAL` 只有 `timeDivisor` 有 UI；`timeSpan` / `positionSpan` 两端都没入口
+
+- [ ] 多音符 / 多事件编辑
+  - 桌面端那个线性音符填充不做了，后面单开一个功能页来搞
+  - 现状：桌面字段表可直接搬（音符 13 个字段全部走 JS 代码框批量求值；事件只有 `value` / `time`
+    + start/end/背靠背/面对面 四种取法）
+  - 移动端做法：
+    1. 页面加 `notescopeselected` / `nodescopeselected` 监听（参照桌面 `+page.grain:551-567`）
+    2. 有选中时在对应画布 tab 顶部显示「批量编辑」按钮
+    3. 点开用 `SheetShell` **底部面板**（移动端没有折叠面板组件，`SheetShell` 才是现有交互）
+    4. 表单用 `NumField` + `Segmented`，**不上 JS 代码框**（移动端键盘敲代码体验差）
+    5. 提交：收集操作 → `Op.ComplexOperation`（和桌面一致）
+  - 入口图标待定：`⊞`（倾向）/ `⧉` / `∀` / `☰`
+  - 工作量约 2.5 天（音符 + 事件各 ~1 天，公共按钮/面板 0.5 天）
+
+- [ ] 判定线信息编辑
+  - 现状：`JudgeLineRow.grain:257-260` 是**空槽**——`openSettings()` 只把左滑收回，什么都不做
+  - 桌面 `JudgeLineEditor.grain` 字段齐全：`group` / `cover` / `father`（带 `checkFather()` 循环校验）/
+    `rotatesWithFather` / `anchor.x,y` / `zOrder` / `texture`，全部走 `Op.JudgeLinePropChangeOperation`
+  - 做法：`openSettings()` → 打开 `SheetShell`，字段照搬桌面，`father` 要移植循环检测
+  - 工作量约 1.5 天
+
+- [ ] 多元素面板入口图标（依赖上面第一条）
+  - 我倾向 `⊞`（多选/批量），备选 `⧉` `∀` `☰`
+
+- [ ] 画布 + 移动端亮色主题
+  - 现状：`theme.ts` 已完整（`writable` + `data-theme` + `localStorage` + `prefers-color-scheme`），
+    `app.css` 里 `:root`（亮色）和 `[data-theme='dark']`（暗色）都有
+  - **唯一的硬伤**：画布底色写死 `"#333d"` —— `notesEditor.ts:1618`、`eventCurveEditor.ts:1805` / `2920`，
+    而且同一个值还被当**标签文字色**用，要先拆成两个字段（`backgroundColor` / `gridTextColor`）
+  - 做法：页面订阅 `theme` → 写给两个编辑器 → `draw()`
+  - 暗色底色从 `#333d`（偏蓝）改中性灰，候选 `#1c1c1e` / `#26262a`
+  - 工作量约 1 天
+
+- [ ] 排形按钮（分段控件）加无框形式
+  - 现状：`components/Segmented.grain` 已存在（实心 pill，`.seg.on` 用 accent 底）
+  - 做法：加 `variant: "solid" | "plain"`；plain 下 `background: none; border: none`，
+    项间 `border-left: 1px solid var(--border)`，选中项只把**文字**改成 `var(--accent)`
+  - 应用到 `JudgeLineList.grain:89-96` 的布局三选项
+  - 工作量约 0.5 天
+
+- [ ] 拖到画布边缘 1/6 时自动滚动
+  - 现状：没有。只有滚轮（`notesEditor.ts:1011` 每格 `timeSpan/10`）和 `panBy`
+  - 做法：
+    1. `moveHandler` 判断指针是否落在左右（横向画布）/ 上下边缘 1/6 内
+    2. `requestAnimationFrame` 按“越靠边越快”调 `panBy`，上限约 `0.15 * timeSpan / 秒`
+    3. 编辑器加 `edgeScrollEnabled`（默认 true），暴露到画布设置 tab
+    4. 两个编辑器都要；放大期间禁用（避免和放大镜打架）
+  - 不会再引入坐标偏移：输入映射现在用实时矩阵逆（不走快照）
+  - 工作量约 1 天
+
+- [ ] 画布设置 tab
+  - 现状：桌面 `SecondarySidebar.GENERAL` 只有 `timeDivisor` 有 UI；`timeSpan` / `positionSpan` 两端都没有入口
+  - 移动端加第 6 个 tab（`settings`），字段与落地方式：
+    | 设置 | 落地 |
+    |---|---|
+    | `timeDivisor` | `notesEditor.timeDivisor` + `eventSequenceEditors.timeDivisor`，改完 `draw()` |
+    | `timeSpan` / `positionSpan` | 直接赋值 + `updateMatrix()` |
+    | 网格竖线密度（音符）| `positionGridSpan` |
+    | 网格竖线密度（事件）| **需先加实例字段**，现在只在 `eventTypeMap` 常量里（加 `valueGridSpanOverride`）|
+    | `showsNNNListAttachable` | 直接赋值 |
+    | 边缘滚动开关 | 上一条的字段 |
+  - 工作量约 1.5 天（含事件侧 `valueGridSpan` 实例化改造）
+
+## 追加4 建议顺序
+
+| # | 条目 | 理由 | 工作量 |
+|---|---|---|---|
+| 1 | 追加3（3.1 + 3.2）| 内核地基，多选编辑依赖它 | 1.5 天 |
+| 2 | 判定线信息 | 空槽、收益直接、不依赖其他 | 1.5 天 |
+| 3 | 多元素编辑 | 依赖 3.2 | 2.5 天 |
+| 4 | 画布设置 tab | 承载边缘滚动开关 | 1.5 天 |
+| 5 | 边缘自动滚动 | 依赖上一条的开关位 | 1 天 |
+| 6 | 亮色主题 | 独立，可任意插入 | 1 天 |
+| 7 | 无框分段按钮 | 随手做 | 0.5 天 |
+
+合计约 9.5 天。
+
+## 待决策
+
+1. 多元素编辑入口图标：`⊞` / `⧉` / `∀` / `☰`
+2. 多元素编辑在移动端的形态：`SheetShell` 底部面板（倾向）vs 真做一个折叠面板组件
+3. 暗色主题的中性灰取值：`#1c1c1e` vs `#26262a`
+
