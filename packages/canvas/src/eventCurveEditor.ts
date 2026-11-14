@@ -239,6 +239,36 @@ export class EventSequenceEditors extends EventTarget {
     selectState: SelectState;
     timeDivisor: number = 4;
 
+    /**
+     * 设置所有数值子编辑器的值网格步长（`undefined` = 各事件类型的默认值）。
+     *
+     * 只有 `NumericEventCurveEditor` 有 `valueGridInterval`；文本 / 颜色 /
+     * 总览没有值维度，跳过。
+     */
+    setValueGridInterval(interval: number | undefined): void {
+        for (const editor of this.numericSubEditors()) {
+            editor.valueGridInterval = interval;
+        }
+
+        this.draw(this.lastBeats);
+    }
+
+    private numericSubEditors(): NumericEventCurveEditor[] {
+        return [
+            this.moveX,
+            this.moveY,
+            this.alpha,
+            this.rotate,
+            this.speed,
+            this.easing,
+            this.scaleX,
+            this.scaleY,
+            this.videoAlpha,
+            this.videoDim,
+            this.bpm,
+        ];
+    }
+
     readonly moveX: NumericEventCurveEditor;
     readonly moveY: NumericEventCurveEditor;
     readonly alpha: NumericEventCurveEditor;

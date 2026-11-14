@@ -22,6 +22,9 @@
     } from "kipphi-player";
     import { fetchTexture, _ReturnType } from "@kpa/shared/background/tauri";
 
+    import NumField from "#/components/NumField.grain";
+    import Switch from "#/components/Switch.grain";
+
     import JudgeLineList from "./JudgeLineList.grain";
     import EventSheet from "./EventSheet.grain";
     import JudgeLineSheet from "./JudgeLineSheet.grain";
@@ -49,7 +52,13 @@
     import { readDefaultRespackFile } from "#/tauri";
 
     //#region 页面状态
-    type MobileTab = "lines" | "notes" | "events" | "ops" | "errors";
+    type MobileTab =
+        | "lines"
+        | "notes"
+        | "events"
+        | "ops"
+        | "errors"
+        | "settings";
 
     const tabs: Array<{ id: MobileTab; label: string }> = [
         { id: "lines", label: "判定线" },
@@ -58,7 +67,9 @@
     // 只读的操作栈：已撤销的在上面，用虚线跟已做的分开
     { id: "ops", label: "操作栈" },
     // 解析时收集到的警告（`KPAError.buffer`）
-    { id: "errors", label: "错误" }
+    { id: "errors", label: "错误" },
+    // 画布设置：拍数分母 / 视野跨度 / 网格密度 / NNN 参考线
+    { id: "settings", label: "设置" }
     ];
 
     let activeTab = $state<MobileTab>("lines");
@@ -571,6 +582,70 @@
 
         syncEditorTargets();
     }
+
+    //#region 画布设置
+    /*
+     * 这里改的是**编辑器上的字段**，不是谱面数据 —— 不需要走 operationList。
+     * 每次改完立刻 `draw()`，`updateMatrix` 会跟着重算。
+     */
+    function applyTimeDivisor(raw: string): void {
+        const value = Number(raw);
+
+        if (!Number.isFinite(value) || value <= 0) return;
+
+        if (notesEditor) notesEditor.timeDivisor = value;
+        if (eventEditors) eventEditors.timeDivisor = value;
+
+        notesEditor?.draw();
+        eventEditors?.draw();
+    }
+
+    function applyTimeSpan(raw: string): void {
+        const value = Number(raw);
+
+        if (!Number.isFinite(value) || value <= 0) return;
+        if (!notesEditor) return;
+
+        notesEditor.timeSpan = value;
+        notesEditor.draw();
+    }
+
+    function applyPositionSpan(raw: string): void {
+        const value = Number(raw);
+
+        if (!Number.isFinite(value) || value <= 0) return;
+        if (!notesEditor) return;
+
+        notesEditor.positionSpan = value;
+        notesEditor.draw();
+    }
+
+    function applyNoteGrid(raw: string): void {
+        const value = Number(raw);
+
+        if (!Number.isFinite(value) || value <= 0) return;
+        if (!notesEditor) return;
+
+        notesEditor.positionGridSpan = value;
+        notesEditor.draw();
+    }
+
+    function applyEventGrid(raw: string): void {
+        const trimmed = raw.trim();
+
+        // 空串 = 回到各事件类型的默认步长
+        eventEditors?.setValueGridInterval(
+            trimmed === "" ? undefined : Number(trimmed)
+        );
+    }
+
+    function applyShowsNNN(value: boolean): void {
+        if (!notesEditor) return;
+
+        notesEditor.showsNNNListAttachable = value;
+        notesEditor.draw();
+    }
+    //#endregion
 
     /** 判定线切换时把两个编辑器指过去 */
     function syncEditorTargets(): void {
@@ -1346,6 +1421,71 @@
                     {/if}
                 </div>
             </div>
+
+            <!-- 画布设置：改编辑器字段，改完立刻重绘 -->
+            <div class="slide {tabIndex === 5 ? "active" : ""}">
+                <div class="settings">
+                    <div class="setting">
+                        <span>拍数分母</span>
+                        <NumField
+                            inputmode="numeric"
+                            bind:value={get: () => String(notesEditor?.timeDivisor ?? 4), set: (raw: string) => {
+                                applyTimeDivisor(raw);
+                            }}
+                        />
+                    </div>
+
+                    <div class="setting">
+                        <span>时间跨度（拍）</span>
+                        <NumField
+                            bind:value={get: () => String(notesEditor?.timeSpan ?? 4), set: (raw: string) => {
+                                applyTimeSpan(raw);
+                            }}
+                        />
+                    </div>
+
+                    <div class="setting">
+                        <span>值跨度</span>
+                        <NumField
+                            bind:value={get: () => String(notesEditor?.positionSpan ?? 1350), set: (raw: string) => {
+                                applyPositionSpan(raw);
+                            }}
+                        />
+                    </div>
+
+                    <div class="setting">
+                        <span>音符网格间距</span>
+                        <NumField
+                            bind:value={get: () => String(notesEditor?.positionGridSpan ?? 135), set: (raw: string) => {
+                                applyNoteGrid(raw);
+                            }}
+                        />
+                    </div>
+
+                    <div class="setting">
+                        <span>事件网格间距</span>
+                        <NumField
+                            placeholder="默认"
+                            bind:value={get: () => "", set: (raw: string) => {
+                                applyEventGrid(raw);
+                            }}
+                        />
+                    </div>
+
+                    <div class="setting">
+                        <span>显示 NNN 参考线</span>
+                        <Switch
+                            bind:checked={get: () => notesEditor?.showsNNNListAttachable ?? true, set: (value: boolean) => {
+                                applyShowsNNN(value);
+                            }}
+                        />
+                    </div>
+
+                    <p class="settings-hint">
+                        时间 / 值跨度只影响音符画布；事件网格留空表示各类型默认值。
+                    </p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1820,6 +1960,29 @@
     width: 100%;
     transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
     will-change: transform;
+}
+
+/* 画布设置面板：一行一个字段，和最右的输入框对齐 */
+.settings {
+    padding: 16px;
+}
+
+.setting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    color: var(--text);
+}
+
+.settings-hint {
+    margin: 14px 0 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-dim);
 }
 
 .slide {
