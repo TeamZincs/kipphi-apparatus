@@ -1,0 +1,130 @@
+<script>
+    /*
+     * 多事件节点批量编辑（移动端）。
+     *
+     * 和桌面 `MultiNodeEditor.grain` 同样的思路（每个节点一条操作、包成
+     * `ComplexOperation`），但不用 JS 代码框 —— 移动端给「值增量」一个数字框，
+     * 点「应用」一次性提交。
+     *
+     * 时间批量偏移涉及 `EventNodePairTimeChangeOperation` 与背靠背配对，
+     * 单独一轮再做。
+     */
+    import { Op } from "kipphi";
+
+    import NumField from "#/components/NumField.grain";
+
+    import { operationList, refreshAll } from "#/store";
+
+    let { nodes, onclose } = $props<{
+        nodes: any[];
+        onclose: () => void;
+    }>();
+
+    /** 值增量（相对每个节点各自的值） */
+    let offsetValue = $state("0");
+
+    function apply(): void {
+        if (!operationList || !nodes.length) return;
+
+        const delta = Number(offsetValue);
+
+        if (!Number.isFinite(delta) || delta === 0) return;
+
+        const operations = nodes.map(
+            (node) =>
+                new Op.EventNodeValueChangeOperation(
+                    node,
+                    (node.value as number) + delta,
+                ),
+        );
+
+        operationList.do(new Op.ComplexOperation(...operations));
+        refreshAll();
+        onclose();
+    }
+</script>
+
+<div class="panel">
+    <header class="head">
+        <span class="title">{nodes.length} 个节点</span>
+        <button class="done" onclick={onclose}>关闭</button>
+    </header>
+
+    <div class="field">
+        <span>值增量</span>
+        <NumField
+            bind:value={{
+                get: () => offsetValue,
+                set: (value: string) => {
+                    offsetValue = value;
+                }
+            }}
+        />
+    </div>
+
+    <button class="apply" onclick={apply}>应用</button>
+
+    <p class="hint">
+        增量是相对每个节点各自的值，0 表示不动。背靠背的一对会一起变。
+    </p>
+</div>
+
+<style>
+    .panel {
+        padding: 4px 16px 18px;
+    }
+
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0 14px;
+    }
+
+    .title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .done {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .apply {
+        width: 100%;
+        margin-top: 16px;
+        padding: 11px 0;
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .hint {
+        margin: 12px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-dim);
+    }
+</style>
