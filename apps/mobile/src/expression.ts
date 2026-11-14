@@ -28,25 +28,15 @@ const SCOPE_KEYS = [
 
 export type ExpressionEvaluator = (value: any, target: any) => any;
 
-/** 拿不到上下文（库还没初始化）时退化成空表，表达式里这些名字就是 undefined */
-function readContext(): Record<string, unknown> {
-    try {
-        return getExpressionEvaluatorContext() as unknown as Record<
-            string,
-            unknown
-        >;
-    } catch {
-        return {};
-    }
-}
-
 /**
  * 把一段表达式编译成 `(value, target) => any`。
  *
  * 语法错误会直接抛（调用方决定是整批失败还是跳过这一条）。
  */
 export function compileExpression(code: string): ExpressionEvaluator {
-    const context = readContext();
+    // `kipphi/index.ts` 顶层就 `setExpressionEvaluatorContext`，能打开谱面
+    // 就说明它已经初始化了，不需要兜底
+    const context = getExpressionEvaluatorContext();
 
     const fn = new Function(
         "__ctx",
@@ -54,7 +44,11 @@ export function compileExpression(code: string): ExpressionEvaluator {
         "note",
         `const { ${SCOPE_KEYS.join(", ")} } = __ctx;
 return (${code});`,
-    ) as (ctx: Record<string, unknown>, value: any, target: any) => any;
+    ) as (
+        ctx: ReturnType<typeof getExpressionEvaluatorContext>,
+        value: any,
+        target: any,
+    ) => any;
 
     return (value, target) => fn(context, value, target);
 }
