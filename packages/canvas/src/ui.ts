@@ -269,6 +269,20 @@ export const DEFAULT_PALETTE: ButtonPalette = {
     disabledForeground: "rgba(255, 255, 255, 0.32)"
 };
 
+/**
+ * 亮色主题的按钮配色：白底半透明 + 深色文字。
+ *
+ * `DEFAULT_PALETTE` 是"深色半透明 + 白字"，放到浅色画布上会糊成一块。
+ */
+export const LIGHT_PALETTE: ButtonPalette = {
+    background: "rgba(255, 255, 255, 0.86)",
+    border: "rgba(0, 0, 0, 0.18)",
+    foreground: "rgba(0, 0, 0, 0.82)",
+    activeBackground: "rgba(47, 111, 237, 0.92)",
+    activeForeground: "#ffffff",
+    disabledForeground: "rgba(0, 0, 0, 0.32)"
+};
+
 export interface ButtonSpec {
     id: string;
     /** 按钮上显示的东西（文字；有 `icon` 时不画它） */

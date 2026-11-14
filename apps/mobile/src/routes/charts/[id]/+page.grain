@@ -594,14 +594,19 @@
      * 亮色跟 `--bg` 保持一致。
      */
     function applyCanvasTheme(name: string): void {
-        const background = name === "dark" ? "rgb(40, 40, 40)" : "#f4f6f8";
+        const dark = name === "dark";
+        const background = dark ? "rgb(40, 40, 40)" : "#f4f6f8";
 
         if (notesEditor) {
             notesEditor.backgroundColor = background;
-            notesEditor.draw();
+            // 网格和按钮颜色要跟着取反（亮色下深色、暗色下亮色）
+            notesEditor.setLightTheme(!dark);
         }
 
-        eventEditors?.setBackgroundColor(background);
+        if (eventEditors) {
+            eventEditors.setBackgroundColor(background);
+            eventEditors.setLightTheme(!dark);
+        }
     }
 
     theme.subscribe(applyCanvasTheme);

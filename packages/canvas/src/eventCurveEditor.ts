@@ -371,6 +371,37 @@ export class EventSequenceEditors extends EventTarget {
         this.draw(this.lastBeats);
     }
 
+    /** 亮色主题：网格换深灰 + 按钮调色板取反 */
+    setLightTheme(light: boolean): void {
+        const editors = [
+            ...this.numericSubEditors(),
+            this.text,
+            this.color,
+            this.video,
+            this.effectShader,
+            this.general,
+        ];
+
+        for (const editor of editors) {
+            editor.setLightTheme(light);
+        }
+
+        // 按钮都在这一层画，改这一层的管理器就行
+        const palette = light ? LIGHT_PALETTE : DEFAULT_PALETTE;
+
+        for (const manager of [
+            this.modeButtons,
+            this.navButtons,
+            this.scopeButtons,
+            this.zoomButtons,
+            this.multiButtons,
+        ]) {
+            manager.palette = palette;
+        }
+
+        this.draw(this.lastBeats);
+    }
+
     /** 设置所有子编辑器的画布底色（页面按主题切换时调） */
     setBackgroundColor(color: string): void {
         const editors: { backgroundColor: string }[] = [
@@ -1707,6 +1738,19 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     backgroundColor = "#333d";
 
     /**
+     * 网格 / 轴线的颜色。
+     *
+     * 默认 `#EEE` 是给深色底设计的；亮色主题下换成深灰，否则几乎看不见。
+     */
+    gridColor = "#EEE";
+
+    setLightTheme(light: boolean): void {
+        this.gridColor = light ? "#3a3a3a" : "#EEE";
+
+        this.draw(this.lastBeats);
+    }
+
+    /**
      * 轴向锁定（和音符编辑器同一套语义）：
      *   · `"time"` —— 滚轮/拖动滑时间；
      *   · `"x"`    —— 时间锁住，只允许横向平移。
@@ -1997,7 +2041,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         this.context.setTransform(1, 0, 0, 1, centerX, centerY);
         // a c e
         // b d f
-        this.context.strokeStyle = "#EEE";
+        this.context.strokeStyle = this.gridColor;
         this.context.fillStyle = "#333";
         this.context.lineWidth = 2;
     }
@@ -2118,7 +2162,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
             -innerWidth / 2,
             baselineY,
         );
-        context.strokeStyle = "#EEE";
+        context.strokeStyle = this.gridColor;
     }
     draw(beats?: number) {
         beats = beats || this.lastBeats || 0;
@@ -2168,6 +2212,7 @@ import {
     DEFAULT_PALETTE,
     drawButton,
     drawIconWithCount,
+    LIGHT_PALETTE,
     roundRectPath,
     scaleFont,
     type ButtonPalette,
@@ -3234,7 +3279,7 @@ export abstract class EventSequenceEditor<
             -innerWidth / 2,
             baselineY,
         );
-        context.strokeStyle = "#EEE";
+        context.strokeStyle = this.gridColor;
     }
     override draw(beats?: number) {
         beats = beats || this.lastBeats || 0;
@@ -3251,7 +3296,7 @@ export abstract class EventSequenceEditor<
                 clippingRect[2],
                 clippingRect[3],
             );
-            context.fillStyle = "#EEE";
+            context.fillStyle = this.gridColor;
             context.textAlign = "center";
             context.textBaseline = "middle";
 
@@ -4083,7 +4128,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         // 扩展：吸附线
         const { context, attachableValues } = this;
         context.save();
-        context.fillStyle = "#EEE";
+        context.fillStyle = this.gridColor;
         context.font = `${scaleFont(16, this.canvas.width)}px phigros`;
 
         context.textAlign = "center";
