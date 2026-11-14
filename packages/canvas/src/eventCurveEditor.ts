@@ -371,37 +371,6 @@ export class EventSequenceEditors extends EventTarget {
         this.draw(this.lastBeats);
     }
 
-    /** 亮色主题：网格换深灰 + 按钮调色板取反 */
-    setLightTheme(light: boolean): void {
-        const editors = [
-            ...this.numericSubEditors(),
-            this.text,
-            this.color,
-            this.video,
-            this.effectShader,
-            this.general,
-        ];
-
-        for (const editor of editors) {
-            editor.setLightTheme(light);
-        }
-
-        // 按钮都在这一层画，改这一层的管理器就行
-        const palette = light ? LIGHT_PALETTE : DEFAULT_PALETTE;
-
-        for (const manager of [
-            this.modeButtons,
-            this.navButtons,
-            this.scopeButtons,
-            this.zoomButtons,
-            this.multiButtons,
-        ]) {
-            manager.palette = palette;
-        }
-
-        this.draw(this.lastBeats);
-    }
-
     /** 设置所有子编辑器的画布底色（页面按主题切换时调） */
     setBackgroundColor(color: string): void {
         const editors: { backgroundColor: string }[] = [
@@ -1744,12 +1713,6 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      */
     gridColor = "#EEE";
 
-    setLightTheme(light: boolean): void {
-        this.gridColor = light ? "#3a3a3a" : "#EEE";
-
-        this.draw(this.lastBeats);
-    }
-
     /**
      * 轴向锁定（和音符编辑器同一套语义）：
      *   · `"time"` —— 滚轮/拖动滑时间；
@@ -2212,7 +2175,6 @@ import {
     DEFAULT_PALETTE,
     drawButton,
     drawIconWithCount,
-    LIGHT_PALETTE,
     roundRectPath,
     scaleFont,
     type ButtonPalette,

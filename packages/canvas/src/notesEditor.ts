@@ -43,12 +43,7 @@ import {
     splitBeats,
     ZOOM_LEVELS,
 } from "./magnifier";
-import {
-    DEFAULT_PALETTE,
-    drawIconWithCount,
-    LIGHT_PALETTE,
-    scaleFont
-} from "./ui";
+import { drawIconWithCount, scaleFont } from "./ui";
 
 const DRAWS_NN = true;
 const COLOR_1 = "#66ccff";
@@ -213,37 +208,7 @@ export class NotesEditor extends EventTarget {
     timeGridColor = "rgb(120, 255, 170)";
     positionGridColor = "rgb(255, 170, 120)";
 
-    /**
-     * 亮色主题：把网格换成**低饱和深色**。
-     *
-     * 上面那两个高饱和亮色是给深色底设计的，放到浅灰底上会糊成一片。
-     */
-    lightTheme = false;
 
-    setLightTheme(light: boolean): void {
-        this.lightTheme = light;
-        this.timeGridColor = light
-            ? "rgb(30, 120, 70)"
-            : "rgb(120, 255, 170)";
-        this.positionGridColor = light
-            ? "rgb(170, 90, 20)"
-            : "rgb(255, 170, 120)";
-
-        // 按钮也要取反：深底白字 ↔ 白底深字
-        const palette = light ? LIGHT_PALETTE : DEFAULT_PALETTE;
-
-        for (const manager of [
-            this.buttons,
-            this.navButtons,
-            this.scopeButtons,
-            this.zoomButtons,
-            this.multiButtons,
-        ]) {
-            manager.palette = palette;
-        }
-
-        this.draw();
-    }
     /** 用于范围选取框的颜色 */
     scopingColor = "#FAA";
     noteWidth: number = 54;
