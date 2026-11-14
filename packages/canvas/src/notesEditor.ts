@@ -273,6 +273,14 @@ export class NotesEditor extends EventTarget {
     // end
 
     showsNNNListAttachable: boolean = true;
+
+    /**
+     * 画布底色。
+     *
+     * 页面按主题设置（暗色 `rgb(40,40,40)` / 亮色浅灰），默认沿用原来的
+     * `#333d`，不设置时行为不变。
+     */
+    backgroundColor = "#333d";
     timeDivisor: number = 4;
 
     /** 默认的Note配置，一般暴露给音符编辑器 */
@@ -1786,11 +1794,11 @@ export class NotesEditor extends EventTarget {
         context.save();
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, canvas.width, canvas.height);
-        context.fillStyle = "#333d";
+        context.fillStyle = this.backgroundColor;
         context.fillRect(0, 0, canvas.width, canvas.height);
         context.restore();
 
-        context.fillStyle = "#333d";
+        context.fillStyle = this.backgroundColor;
         context.font = `${scaleFont(30, this.canvas.width)}px Phigros`;
 
         context.save();

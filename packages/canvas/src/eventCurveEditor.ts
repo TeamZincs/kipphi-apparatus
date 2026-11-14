@@ -371,6 +371,24 @@ export class EventSequenceEditors extends EventTarget {
         this.draw(this.lastBeats);
     }
 
+    /** 设置所有子编辑器的画布底色（页面按主题切换时调） */
+    setBackgroundColor(color: string): void {
+        const editors: { backgroundColor: string }[] = [
+            ...this.numericSubEditors(),
+            this.text,
+            this.color,
+            this.video,
+            this.effectShader,
+            this.general,
+        ];
+
+        for (const editor of editors) {
+            editor.backgroundColor = color;
+        }
+
+        this.draw(this.lastBeats);
+    }
+
     private numericSubEditors(): NumericEventCurveEditor[] {
         return [
             this.moveX,
@@ -1681,6 +1699,14 @@ export abstract class EventSequenceEditorBase extends EventTarget {
     timeSpan: number;
 
     /**
+     * 画布底色。
+     *
+     * 页面按主题设置（暗色 `rgb(40,40,40)` / 亮色浅灰），默认沿用原来的
+     * `#333d`，不设置时行为不变。
+     */
+    backgroundColor = "#333d";
+
+    /**
      * 轴向锁定（和音符编辑器同一套语义）：
      *   · `"time"` —— 滚轮/拖动滑时间；
      *   · `"x"`    —— 时间锁住，只允许横向平移。
@@ -2020,7 +2046,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         context.save();
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        context.fillStyle = "#333d";
+        context.fillStyle = this.backgroundColor;
         context.fillRect(0, 0, this.canvas.width, this.canvas.height);
         context.restore();
         // const beatCents = beats * 100
@@ -3136,7 +3162,7 @@ export abstract class EventSequenceEditor<
         context.save();
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        context.fillStyle = "#333d";
+        context.fillStyle = this.backgroundColor;
         context.fillRect(0, 0, this.canvas.width, this.canvas.height);
         context.restore();
         // const beatCents = beats * 100

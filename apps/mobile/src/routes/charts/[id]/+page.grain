@@ -35,6 +35,7 @@
     import SheetShell from "./SheetShell.grain";
 
     import { resolveSeekTarget } from "#/playback";
+    import { theme } from "#/theme";
     import { startAutoSave, stopAutoSave } from "#/save";
     import {
         chart,
@@ -581,7 +582,29 @@
         eventEditors.addEventListenerForAll("multiedit", openMultiNode);
 
         syncEditorTargets();
+
+        // 编辑器刚建好：按当前主题上色（订阅还没触发过）
+        applyCanvasTheme(theme.get());
     }
+
+    /**
+     * 按主题给两个画布上底色。
+     *
+     * 暗色用**中性灰**（`rgb(40,40,40)`），不是原来那个偏蓝的 `#333d`；
+     * 亮色跟 `--bg` 保持一致。
+     */
+    function applyCanvasTheme(name: string): void {
+        const background = name === "dark" ? "rgb(40, 40, 40)" : "#f4f6f8";
+
+        if (notesEditor) {
+            notesEditor.backgroundColor = background;
+            notesEditor.draw();
+        }
+
+        eventEditors?.setBackgroundColor(background);
+    }
+
+    theme.subscribe(applyCanvasTheme);
 
     //#region 画布设置
     /*
@@ -1431,6 +1454,15 @@
             <div class="slide {tabIndex === 5 ? "active" : ""}">
                 <div class="settings">
                     <div class="setting">
+                        <span>亮色主题</span>
+                        <Switch
+                            bind:checked={get: () => theme.get() === "light", set: (value: boolean) => {
+                                theme.set(value ? "light" : "dark");
+                            }}
+                        />
+                    </div>
+
+                    <div class="setting">
                         <span>拍数分母</span>
                         <NumField
                             inputmode="numeric"
@@ -1938,7 +1970,8 @@
     flex: none;
     padding: 0;
     margin: 0;
-    background: var(--surface);
+    /* 比底色亮一档：暗色下是 rgb(60,60,60)，和内容区分层 */
+    background: var(--surface-2);
     border-bottom: 1px solid var(--border);
 }
 

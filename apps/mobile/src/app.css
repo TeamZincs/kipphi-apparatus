@@ -22,16 +22,21 @@
     --overlay: rgba(255, 255, 255, 0.92);
 }
 
+/*
+ * 暗色用**中性灰**，不是原来那套偏蓝的 `#0f1115 / #171a20`。
+ *
+ * `--surface-2` 是 tab 栏那层（比底色亮一档、用来分层）。
+ */
 :root[data-theme='dark'] {
-    --bg: #0f1115;
-    --surface: #171a20;
-    --surface-2: #20242c;
+    --bg: rgb(40, 40, 40);
+    --surface: rgb(40, 40, 40);
+    --surface-2: rgb(60, 60, 60);
     --text: #e6e8ec;
     --text-dim: #98a0ac;
     --accent: #5b9bff;
-    --border: #2a2f38;
+    --border: rgb(72, 72, 72);
     --shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
-    --overlay: rgba(12, 14, 18, 0.86);
+    --overlay: rgba(40, 40, 40, 0.92);
 }
 
 * {
