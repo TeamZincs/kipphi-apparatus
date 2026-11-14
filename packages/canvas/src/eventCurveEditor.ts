@@ -390,7 +390,7 @@ export class EventSequenceEditors extends EventTarget {
                 // 总览里框选按钮不画，也不能被点中
                 (this.modesVisible && this.scopeButtons.press(point.x, point.y)) ||
                 this.zoomButtons.press(point.x, point.y) ||
-                (this.activatedEditor.nodesSelection.size > 0 &&
+                (this.nodeSelectionSize() > 0 &&
                     this.multiButtons.press(point.x, point.y))
             ) {
                 // 记住这次按下属于按钮：松手时**不能**再交给编辑器，
@@ -940,9 +940,21 @@ export class EventSequenceEditors extends EventTarget {
     }
 
     /** 第三排：三种范围选择方式（点一下就进 selectScope） */
+    /**
+     * 当前框选了几个节点。
+     *
+     * `activatedEditor` 的静态类型是基类 `EventSequenceEditorBase`，而
+     * `nodesSelection` 只挂在 `EventSequenceEditor` 上；`init()` 阶段它可能
+     * 还是 `undefined`（第一次 `draw` 由 `set activatedEditor` 触发），所以
+     * 这里用可选链兜住。
+     */
+    private nodeSelectionSize(): number {
+        return (this.activatedEditor as any)?.nodesSelection?.size ?? 0;
+    }
+
     /** 「批量编辑」按钮：框选到节点才给 */
     private multiButtonList(): CanvasButton[] {
-        if (this.activatedEditor.nodesSelection.size === 0) return [];
+        if (this.nodeSelectionSize() === 0) return [];
 
         return [
             {
@@ -1037,7 +1049,7 @@ export class EventSequenceEditors extends EventTarget {
          * 「批量编辑」：框选组靠右（3 格 + 2 道缝 = 132），所以它排在左边一格：
          * width - 右边距 - 组宽 - 间隙 - 自身宽（两格 = 86）。
          */
-        if (this.activatedEditor.nodesSelection.size > 0) {
+        if (this.nodeSelectionSize() > 0) {
             this.multiButtons.setLayout({
                 kind: "row",
                 x: context.canvas.width - 14 - 132 - 6 - 86,
