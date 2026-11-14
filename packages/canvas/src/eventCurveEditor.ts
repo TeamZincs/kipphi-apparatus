@@ -239,6 +239,124 @@ export class EventSequenceEditors extends EventTarget {
     selectState: SelectState;
     timeDivisor: number = 4;
 
+    /** 拖到边缘 1/6 时自动滚动视野（和音符画布同一个开关） */
+    edgeScrollEnabled = true;
+
+    private edgeScroll = 0;
+    private edgeScrollStrength = 0;
+    private edgeScrollRaf = 0;
+    private edgeScrollLast = 0;
+
+    /**
+     * 指针停在上 / 下边缘 1/6 内就持续滚视野（时间方向）。
+     *
+     * 和音符侧同一套规则：越靠边越快，上限每秒半个视野。
+     */
+    updateEdgeScroll(event: MouseEvent | TouchEvent): void {
+        const editor = this.activatedEditor as unknown as {
+            state?: number;
+            pointerInBitmap?: (e: MouseEvent | TouchEvent) => { x: number; y: number };
+            clippingRect?: [number, number, number, number];
+        };
+
+        if (
+            !this.edgeScrollEnabled ||
+            !editor ||
+            editor.state !== EventCurveEditorState.selecting ||
+            !editor.pointerInBitmap ||
+            !editor.clippingRect
+        ) {
+            this.stopEdgeScroll();
+
+            return;
+        }
+
+        const point = editor.pointerInBitmap(event);
+        const [, top, , height] = editor.clippingRect;
+        const localY = point.y - top;
+        const zone = height / 6;
+
+        if (!Number.isFinite(localY) || zone <= 0) {
+            this.stopEdgeScroll();
+
+            return;
+        }
+
+        let direction = 0;
+        let strength = 0;
+
+        if (localY < zone) {
+            // 贴近顶部（拍数更大的方向）
+            direction = 1;
+            strength = 1 - Math.max(0, localY) / zone;
+        } else if (localY > height - zone) {
+            direction = -1;
+            strength = 1 - (height - localY) / zone;
+        }
+
+        this.edgeScroll = direction;
+        this.edgeScrollStrength = Math.max(0, Math.min(1, strength));
+
+        if (direction === 0) {
+            this.stopEdgeScroll();
+        } else {
+            this.startEdgeScroll();
+        }
+    }
+
+    private startEdgeScroll(): void {
+        if (this.edgeScrollRaf) return;
+        if (typeof requestAnimationFrame !== "function") return;
+
+        this.edgeScrollLast = 0;
+        this.edgeScrollRaf = requestAnimationFrame((now) =>
+            this.tickEdgeScroll(now),
+        );
+    }
+
+    private tickEdgeScroll(now: number): void {
+        const editor = this.activatedEditor as unknown as {
+            canvasPoint?: Coordinate | null;
+            applyDragAt?: (coord: Coordinate) => void;
+        };
+
+        if (!this.edgeScroll || !editor?.canvasPoint) {
+            this.edgeScrollRaf = 0;
+
+            return;
+        }
+
+        const dt = Math.min(64, now - (this.edgeScrollLast || now));
+
+        this.edgeScrollLast = now;
+
+        // 可见拍数范围在子编辑器上（外层没有 timeSpan）
+        const span =
+            (editor as unknown as { timeSpan?: number }).timeSpan ?? 4;
+        const speed = (span / 2) * this.edgeScrollStrength * (dt / 1000);
+
+        this.lastBeats += this.edgeScroll * speed;
+
+        // 视野动了，节点按同一根手指重新吸附
+        editor.applyDragAt?.(editor.canvasPoint);
+        this.draw(this.lastBeats);
+
+        this.edgeScrollRaf = requestAnimationFrame((next) =>
+            this.tickEdgeScroll(next),
+        );
+    }
+
+    stopEdgeScroll(): void {
+        this.edgeScroll = 0;
+        this.edgeScrollStrength = 0;
+
+        if (this.edgeScrollRaf && typeof cancelAnimationFrame === "function") {
+            cancelAnimationFrame(this.edgeScrollRaf);
+        }
+
+        this.edgeScrollRaf = 0;
+    }
+
     /**
      * 设置所有数值子编辑器的值网格步长（`undefined` = 各事件类型的默认值）。
      *
@@ -3978,6 +4096,19 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             this.canvasMatrixInverted,
         ));
 
+        // 边缘自动滚动：指针停在上下 1/6 就持续滚（和拖动并行）
+        this.parentEditorSet.updateEdgeScroll(event);
+
+        this.applyDragAt(canvasCoord);
+    }
+
+    /**
+     * 指针 → 世界 → 吸附 → 提交操作。
+     *
+     * 拖动和**边缘自动滚动**共用：滚动时视野变了，得按同一个 `canvasPoint`
+     * 重新算一次，节点才会一直待在手指下面。
+     */
+    applyDragAt(canvasCoord: Coordinate): void {
         const parentEditorSet = this.parentEditorSet;
         const timeDivisor = parentEditorSet.timeDivisor;
 
@@ -4116,6 +4247,9 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         }
     }
     upHandler(event: MouseEvent | TouchEvent) {
+        // 边缘滚动只在拖动期间有效
+        this.parentEditorSet.stopEdgeScroll();
+
         const canvasCoord = (this.canvasPoint = getCanvasCoordFromEvent(
             event,
             this.canvas,
@@ -4542,6 +4676,9 @@ export class TextEventSequenceEditor extends EventSequenceEditor<string> {
     }
 
     upHandler(event: MouseEvent | TouchEvent) {
+        // 边缘滚动只在拖动期间有效
+        this.parentEditorSet.stopEdgeScroll();
+
         // 这个方法和上面那个数值事件编辑器其实是一样的
         const canvasCoord = (this.canvasPoint = getCanvasCoordFromEvent(
             event,
@@ -4748,6 +4885,9 @@ export class ColorEventSequenceEditor extends EventSequenceEditor<RGB> {
     }
 
     upHandler(event: MouseEvent | TouchEvent) {
+        // 边缘滚动只在拖动期间有效
+        this.parentEditorSet.stopEdgeScroll();
+
         // 这个方法和上面那个数值事件编辑器其实是一样的
         const canvasCoord = (this.canvasPoint = getCanvasCoordFromEvent(
             event,

@@ -647,9 +647,8 @@
     }
 
     function applyEdgeScroll(value: boolean): void {
-        if (!notesEditor) return;
-
-        notesEditor.edgeScrollEnabled = value;
+        if (notesEditor) notesEditor.edgeScrollEnabled = value;
+        if (eventEditors) eventEditors.edgeScrollEnabled = value;
     }
     //#endregion
 
