@@ -8,14 +8,19 @@
      * 值由 `bind:value={ get: …, set: … }` 传进来；它的 `listen` 通知由运行时
      * 接到组件的 `setProps`，这里不需要自己订阅。
      */
-    let { options, value } = $props<{
+    let { options, value, variant = "solid" } = $props<{
         /** `[值, 显示文字]` 列表 */
         options: [number, string][];
         value: { get: () => number; set: (v: number) => void };
+        /**
+         * `solid`（默认）：整组外框 + 选中填充强调色；
+         * `plain`：只有文字和项间竖线，选中项文字变强调色。
+         */
+        variant?: "solid" | "plain";
     }>();
 </script>
 
-<div class="segmented">
+<div class="segmented {variant}">
     {#for option of options with key = option[0]}
         <button
             class="seg {value.get() === option[0] ? "on" : ""}"
@@ -56,5 +61,29 @@
     .seg.on {
         background: var(--accent, #4c8dff);
         color: #fff;
+    }
+
+    /* 无框形式：只有文字 + 项间竖线，选中项文字上色 */
+    .segmented.plain {
+        border: none;
+        border-radius: 0;
+        overflow: visible;
+    }
+
+    .segmented.plain .seg {
+        padding: 4px 10px;
+        background: none;
+        border-right: none;
+        color: var(--text-dim);
+    }
+
+    .segmented.plain .seg + .seg {
+        border-left: 1px solid var(--border);
+    }
+
+    .segmented.plain .seg.on {
+        background: none;
+        color: var(--accent, #4c8dff);
+        font-weight: 600;
     }
 </style>

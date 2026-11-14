@@ -88,12 +88,13 @@
     <div class="toolbar">
         <span class="hint">布局</span>
         <Segmented
-    options={layoutOptions}
-    bind:value={
-        get: () => Math.max(0, LAYOUTS.indexOf(layout)),
-        set: (v: number) => (layout = LAYOUTS[v] ?? "ordered")
-    }
-/>
+            variant="plain"
+            options={layoutOptions}
+            bind:value={
+                get: () => Math.max(0, LAYOUTS.indexOf(layout)),
+                set: (v: number) => (layout = LAYOUTS[v] ?? "ordered")
+            }
+        />
     </div>
 
     <div class="list" onclick={onListClick}>
