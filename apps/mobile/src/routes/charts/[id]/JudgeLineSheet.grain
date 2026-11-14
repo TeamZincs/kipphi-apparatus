@@ -12,7 +12,7 @@
      * 所有改动都发一条 Operation，`operationList` 是唯一真相；输入框自己
      * 管草稿（`NumField` 失焦才回传）。
      */
-    import { Op, type JudgeLine } from "kipphi";
+    import { JudgeLine, Op } from "kipphi";
 
     import NumField from "#/components/NumField.grain";
     import Switch from "#/components/Switch.grain";
@@ -77,6 +77,38 @@
     const groupOptions = $node(
         () => chart?.judgeLineGroups?.map((item) => item.name) ?? [],
     );
+
+    /**
+     * 可选父线：排除自己，且**会成环的标成不可选**。
+     *
+     * `JudgeLine.checkinterdependency` 就是库里的循环校验，桌面端
+     * `checkFather()` 也是拿它提前标红 —— 真正的守卫在
+     * `JudgeLineInheritanceChangeOperation` 构造函数里（非法会 `ineffective`），
+     * 这里只是让用户点不到。
+     */
+    const fatherOptions = $node(() =>
+        (chart?.judgeLines ?? [])
+            .filter((item) => item.id !== line.id)
+            .map((item) => ({
+                id: item.id,
+                invalid: JudgeLine.checkinterdependency(line, item)
+            })),
+    );
+
+    function commitFather(raw: string): void {
+        if (!chart) return;
+
+        const id = Number(raw);
+        const father =
+            Number.isFinite(id) && id >= 0
+                ? chart.judgeLines.find((item) => item.id === id) ?? null
+                : null;
+
+        operationList?.do(
+            new Op.JudgeLineInheritanceChangeOperation(chart, line, father),
+        );
+        refreshAll();
+    }
 </script>
 
 <div class="panel">
@@ -150,7 +182,24 @@
         </select>
     </div>
 
-    <p class="todo">父线与贴图编辑还没做（需要循环校验 / 选图）</p>
+    <div class="field">
+        <span>父判定线</span>
+        <select
+            bind:value={{
+                get: () => String(line.father?.id ?? -1),
+                set: (value: string) => commitFather(value)
+            }}
+        >
+            <option value="-1">（无）</option>
+            {#for item of fatherOptions with key = item.id}
+                <option value={String(item.id)} disabled={item.invalid}>
+                    {item.invalid ? `#${item.id}（会成环）` : `#${item.id}`}
+                </option>
+            {/for}
+        </select>
+    </div>
+
+    <p class="todo">贴图编辑还没做（选图 / 上传）</p>
 </div>
 
 <style>
