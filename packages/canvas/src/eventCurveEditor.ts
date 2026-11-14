@@ -389,7 +389,9 @@ export class EventSequenceEditors extends EventTarget {
                 this.navButtons.press(point.x, point.y) ||
                 // 总览里框选按钮不画，也不能被点中
                 (this.modesVisible && this.scopeButtons.press(point.x, point.y)) ||
-                this.zoomButtons.press(point.x, point.y)
+                this.zoomButtons.press(point.x, point.y) ||
+                (this.activatedEditor.nodesSelection.size > 0 &&
+                    this.multiButtons.press(point.x, point.y))
             ) {
                 // 记住这次按下属于按钮：松手时**不能**再交给编辑器，
                 // 否则它的 upHandler 会把刚切好的模式又改回去（表现为"切了没用"）
@@ -458,6 +460,7 @@ export class EventSequenceEditors extends EventTarget {
             this.navButtons.release(point.x, point.y);
             this.scopeButtons.release(point.x, point.y);
             this.zoomButtons.release(point.x, point.y);
+            this.multiButtons.release(point.x, point.y);
 
             if (this.buttonPressed) {
                 this.buttonPressed = false;
@@ -577,6 +580,20 @@ export class EventSequenceEditors extends EventTarget {
         y: 14 + (40 + 6) * 2,
         gap: 6,
         align: "right"
+    });
+
+    /**
+     * 「批量编辑」：**一格高、两格宽**，排在框选模式那一排的**左边**（这一排
+     * 靠右对齐，所以往左让）。x 依赖画布宽度，每帧现算。
+     *
+     * 只在框选到节点时出现，点击派发 `multiedit`。
+     */
+    readonly multiButtons = new ButtonManager("screen", {
+        kind: "row",
+        x: 0,
+        y: 14 + (40 + 6) * 2,
+        cell: 86,
+        height: 40
     });
 
     /**
@@ -923,6 +940,20 @@ export class EventSequenceEditors extends EventTarget {
     }
 
     /** 第三排：三种范围选择方式（点一下就进 selectScope） */
+    /** 「批量编辑」按钮：框选到节点才给 */
+    private multiButtonList(): CanvasButton[] {
+        if (this.activatedEditor.nodesSelection.size === 0) return [];
+
+        return [
+            {
+                id: "multi-edit",
+                icon: "multiEdit",
+                onClick: () =>
+                    this.dispatchEvent(new KPAEvent("multiedit")),
+            },
+        ];
+    }
+
     private scopeButtonList(): CanvasButton[] {
         return (
             [
@@ -1001,6 +1032,21 @@ export class EventSequenceEditors extends EventTarget {
             context,
             this.activatedEditor.magnifierButtons()
         );
+
+        /*
+         * 「批量编辑」：框选组靠右（3 格 + 2 道缝 = 132），所以它排在左边一格：
+         * width - 右边距 - 组宽 - 间隙 - 自身宽（两格 = 86）。
+         */
+        if (this.activatedEditor.nodesSelection.size > 0) {
+            this.multiButtons.setLayout({
+                kind: "row",
+                x: context.canvas.width - 14 - 132 - 6 - 86,
+                y: 14 + (40 + 6) * 2,
+                cell: 86,
+                height: 40
+            });
+            this.multiButtons.draw(context, this.multiButtonList());
+        }
 
         context.restore();
     }

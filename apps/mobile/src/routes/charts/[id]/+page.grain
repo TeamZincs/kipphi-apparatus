@@ -565,6 +565,10 @@
             multiNodes = [...((event as Event & { nodes?: Set<any> }).nodes ?? [])];
         });
 
+        // 画布上那个「批量编辑」按钮（框选组右边、两格宽）→ 开面板
+        notesEditor.addEventListener("multiedit", openMultiNote);
+        eventEditors.addEventListenerForAll("multiedit", openMultiNode);
+
         syncEditorTargets();
     }
 
@@ -1306,47 +1310,12 @@
             <div class="slide center {tabIndex === 1 ? "active" : ""}">
                 <canvas class="editor-canvas" bind:this={notesCanvas}></canvas>
 
-                <!-- 框选到东西才出现；点开是批量编辑面板 -->
-                {#if multiNotes.length > 0}
-                    <button class="multi-entry" onclick={openMultiNote}>
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="15"
-                            height="15"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            stroke-linejoin="round"
-                        >
-                            <rect x="9" y="3" width="12" height="12" rx="2.5" opacity="0.45" />
-                            <rect x="3" y="9" width="12" height="12" rx="2.5" />
-                        </svg>
-                        {multiNotes.length}
-                    </button>
-                {/if}
-            </div>
+                </div>
 
             <div class="slide center {tabIndex === 2 ? "active" : ""}">
                 <canvas class="editor-canvas" bind:this={eventsCanvas}></canvas>
 
-                {#if multiNodes.length > 0}
-                    <button class="multi-entry" onclick={openMultiNode}>
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="15"
-                            height="15"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            stroke-linejoin="round"
-                        >
-                            <rect x="9" y="3" width="12" height="12" rx="2.5" opacity="0.45" />
-                            <rect x="3" y="9" width="12" height="12" rx="2.5" />
-                        </svg>
-                        {multiNodes.length}
-                    </button>
-                {/if}
-            </div>
+                </div>
 
             <div class="slide {tabIndex === 3 ? "active" : ""}">
                 <div class="ops">
@@ -1851,27 +1820,6 @@
     width: 100%;
     transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
     will-change: transform;
-}
-
-/* 框选后的「批量编辑」入口：悬在画布顶部中央，不占布局（画布尺寸不变） */
-.multi-entry {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    font-size: 12px;
-    line-height: 1;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .slide {

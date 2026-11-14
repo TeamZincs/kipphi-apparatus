@@ -28,6 +28,7 @@ import {
     Replace,
     Scan,
     SquareDashed,
+    SquareStack,
     SquaresSubtract,
     SquaresUnite,
     Undo2,
@@ -58,6 +59,8 @@ const ICON_NODES: Record<string, IconNode> = {
     Replace,
     SquaresUnite,
     SquaresSubtract,
+    // 多元素批量编辑（叠起来的方框）
+    SquareStack,
     // 轴向：上下（时间）/ 左右（横轴）
     ArrowUpDown,
     ArrowLeftRight,
@@ -91,7 +94,9 @@ export const ICONS = {
     axisX: "ArrowLeftRight",
     /** 复制 / 粘贴 */
     copy: "Copy",
-    paste: "ClipboardPaste"
+    paste: "ClipboardPaste",
+    /** 多元素批量编辑：叠起来的方框 */
+    multiEdit: "SquareStack"
 } as const;
 
 export type IconName = keyof typeof ICONS;
