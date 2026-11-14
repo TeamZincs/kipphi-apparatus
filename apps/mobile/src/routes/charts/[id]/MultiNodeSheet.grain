@@ -2,66 +2,66 @@
     /*
      * 多事件节点批量编辑（移动端）。
      *
-     * 和桌面 `MultiNodeEditor.grain` 同样的思路（每个节点一条操作、包成
-     * `ComplexOperation`），但不用 JS 代码框 —— 移动端给「值增量」一个数字框，
-     * 点「应用」一次性提交。
+     * 和桌面 `MultiNodeEditor.grain` 同一套：先选字段（`value` / `time`），
+     * 再写表达式，作用域是 `(val, node)`。
      *
-     * 时间批量偏移涉及 `EventNodePairTimeChangeOperation` 与背靠背配对，
-     * 单独一轮再做。
+     * `time` 走 `EventNodePairTimeChangeOperation` —— 它内部会找背靠背的
+     * 另一个节点，整对一起移动。
      */
-    import { Op, TC } from "kipphi";
-
-    import NumField from "#/components/NumField.grain";
+    import { Op, type TimeT } from "kipphi";
 
     import { operationList, refreshAll } from "#/store";
-    import { toTime } from "#/time";
 
     let { nodes, onclose } = $props<{
         nodes: any[];
         onclose: () => void;
     }>();
 
-    /** 值增量（相对每个节点各自的值） */
-    let offsetValue = $state("0");
-    /** 时间增量（拍，相对） */
-    let offsetBeats = $state("0");
+    const FIELDS = ["value", "time"] as const;
+
+    type Field = (typeof FIELDS)[number];
+
+    let field = $state<Field>("value");
+    /** 表达式（`val` = 当前值 / 时刻，`node` = 节点对象） */
+    let code = $state("val");
 
     function apply(): void {
         if (!operationList || !nodes.length) return;
 
-        const dv = Number(offsetValue);
-        const dBeats = Number(offsetBeats);
-        const hasValue = Number.isFinite(dv) && dv !== 0;
-        const hasTime = Number.isFinite(dBeats) && dBeats !== 0;
+        let fn: (value: any, node: any) => any;
 
-        if (!hasValue && !hasTime) return;
+        try {
+            fn = new Function("val", "node", `return (${code})`) as (
+                value: any,
+                node: any,
+            ) => any;
+        } catch (error) {
+            console.error("表达式语法错误", error);
+
+            return;
+        }
 
         const operations: Op.Operation[] = [];
 
         for (const node of nodes) {
-            if (hasValue) {
+            try {
                 operations.push(
-                    new Op.EventNodeValueChangeOperation(
-                        node,
-                        (node.value as number) + dv,
-                    ),
+                    field === "value"
+                        ? new Op.EventNodeValueChangeOperation(
+                              node,
+                              fn(node.value, node) as number,
+                          )
+                        : new Op.EventNodePairTimeChangeOperation(
+                              node,
+                              fn(node.time, node) as TimeT,
+                          ),
                 );
-            }
-
-            /*
-             * 时间：和桌面 `MultiNodeEditor` 的 `time` 分支一致，用
-             * `EventNodePairTimeChangeOperation` —— 它内部会找背靠背的
-             * 另一个节点，整对一起移动。
-             */
-            if (hasTime) {
-                operations.push(
-                    new Op.EventNodePairTimeChangeOperation(
-                        node,
-                        toTime(TC.toBeats(node.time) + dBeats),
-                    ),
-                );
+            } catch (error) {
+                console.error("批量编辑跳过一条", error);
             }
         }
+
+        if (!operations.length) return;
 
         operationList.do(new Op.ComplexOperation(...operations));
         refreshAll();
@@ -76,33 +76,30 @@
     </header>
 
     <div class="field">
-        <span>值增量</span>
-        <NumField
-            bind:value={
-                get: () => offsetValue,
-                set: (value: string) => {
-                    offsetValue = value;
-                }
-            }
-        />
+        <span>字段</span>
+        <select bind:value={field}>
+            {#for name of FIELDS with key = name}
+                <option value={name}>{name}</option>
+            {/for}
+        </select>
     </div>
 
-    <div class="field">
-        <span>时间增量（拍）</span>
-        <NumField
-            bind:value={
-                get: () => offsetBeats,
-                set: (value: string) => {
-                    offsetBeats = value;
-                }
-            }
+    <div class="field column">
+        <span>表达式</span>
+        <input
+            class="code"
+            bind:value={code}
+            placeholder="val + 10"
+            autocomplete="off"
+            spellcheck={false}
         />
     </div>
 
     <button class="apply" onclick={apply}>应用</button>
 
     <p class="hint">
-        增量是相对每个节点各自的值 / 时刻，0 表示不动。背靠背的一对会一起变。
+        `val` 是当前值 / 时刻，`node` 是节点对象。例：`val + 10`、`val * 2`。
+        时间字段要写完整时间，例如 `[3, 0, 1]`。
     </p>
 </div>
 
@@ -143,6 +140,27 @@
         border-bottom: 1px solid var(--border);
         font-size: 14px;
         color: var(--text);
+    }
+
+    .field.column {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .field select,
+    .code {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
     .apply {

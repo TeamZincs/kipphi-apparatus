@@ -2,102 +2,136 @@
     /*
      * 多音符批量编辑（移动端）。
      *
-     * 和桌面 `MultiNoteEditor.grain` 的区别：那边用 JS 代码框任意算值，移动端
-     * 键盘敲代码体验太差，所以改成**相对偏移 / 绝对值**两种输入，点「应用」
-     * 一次性提交。
+     * 操作模型对齐桌面 `MultiNoteEditor.grain`：**先选字段，再写表达式**，
+     * 表达式的作用域是 `(val, note)` —— `val` 是该字段当前值，`note` 是音符
+     * 本身。比如 `val + 10`、`val * 2`、`true`、`NoteType.hold`。
      *
-     * 只做最常用、最安全的几项：横位置偏移、大小、透明度。时间 / 速度涉及
-     * NNN 结构（`NoteTimeChangeOperation` 要 `getNodeOf`），单独一轮再做。
+     * 表达式里的 `NoteType` 是可用的（页面全局注入了 kipphi 的命名空间）。
      */
-    import { Op, TC, type Note } from "kipphi";
-
-    import NumField from "#/components/NumField.grain";
+    import { NoteType, Op, type Note } from "kipphi";
 
     import { operationList, refreshAll } from "#/store";
-    import { toTime } from "#/time";
 
     let { notes, onclose } = $props<{
         notes: Note[];
         onclose: () => void;
     }>();
 
-    /** 横位置增量（相对） */
-    let offsetX = $state("0");
-    /** 时间增量（拍，相对） */
-    let offsetBeats = $state("0");
-    /** 速度增量（相对） */
-    let offsetSpeed = $state("0");
-    /** 大小（绝对，留空不改） */
-    let size = $state("");
-    /** 透明度（绝对，0~255，留空不改） */
-    let alpha = $state("");
+    const FIELDS = [
+        "positionX",
+        "startTime",
+        "endTime",
+        "size",
+        "alpha",
+        "speed",
+        "yOffset",
+        "visibleBeats",
+        "above",
+        "isFake",
+        "judgeSize",
+        "tintHitEffects",
+        "type",
+    ] as const;
+
+    type Field = (typeof FIELDS)[number];
+
+    /** 要改的字段 */
+    let field = $state<Field>("positionX");
+    /** 表达式（`val` = 当前值，`note` = 音符对象） */
+    let code = $state("val");
+
+    /** 字段 → 一条操作；目标不存在（比如时刻落到范围外）就返回 null */
+    function makeOperation(
+        note: Note,
+        fn: (value: any, note: Note) => any,
+    ): Op.Operation | null {
+        switch (field) {
+            case "positionX":
+            case "size":
+            case "alpha":
+            case "above":
+            case "isFake":
+            case "judgeSize":
+            case "visibleBeats":
+            case "tintHitEffects":
+            case "type":
+                return new (Op.NotePropChangeOperation as any)(
+                    note,
+                    field,
+                    fn((note as any)[field], note),
+                );
+
+            case "startTime": {
+                // 和桌面 `MultiNoteEditor` 的 `startTime` 分支一致：
+                // 要的是**目标时刻对应的 NN 节点**，不是时间本身
+                const next = fn(note.startTime, note);
+                const node = note.parentNode.parentSeq.getNodeOf(next);
+
+                return node ? new Op.NoteTimeChangeOperation(note, node) : null;
+            }
+
+            case "endTime":
+                return new Op.HoldEndTimeChangeOperation(
+                    note,
+                    fn(note.endTime, note),
+                );
+
+            case "speed":
+                return new Op.NoteSpeedChangeOperation(
+                    note,
+                    fn(note.speed, note),
+                    note.parentNode.parentSeq.parentLine,
+                );
+
+            case "yOffset":
+                return new Op.NoteYOffsetChangeOperation(
+                    note,
+                    fn(note.yOffset, note),
+                    note.parentNode.parentSeq.parentLine,
+                );
+
+            default:
+                return null;
+        }
+    }
 
     function apply(): void {
         if (!operationList || !notes.length) return;
 
-        const dx = Number(offsetX);
-        const dBeats = Number(offsetBeats);
-        const dSpeed = Number(offsetSpeed);
-        const sizeValue = size.trim() === "" ? null : Number(size);
-        const alphaValue = alpha.trim() === "" ? null : Number(alpha);
+        let evaluate: (value: any, note: Note, types: any) => any;
+
+        try {
+            /*
+             * `NoteType` 作为**参数**注入，不挂到 `window` 上。
+             *
+             * 这样表达式里能写 `NoteType.hold`，又不用污染全局（桌面端是
+             * 用 snippet 提示的，移动端直接给它）。
+             */
+            evaluate = new Function(
+                "val",
+                "note",
+                "NoteType",
+                `return (${code})`,
+            ) as (value: any, note: Note, types: any) => any;
+        } catch (error) {
+            console.error("表达式语法错误", error);
+
+            return;
+        }
+
+        const fn = (value: any, note: Note): any =>
+            evaluate(value, note, NoteType);
 
         const operations: Op.Operation[] = [];
 
         for (const note of notes) {
-            if (Number.isFinite(dx) && dx !== 0) {
-                operations.push(
-                    new Op.NotePropChangeOperation(
-                        note,
-                        "positionX",
-                        note.positionX + dx,
-                    ),
-                );
-            }
+            try {
+                const op = makeOperation(note, fn);
 
-            /*
-             * 时间：整条音符重新挂到新时刻。
-             *
-             * 和桌面 `MultiNoteEditor` 的 `startTime` 分支完全一致 ——
-             * `NoteTimeChangeOperation` 要的是**目标时刻对应的 NN 节点**，
-             * 不是时间本身。目标时刻没有 NN 节点就跳过这一条（桌面端由用户在
-             * JS 里自负，这里给个兜底）。
-             */
-            if (Number.isFinite(dBeats) && dBeats !== 0) {
-                const next = toTime(TC.toBeats(note.startTime) + dBeats);
-                const node = note.parentNode.parentSeq.getNodeOf(next);
-
-                if (node) {
-                    operations.push(
-                        new Op.NoteTimeChangeOperation(note, node),
-                    );
-                }
-            }
-
-            if (Number.isFinite(dSpeed) && dSpeed !== 0) {
-                operations.push(
-                    new Op.NoteSpeedChangeOperation(
-                        note,
-                        note.speed + dSpeed,
-                        note.parentNode.parentSeq.parentLine,
-                    ),
-                );
-            }
-
-            if (sizeValue !== null && Number.isFinite(sizeValue)) {
-                operations.push(
-                    new Op.NotePropChangeOperation(note, "size", sizeValue),
-                );
-            }
-
-            if (alphaValue !== null && Number.isFinite(alphaValue)) {
-                // 透明度是 0~255 的整数
-                operations.push(
-                    new Op.NotePropChangeOperation(
-                        note,
-                        "alpha",
-                        Math.min(255, Math.max(0, Math.round(alphaValue))),
-                    ),
-                );
+                if (op) operations.push(op);
+            } catch (error) {
+                // 单条算错（比如类型不合法）就跳过这一条，别整批回滚
+                console.error("批量编辑跳过一条", error);
             }
         }
 
@@ -116,72 +150,31 @@
     </header>
 
     <div class="field">
-        <span>横位置增量</span>
-        <NumField
-            bind:value={
-                get: () => offsetX,
-                set: (value: string) => {
-                    offsetX = value;
-                }
-            }
-        />
+        <span>字段</span>
+        <select bind:value={field}>
+            {#for name of FIELDS with key = name}
+                <option value={name}>{name}</option>
+            {/for}
+        </select>
     </div>
 
-    <div class="field">
-        <span>时间增量（拍）</span>
-        <NumField
-            bind:value={
-                get: () => offsetBeats,
-                set: (value: string) => {
-                    offsetBeats = value;
-                }
-            }
-        />
-    </div>
-
-    <div class="field">
-        <span>速度增量</span>
-        <NumField
-            bind:value={
-                get: () => offsetSpeed,
-                set: (value: string) => {
-                    offsetSpeed = value;
-                }
-            }
-        />
-    </div>
-
-    <div class="field">
-        <span>大小</span>
-        <NumField
-            placeholder="不改"
-            bind:value={
-                get: () => size,
-                set: (value: string) => {
-                    size = value;
-                }
-            }
-        />
-    </div>
-
-    <div class="field">
-        <span>透明度（0~255）</span>
-        <NumField
-            placeholder="不改"
-            inputmode="numeric"
-            bind:value={
-                get: () => alpha,
-                set: (value: string) => {
-                    alpha = value;
-                }
-            }
+    <div class="field column">
+        <span>表达式</span>
+        <input
+            class="code"
+            bind:value={code}
+            placeholder="val + 10"
+            autocomplete="off"
+            spellcheck={false}
         />
     </div>
 
     <button class="apply" onclick={apply}>应用</button>
 
     <p class="hint">
-        只填要改的项；「横位置增量」相对每个音符各自的位置，0 表示不动。
+        `val` 是该字段当前值，`note` 是音符对象（可读 `note.positionX` 等）。
+        例：`val + 10`、`val * 2`、`true`、`NoteType.hold`。
+        时间字段要写完整时间，例如 `[3, 0, 1]`。
     </p>
 </div>
 
@@ -222,6 +215,27 @@
         border-bottom: 1px solid var(--border);
         font-size: 14px;
         color: var(--text);
+    }
+
+    .field.column {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .field select,
+    .code {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
     .apply {
