@@ -10,6 +10,7 @@
      */
     import { Op, type TimeT } from "kipphi";
 
+    import CodeField from "#/components/CodeField.grain";
     import { operationList, refreshAll } from "#/store";
 
     let { nodes, onclose } = $props<{
@@ -86,12 +87,11 @@
 
     <div class="field column">
         <span>表达式</span>
-        <input
-            class="code"
-            bind:value={code}
+        <CodeField
+            bind:value={get: () => code, set: (value: string) => {
+                code = value;
+            }}
             placeholder="val + 10"
-            autocomplete="off"
-            spellcheck={false}
         />
     </div>
 

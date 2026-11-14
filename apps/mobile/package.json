@@ -13,13 +13,17 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
+        "@codemirror/commands": "^6.11.1",
+        "@codemirror/lang-javascript": "^6.2.5",
+        "@codemirror/state": "^6.7.6",
+        "@codemirror/view": "^6.43.15",
         "@graints/runtime": "link:@graints/runtime",
+        "@kpa/canvas": "workspace:*",
         "@kpa/shared": "workspace:*",
         "@tauri-apps/api": "^2.12.4",
         "@tauri-apps/plugin-fs": "^2.7.1",
         "@tauri-apps/plugin-opener": "^2.7.2",
         "kipphi": "link:kipphi",
-        "@kpa/canvas": "workspace:*",
         "kipphi-player": "link:kipphi-player"
     },
     "devDependencies": {
