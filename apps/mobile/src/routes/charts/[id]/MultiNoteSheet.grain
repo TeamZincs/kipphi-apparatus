@@ -118,36 +118,36 @@
     <div class="field">
         <span>横位置增量</span>
         <NumField
-            value={{
+            bind:value={
                 get: () => offsetX,
                 set: (value: string) => {
                     offsetX = value;
                 }
-            }}
+            }
         />
     </div>
 
     <div class="field">
         <span>时间增量（拍）</span>
         <NumField
-            value={{
+            bind:value={
                 get: () => offsetBeats,
                 set: (value: string) => {
                     offsetBeats = value;
                 }
-            }}
+            }
         />
     </div>
 
     <div class="field">
         <span>速度增量</span>
         <NumField
-            value={{
+            bind:value={
                 get: () => offsetSpeed,
                 set: (value: string) => {
                     offsetSpeed = value;
                 }
-            }}
+            }
         />
     </div>
 
@@ -155,12 +155,12 @@
         <span>大小</span>
         <NumField
             placeholder="不改"
-            value={{
+            bind:value={
                 get: () => size,
                 set: (value: string) => {
                     size = value;
                 }
-            }}
+            }
         />
     </div>
 
@@ -169,12 +169,12 @@
         <NumField
             placeholder="不改"
             inputmode="numeric"
-            value={{
+            bind:value={
                 get: () => alpha,
                 set: (value: string) => {
                     alpha = value;
                 }
-            }}
+            }
         />
     </div>
 

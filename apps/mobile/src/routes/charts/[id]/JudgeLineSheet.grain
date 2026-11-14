@@ -218,20 +218,20 @@
     <div class="field">
         <span>横向位置</span>
         <NumField
-            value={{
+            bind:value={
                 get: () => String(line.anchor[0]),
                 set: (value: string) => commitNumber("anchorX", value)
-            }}
+            }
         />
     </div>
 
     <div class="field">
         <span>纵向位置</span>
         <NumField
-            value={{
+            bind:value={
                 get: () => String(line.anchor[1]),
                 set: (value: string) => commitNumber("anchorY", value)
-            }}
+            }
         />
     </div>
 
@@ -239,30 +239,30 @@
         <span>层级（zOrder）</span>
         <NumField
             inputmode="numeric"
-            value={{
+            bind:value={
                 get: () => String(line.zOrder),
                 set: (value: string) => commitNumber("zOrder", value)
-            }}
+            }
         />
     </div>
 
     <div class="field">
         <span>遮罩（0~1）</span>
         <NumField
-            value={{
+            bind:value={
                 get: () => String(line.cover),
                 set: (value: string) => commitNumber("cover", value)
-            }}
+            }
         />
     </div>
 
     <div class="field">
         <span>跟随父线旋转</span>
         <Switch
-            checked={{
+            bind:checked={
                 get: () => line.rotatesWithFather,
                 set: (value: boolean) => commit("rotatesWithFather", value)
-            }}
+            }
         />
     </div>
 
