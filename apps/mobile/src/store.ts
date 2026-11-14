@@ -33,6 +33,14 @@ export const selectedLineId = writable<number | null>(null);
 export const openLineId = writable<number | null>(null);
 
 /**
+ * 正在编辑属性的判定线（左滑的「设定」按钮写它）。
+ *
+ * 和 `openLineId` 分开：那个是"哪一行露出了操作按钮"，这个是"打开了哪个
+ * 属性面板"。写完立刻被页面消费掉（置回 null），避免重复触发。
+ */
+export const editingLineId = writable<number | null>(null);
+
+/**
  * 谱面加载完成的信号（每次 `loadChart` 成功就 +1）。
  *
  * `chart` 是模块级 `let`，赋值本身不会通知任何人；`JudgeLineList` 的 `$node`

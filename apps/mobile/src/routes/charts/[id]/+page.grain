@@ -24,6 +24,7 @@
 
     import JudgeLineList from "./JudgeLineList.grain";
     import EventSheet from "./EventSheet.grain";
+    import JudgeLineSheet from "./JudgeLineSheet.grain";
 import MacroSheet from "./MacroSheet.grain";
     import NoteSheet from "./NoteSheet.grain";
     import SheetShell from "./SheetShell.grain";
@@ -33,6 +34,7 @@ import MacroSheet from "./MacroSheet.grain";
     import {
         chart,
         chartId,
+        editingLineId,
         illustration,
         lineOf,
         loadChart,
@@ -893,7 +895,9 @@ import MacroSheet from "./MacroSheet.grain";
      * 它们各自持有自己需要的状态，页面不再掺和。
      */
     let sheetOpen = $state(false);
-    let sheetKind = $state<"note" | "node" | "macro">("note");
+    let sheetKind = $state<"note" | "node" | "macro" | "line">("note");
+    /** 判定线属性面板要看的那一条（`editingLineId` 消费后落到这里） */
+    let editingLine = $state<any>(null);
     /*
      * 这两个必须是 `$state`：`SheetShell` 的 children 闭包会捕获它们，
      * 普通变量在闭包里就是一份快照 —— 第二次打开面板时传进去的是 `null`，
@@ -915,8 +919,32 @@ import MacroSheet from "./MacroSheet.grain";
         editingNote = null;
         editingNode = null;
         editingMacro = null;
+        editingLine = null;
         notesCanvas?.focus?.();
     }
+
+    /**
+     * 判定线左滑的「设定」：行组件写 `editingLineId`，这里消费并开面板。
+     *
+     * 递归的 `JudgeLineRow` 拿不到页面函数，只能走 store 中转；消费完立刻
+     * 置回 `null`，免得下次渲染又触发一遍。
+     */
+    editingLineId.subscribe((id) => {
+        if (id === null) return;
+
+        const line = lineOf(id);
+
+        editingLineId.set(null);
+
+        if (!line) return;
+
+        sheetKind = "line";
+        editingNote = null;
+        editingNode = null;
+        editingMacro = null;
+        editingLine = line;
+        sheetOpen = true;
+    });
 
     function openNoteSheet(): void {
         const note = notesEditor?.selectedNote;
@@ -1289,9 +1317,11 @@ import MacroSheet from "./MacroSheet.grain";
         （表单在初始化时就读 `note.type`，一抛错整棵子树渲染中断，
         只剩下遮罩 + 凸起，还把页面挡住 —— 就是"点哪儿都没反应"）。
     -->
-    {#if sheetOpen && (editingNote || editingNode || sheetKind === "macro")}
+    {#if sheetOpen && (editingNote || editingNode || editingLine || sheetKind === "macro")}
         <SheetShell onclose={closeSheetNow}>
-            {#if sheetKind === "note" && editingNote}
+            {#if sheetKind === "line" && editingLine}
+                <JudgeLineSheet line={editingLine} onclose={closeSheetNow} />
+            {:else if sheetKind === "note" && editingNote}
                 <NoteSheet
                     note={editingNote}
                     editor={notesEditor}

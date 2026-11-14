@@ -11,6 +11,7 @@
     import {
         chart,
         chartLoaded,
+        editingLineId,
         openLineId,
         operationList,
         reflowAll,
@@ -254,9 +255,10 @@
         animateProgress(progress, willOpen ? 1 : 0, speedOfDrag);
     }
 
-    /** 预留：判定线设定面板还没做 */
+    /** 左滑「设定」：收起滑动层，交给页面打开属性面板 */
     function openSettings(): void {
         openLineId.set(null);
+        editingLineId.set(target.id);
     }
 
     function removeLine(): void {

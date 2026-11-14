@@ -1,0 +1,217 @@
+<script>
+    /*
+     * 判定线属性面板（移动端）。
+     *
+     * 入口：判定线行左滑 →「设定」。字段对齐桌面 `JudgeLineEditor.grain`，
+     * 先做 anchor.x / anchor.y / zOrder / cover / group / rotatesWithFather。
+     *
+     * 还没做的两个：
+     *   · `father` —— 要带"不能设成自己的子孙"的循环校验，单独一轮；
+     *   · `texture` —— 移动端选图走 Tauri dialog，也要单独接。
+     *
+     * 所有改动都发一条 Operation，`operationList` 是唯一真相；输入框自己
+     * 管草稿（`NumField` 失焦才回传）。
+     */
+    import { Op, type JudgeLine } from "kipphi";
+
+    import NumField from "#/components/NumField.grain";
+    import Switch from "#/components/Switch.grain";
+
+    import { chart, operationList, refreshAll, reflowAll } from "#/store";
+
+    let { line, onclose } = $props<{
+        line: JudgeLine;
+        onclose: () => void;
+    }>();
+
+    /** 发一条属性修改，然后按需重排 / 刷新列表 */
+    function commit(field: string, value: unknown, reflow = false): void {
+        operationList?.do(
+            new (Op.JudgeLinePropChangeOperation as any)(line, field, value),
+        );
+
+        if (reflow) reflowAll();
+
+        refreshAll();
+    }
+
+    /** 数字类字段：NaN 直接丢弃（输入框允许空着） */
+    function commitNumber(field: string, raw: string): void {
+        const value = Number(raw);
+
+        if (!Number.isFinite(value)) return;
+
+        switch (field) {
+            case "anchorX":
+                commit("anchor", [value, line.anchor[1]]);
+
+                return;
+            case "anchorY":
+                commit("anchor", [line.anchor[0], value]);
+
+                return;
+            case "cover":
+                // 遮罩是 0~1
+                commit("cover", Math.min(1, Math.max(0, value)));
+
+                return;
+            case "zOrder":
+                commit("zOrder", value, true);
+
+                return;
+            default:
+                commit(field, value);
+        }
+    }
+
+    function commitGroup(name: string): void {
+        const group = chart?.judgeLineGroups?.find((item) => item.name === name);
+
+        if (!group) return;
+
+        operationList?.do(new Op.JudgeLineRegroupOperation(line, group));
+        refreshAll();
+    }
+
+    /** 可选的分组名（没分组时只有一个默认组，也要列出来） */
+    const groupOptions = $node(
+        () => chart?.judgeLineGroups?.map((item) => item.name) ?? [],
+    );
+</script>
+
+<div class="panel">
+    <header class="head">
+        <span class="title">判定线 #{line.id}</span>
+        <button class="done" onclick={onclose}>完成</button>
+    </header>
+
+    <div class="field">
+        <span>横向位置</span>
+        <NumField
+            bind:value={{
+                get: () => String(line.anchor[0]),
+                set: (value: string) => commitNumber("anchorX", value)
+            }}
+        />
+    </div>
+
+    <div class="field">
+        <span>纵向位置</span>
+        <NumField
+            bind:value={{
+                get: () => String(line.anchor[1]),
+                set: (value: string) => commitNumber("anchorY", value)
+            }}
+        />
+    </div>
+
+    <div class="field">
+        <span>层级（zOrder）</span>
+        <NumField
+            inputmode="numeric"
+            bind:value={{
+                get: () => String(line.zOrder),
+                set: (value: string) => commitNumber("zOrder", value)
+            }}
+        />
+    </div>
+
+    <div class="field">
+        <span>遮罩（0~1）</span>
+        <NumField
+            bind:value={{
+                get: () => String(line.cover),
+                set: (value: string) => commitNumber("cover", value)
+            }}
+        />
+    </div>
+
+    <div class="field">
+        <span>跟随父线旋转</span>
+        <Switch
+            bind:checked={{
+                get: () => line.rotatesWithFather,
+                set: (value: boolean) => commit("rotatesWithFather", value)
+            }}
+        />
+    </div>
+
+    <div class="field">
+        <span>分组</span>
+        <select
+            bind:value={{
+                get: () => line.group?.name ?? "",
+                set: (value: string) => commitGroup(value)
+            }}
+        >
+            {#for name of groupOptions with key = name}
+                <option value={name}>{name}</option>
+            {/for}
+        </select>
+    </div>
+
+    <p class="todo">父线与贴图编辑还没做（需要循环校验 / 选图）</p>
+</div>
+
+<style>
+    .panel {
+        padding: 4px 16px 18px;
+    }
+
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0 14px;
+    }
+
+    .title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .done {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .field > span {
+        flex: 0 0 auto;
+    }
+
+    .field select {
+        flex: 0 1 auto;
+        min-width: 0;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .todo {
+        margin: 14px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-dim);
+    }
+</style>
