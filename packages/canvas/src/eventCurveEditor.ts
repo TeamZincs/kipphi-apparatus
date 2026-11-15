@@ -4697,15 +4697,27 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         );
     }
     override draw(beats?: number): void {
-        this.valuesInFrame = []; // 重置
+        /*
+         * **先重算吸附表，再画。**
+         *
+         * `adjust` 原来在 `super.draw` 之后：平移视图（`valueRange` 变了）
+         * 之后这一帧画的还是**上一帧的表** —— 负半轴刚露出来的那一帧整段
+         * 没有吸附线。
+         *
+         * 这里用的是**上一帧**收集到的 `valuesInFrame`（并集那一路），网格
+         * 范围本身按当前 `valueRange` 算，不受影响。
+         */
+        this.adjust(this.valuesInFrame);
+        this.valuesInFrame = []; // 重置，`super.draw` 里重新收集
+
         if (this.valueGridInterval) {
             this.attachableValues = generateAttachable(
                 [this.valueGridInterval, 0],
                 this.valueRange,
             );
         }
+
         super.draw(beats);
-        this.adjust(this.valuesInFrame);
     }
 
     /**
