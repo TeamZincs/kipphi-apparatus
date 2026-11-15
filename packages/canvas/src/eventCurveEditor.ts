@@ -1815,23 +1815,7 @@ export abstract class EventSequenceEditorBase extends EventTarget {
         }
     }
 
-    /**
-     * 横向视野平移（边缘滚动用）。
-     *
-     * `fraction` 是"屏幕宽度的几分之几"，内部乘值域宽度。`autoRangeEnabled`
-     * 开着时直接忽略 —— 那种情况下 `adjust()` 每帧都会把值域重算回去。
-     *
-     * 方向：`matrix` 里 `x = (value - median) * ratio`，值大在右。拖到**左**
-     * 边缘要看到更小的值 → `median` 减小 → `fraction` 为负。
-     */
-    scrollViewX(fraction: number): void {
-        if (this.autoRangeEnabled) return;
 
-        const [min, max] = this.valueRange;
-        const dx = (max - min) * fraction;
-
-        this.valueRange = [min + dx, max + dx];
-    }
 
     /**
      * 网格 / 轴线的颜色。
@@ -3920,6 +3904,28 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     override readonly valueType = EventValueType.numeric;
 
     public pointedValue: number;
+
+    /**
+     * 横向视野平移（边缘滚动用）。
+     *
+     * 放在这里而不是基类：`valueRange` / `autoRangeEnabled` 是 `EventSequenceEditor`
+     * 这一层的字段，基类上没有 —— 基类版本运行时会拿到 `undefined`，
+     * 解构直接抛错、被 rAF 吞掉，表现成"横向完全不动"。
+     *
+     * `fraction` 是"屏幕宽度的几分之几/秒"，内部乘值域宽度。`autoRangeEnabled`
+     * 开着时直接忽略（`adjust()` 每帧都会把值域重算回去）。
+     *
+     * 方向：`matrix` 里 `x = (value - median) * ratio`，值大在右。拖到**左**
+     * 边缘要看到更小的值 → `median` 减小 → `fraction` 为负。
+     */
+    scrollViewX(fraction: number): void {
+        if (this.autoRangeEnabled) return;
+
+        const [min, max] = this.valueRange;
+        const dx = (max - min) * fraction;
+
+        this.valueRange = [min + dx, max + dx];
+    }
 
     /**
      * 按下时锁定的「这次拖动是否成对联动」。
