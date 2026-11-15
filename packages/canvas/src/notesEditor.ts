@@ -265,10 +265,9 @@ export class NotesEditor extends EventTarget {
     /** 拖到边缘 1/6 时自动滚动视野（设置面板里可以关掉） */
     edgeScrollEnabled = true;
 
-    /** 当前滚动方向：`-1` 往回 / `1` 往前 / `0` 不滚 */
-    private edgeScroll = 0;
-    /** `0~1`，越靠边越快 */
-    private edgeScrollStrength = 0;
+    /** 当前滚动方向（`-1` / `0` / `1`）× 强度，横向 / 纵向各一份 */
+    private edgeScrollX = 0;
+    private edgeScrollY = 0;
     private edgeScrollRaf = 0;
     private edgeScrollLast = 0;
 
@@ -636,26 +635,59 @@ export class NotesEditor extends EventTarget {
             return;
         }
 
-        let direction = 0;
-        let strength = 0;
+        const [left, , width] = this.clippingRect;
+        const localX = point.x - left;
+        const zoneX = width / 6;
 
+        let dx = 0;
+        let dy = 0;
+
+        // 纵向：贴近顶部 = 时间更晚的方向
         if (localY < zone) {
-            // 贴近顶部（时间更晚的方向）→ 视野往前推
-            direction = 1;
-            strength = 1 - Math.max(0, localY) / zone;
+            dy = 1 - Math.max(0, localY) / zone;
         } else if (localY > height - zone) {
-            direction = -1;
-            strength = 1 - (height - localY) / zone;
+            dy = -(1 - (height - localY) / zone);
         }
 
-        this.edgeScroll = direction;
-        this.edgeScrollStrength = Math.max(0, Math.min(1, strength));
+        // 横向：值域是可以滚的（`positionBasis` / `zoomAnchor.x`）
+        if (Number.isFinite(localX) && zoneX > 0) {
+            if (localX < zoneX) {
+                dx = -(1 - Math.max(0, localX) / zoneX);
+            } else if (localX > width - zoneX) {
+                dx = 1 - (width - localX) / zoneX;
+            }
+        }
 
-        if (direction === 0) {
+        this.edgeScrollX = Math.max(-1, Math.min(1, dx));
+        this.edgeScrollY = Math.max(-1, Math.min(1, dy));
+
+        if (this.edgeScrollX === 0 && this.edgeScrollY === 0) {
             this.stopEdgeScroll();
         } else {
             this.startEdgeScroll();
         }
+    }
+
+    /**
+     * 平移视野。
+     *
+     * **放大时必须连 `zoomAnchor` 一起移** —— 那时候网格的遍历范围是以
+     * `zoomAnchor` 为中心算的，只改 `lastBeats` 的话视野不动、吸附表也不动，
+     * 指针越界后永远吸到表尾（表现为"抖着滚不出去"）。
+     */
+    private scrollView(dx: number, dy: number): void {
+        this.lastBeats += dy;
+
+        if (this.magnifier.zooming && this.zoomAnchor) {
+            this.zoomAnchor = {
+                x: this.zoomAnchor.x + dx,
+                y: this.zoomAnchor.y + dy,
+            };
+
+            return;
+        }
+
+        this.positionBasis += dx;
     }
 
     private startEdgeScroll(): void {
@@ -669,21 +701,24 @@ export class NotesEditor extends EventTarget {
     }
 
     private tickEdgeScroll(now: number): void {
-        if (!this.edgeScroll || !this.canvasPoint) {
+        if ((!this.edgeScrollX && !this.edgeScrollY) || !this.canvasPoint) {
             this.edgeScrollRaf = 0;
 
             return;
         }
 
-        const dt = Math.min(64, now - (this.edgeScrollLast || now));
+        const seconds = Math.min(
+            64,
+            now - (this.edgeScrollLast || now),
+        ) / 1000;
 
         this.edgeScrollLast = now;
 
         // 上限：每秒滚一屏（越靠边越接近这个值）
-        const speed =
-            this.timeSpan * this.edgeScrollStrength * (dt / 1000);
-
-        this.lastBeats += this.edgeScroll * speed;
+        this.scrollView(
+            this.edgeScrollX * this.positionSpan * seconds,
+            this.edgeScrollY * this.timeSpan * seconds,
+        );
 
         // 视野动了，节点要按同一根手指重新吸附
         this.applyDragAt(this.canvasPoint);
@@ -695,8 +730,8 @@ export class NotesEditor extends EventTarget {
     }
 
     private stopEdgeScroll(): void {
-        this.edgeScroll = 0;
-        this.edgeScrollStrength = 0;
+        this.edgeScrollX = 0;
+        this.edgeScrollY = 0;
 
         if (this.edgeScrollRaf && typeof cancelAnimationFrame === "function") {
             cancelAnimationFrame(this.edgeScrollRaf);

@@ -334,9 +334,16 @@ export class EventSequenceEditors extends EventTarget {
         const span =
             (editor as unknown as { timeSpan?: number }).timeSpan ?? 4;
         // 上限：每秒滚一屏
-        const speed = span * this.edgeScrollStrength * (dt / 1000);
+        const dy = span * this.edgeScrollStrength * (dt / 1000);
 
-        this.lastBeats += this.edgeScroll * speed;
+        /*
+         * 视口平移要**两层都改**：
+         *   · 子编辑器搬 `zoomAnchor`（网格范围和矩阵都以它为准）；
+         *   · 外层 `lastBeats` 是下一帧 `draw()` 的入参，不改会被推回旧值。
+         */
+        (editor as unknown as { scrollView?: (dy: number) => void })
+            .scrollView?.(dy);
+        this.lastBeats += dy;
 
         // 视野动了，节点按同一根手指重新吸附
         editor.applyDragAt?.(editor.canvasPoint);
@@ -1720,6 +1727,24 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      * `#333d`，不设置时行为不变。
      */
     backgroundColor = "#333d";
+
+    /**
+     * 平移视野（边缘滚动用）。
+     *
+     * **放大时必须连 `zoomAnchor` 一起移** —— 网格的遍历范围是以它为中心算的，
+     * 只改 `lastBeats` 的话视野和吸附表都不动，指针越界后永远吸到表尾
+     *（表现为"抖着滚不出去"）。
+     */
+    scrollView(dy: number): void {
+        this.lastBeats += dy;
+
+        if (this.magnifier.zooming && this.zoomAnchor) {
+            this.zoomAnchor = {
+                x: this.zoomAnchor.x,
+                y: this.zoomAnchor.y + dy,
+            };
+        }
+    }
 
     /**
      * 网格 / 轴线的颜色。
