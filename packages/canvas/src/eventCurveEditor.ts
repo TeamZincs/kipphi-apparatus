@@ -308,6 +308,7 @@ export class EventSequenceEditors extends EventTarget {
         if (this.edgeScrollRaf) return;
         if (typeof requestAnimationFrame !== "function") return;
 
+        console.log("[edgeScroll] start", this.edgeScroll, this.edgeScrollStrength);
         this.edgeScrollLast = 0;
         this.edgeScrollRaf = requestAnimationFrame((now) =>
             this.tickEdgeScroll(now),
