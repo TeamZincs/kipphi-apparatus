@@ -335,8 +335,16 @@ export class EventSequenceEditors extends EventTarget {
         // 可见拍数范围在子编辑器上（外层没有 timeSpan）
         const span =
             (editor as unknown as { timeSpan?: number }).timeSpan ?? 4;
-        // 上限：每秒滚一屏
-        const dy = span * this.edgeScrollStrength * (dt / 1000);
+        /*
+         * 上限：每秒滚一屏，**乘上方向**。
+         *
+         * 之前漏了 `this.edgeScroll`，`dy` 恒为正 —— 拖到上边和下边都往前翻。
+         */
+        const dy =
+            this.edgeScroll *
+            this.edgeScrollStrength *
+            span *
+            (dt / 1000);
 
         /*
          * 视口平移要**两层都改**：
