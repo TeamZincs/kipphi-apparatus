@@ -649,12 +649,18 @@ export class NotesEditor extends EventTarget {
             dy = -(1 - (height - localY) / zone);
         }
 
-        // 横向：值域是可以滚的（`positionBasis` / `zoomAnchor.x`）
+        /*
+         * 横向：值域是可以滚的（`positionBasis` / `zoomAnchor.x`）。
+         *
+         * 方向要按 `matrix` 的符号来：`x = basis + value * ratio`，所以
+         * **basis 变大 = 内容右移 = 视野左移**。拖到左边缘要看到更小的值，
+         * 也就是让 basis 变大 —— 和纵向（`y = -(t * ratio)`）正好相反。
+         */
         if (Number.isFinite(localX) && zoneX > 0) {
             if (localX < zoneX) {
-                dx = -(1 - Math.max(0, localX) / zoneX);
+                dx = 1 - Math.max(0, localX) / zoneX;
             } else if (localX > width - zoneX) {
-                dx = 1 - (width - localX) / zoneX;
+                dx = -(1 - (width - localX) / zoneX);
             }
         }
 
@@ -720,9 +726,16 @@ export class NotesEditor extends EventTarget {
             this.edgeScrollY * this.timeSpan * seconds,
         );
 
-        // 视野动了，节点要按同一根手指重新吸附
-        this.applyDragAt(this.canvasPoint);
+        /*
+         * **先重绘再吸附**。
+         *
+         * `attachableTimes` / `timeMap` 是在 `draw()` 里按当前视野重建的。
+         * 顺序反过来的话，`applyDragAt` 拿的是**上一帧**的吸附表 —— 表里
+         * 没有新滚出来的那些时刻，指针就被吸回原处，下一帧再往前一点，
+         * 看起来就是"原地抖"。
+         */
         this.draw();
+        this.applyDragAt(this.canvasPoint);
 
         this.edgeScrollRaf = requestAnimationFrame((next) =>
             this.tickEdgeScroll(next),

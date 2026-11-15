@@ -345,7 +345,12 @@ export class EventSequenceEditors extends EventTarget {
             .scrollView?.(dy);
         this.lastBeats += dy;
 
-        // 视野动了，节点按同一根手指重新吸附
+        /*
+         * **先重绘再吸附**：`attachableValues` 是在 `draw()` 里按当前视野
+         * 重建的。顺序反过来的话，吸附用的是上一帧的表，新滚出来的值不在
+         * 表里，指针会被吸回原处 —— 看起来就是"原地抖、滚不出去"。
+         */
+        this.draw(this.lastBeats);
         editor.applyDragAt?.(editor.canvasPoint);
         this.draw(this.lastBeats);
 
