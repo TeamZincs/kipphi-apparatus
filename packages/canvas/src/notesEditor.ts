@@ -617,6 +617,8 @@ export class NotesEditor extends EventTarget {
         );
     }
 
+
+
     private updateEdgeScroll(event: TouchEvent | MouseEvent): void {
         if (!this.edgeScrollEnabled || this.pan || !this.isDraggingElement()) {
             this.stopEdgeScroll();
@@ -721,18 +723,25 @@ export class NotesEditor extends EventTarget {
         this.edgeScrollLast = now;
 
         // 上限：每秒滚一屏（越靠边越接近这个值）
-        this.scrollView(
-            this.edgeScrollX * this.positionSpan * seconds,
-            this.edgeScrollY * this.timeSpan * seconds,
-        );
+        const dx = this.edgeScrollX * this.positionSpan * seconds;
+        const dy = this.edgeScrollY * this.timeSpan * seconds;
 
         /*
-         * **先重绘再吸附**。
+         * 纵向**直接推播放位置**（`scrollTimeBy` 派发 `timescroll`，页面去 seek）。
          *
-         * `attachableTimes` / `timeMap` 是在 `draw()` 里按当前视野重建的。
-         * 顺序反过来的话，`applyDragAt` 拿的是**上一帧**的吸附表 —— 表里
-         * 没有新滚出来的那些时刻，指针就被吸回原处，下一帧再往前一点，
-         * 看起来就是"原地抖"。
+         * 只改本地 `lastBeats` 不行：`player.drawn` 每帧都会拿
+         * `renderingBeats` 调 `draw(beats)`，本地改的值立刻被拽回去 ——
+         * 就是"滚出去一点又被拉回来"。
+         *
+         * 横向没有音频概念，仍然是本地平移 `positionBasis`。
+         */
+        if (dy !== 0) this.scrollTimeBy(dy);
+
+        if (dx !== 0) this.scrollView(dx, 0);
+
+        /*
+         * **先重绘再吸附**：吸附表是在 `draw()` 里按当前视野重建的，顺序
+         * 反过来的话会用上一帧的表，指针被吸回原处。
          */
         this.draw();
         this.applyDragAt(this.canvasPoint);

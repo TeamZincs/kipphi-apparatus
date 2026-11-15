@@ -341,16 +341,18 @@ export class EventSequenceEditors extends EventTarget {
          *   · 子编辑器搬 `zoomAnchor`（网格范围和矩阵都以它为准）；
          *   · 外层 `lastBeats` 是下一帧 `draw()` 的入参，不改会被推回旧值。
          */
-        (editor as unknown as { scrollView?: (dy: number) => void })
-            .scrollView?.(dy);
-        this.lastBeats += dy;
-
         /*
-         * **先重绘再吸附**：`attachableValues` 是在 `draw()` 里按当前视野
-         * 重建的。顺序反过来的话，吸附用的是上一帧的表，新滚出来的值不在
-         * 表里，指针会被吸回原处 —— 看起来就是"原地抖、滚不出去"。
+         * **直接推播放位置**（`scrollTimeBy` 派发 `timescroll`，页面去 seek）。
+         *
+         * 只改本地 `lastBeats` 不行：页面在 `player.drawn` 里会用
+         * `renderingBeats` 调 `draw(beats)`，本地值每帧被拽回去 ——
+         * 就是"滚出去一点又被拉回来"。
+         *
+         * `scrollTimeBy` 内部会先 `draw` 一次（重建吸附表），所以下面的
+         * `applyDragAt` 拿到的是新表。
          */
-        this.draw(this.lastBeats);
+        if (dy !== 0) this.scrollTimeBy(dy);
+
         editor.applyDragAt?.(editor.canvasPoint);
         this.draw(this.lastBeats);
 
@@ -369,6 +371,8 @@ export class EventSequenceEditors extends EventTarget {
 
         this.edgeScrollRaf = 0;
     }
+
+
 
     /**
      * 设置所有数值子编辑器的值网格步长（`undefined` = 各事件类型的默认值）。
