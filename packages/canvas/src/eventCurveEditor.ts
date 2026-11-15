@@ -333,7 +333,8 @@ export class EventSequenceEditors extends EventTarget {
         // 可见拍数范围在子编辑器上（外层没有 timeSpan）
         const span =
             (editor as unknown as { timeSpan?: number }).timeSpan ?? 4;
-        const speed = (span / 2) * this.edgeScrollStrength * (dt / 1000);
+        // 上限：每秒滚一屏
+        const speed = span * this.edgeScrollStrength * (dt / 1000);
 
         this.lastBeats += this.edgeScroll * speed;
 
@@ -617,6 +618,20 @@ export class EventSequenceEditors extends EventTarget {
             }
 
             this.draw();
+        });
+        /*
+         * 指针离开画布：**轴向拖动要中断**。
+         *
+         * 否则在画布外松手（`mouseup` 落在别的元素上）时 `pan` 不会被清，
+         * 鼠标移回来还是"拖着"的状态。顺带停掉边缘滚动。
+         */
+        on(["pointerleave", "pointercancel"], this.canvas, () => {
+            if (this.pan) {
+                this.pan = null;
+                this.draw(this.lastBeats);
+            }
+
+            this.stopEdgeScroll();
         });
         on(["mouseup", "touchend"], this.canvas, (event) => {
             // onClick 是在 release 里触发的，必须先交给按钮

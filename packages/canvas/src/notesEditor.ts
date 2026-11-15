@@ -340,6 +340,20 @@ export class NotesEditor extends EventTarget {
         on(["mousedown", "touchstart"], this.canvas, (event) => {
             this.downHandler(event);
         });
+        /*
+         * 指针离开画布：**轴向拖动要中断**。
+         *
+         * 否则在画布外松手（`mouseup` 落在别的元素上）时 `pan` 不会被清，
+         * 鼠标移回来还是"拖着"的状态。
+         */
+        on(["pointerleave", "pointercancel"], this.canvas, () => {
+            if (this.pan) {
+                this.pan = null;
+                this.draw();
+            }
+
+            this.stopEdgeScroll();
+        });
         on(["mouseup", "touchend"], this.canvas, (event) =>
             this.upHandler(event),
         );
@@ -596,12 +610,16 @@ export class NotesEditor extends EventTarget {
      * 只做时间：横向范围由 `positionSpan` 定，值域是固定的，没有"滚出去"的
      * 概念。越靠边滚得越快（`strength` 线性到 1）。
      */
+    /** 是否正在拖元素（边缘滚动只在这时生效） */
+    private isDraggingElement(): boolean {
+        return (
+            this.state === NotesEditorState.selecting ||
+            this.state === NotesEditorState.placingHold
+        );
+    }
+
     private updateEdgeScroll(event: TouchEvent | MouseEvent): void {
-        if (
-            !this.edgeScrollEnabled ||
-            this.pan ||
-            this.state !== NotesEditorState.selecting
-        ) {
+        if (!this.edgeScrollEnabled || this.pan || !this.isDraggingElement()) {
             this.stopEdgeScroll();
 
             return;
@@ -661,9 +679,9 @@ export class NotesEditor extends EventTarget {
 
         this.edgeScrollLast = now;
 
-        // 上限：每秒滚半个视野，太快会看不清
+        // 上限：每秒滚一屏（越靠边越接近这个值）
         const speed =
-            (this.timeSpan / 2) * this.edgeScrollStrength * (dt / 1000);
+            this.timeSpan * this.edgeScrollStrength * (dt / 1000);
 
         this.lastBeats += this.edgeScroll * speed;
 
