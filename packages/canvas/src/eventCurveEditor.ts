@@ -314,9 +314,6 @@ export class EventSequenceEditors extends EventTarget {
                 dx = 1 - (width - localX) / zoneX;
             }
 
-            if (dx !== 0) {
-                console.log("[edge] x", { localX, zoneX, width, dx });
-            }
         }
 
         this.edgeScroll = direction;
@@ -387,12 +384,16 @@ export class EventSequenceEditors extends EventTarget {
          */
         if (dy !== 0) this.scrollTimeBy(dy);
 
-        // 横向：平移值域（`autoRangeEnabled` 开着时子编辑器会忽略）
+        /*
+         * 横向：平移值域（`autoRangeEnabled` 开着时子编辑器会忽略）。
+         *
+         * **不要再乘 `edgeScrollStrength`** —— 那个强度是按**纵向**距离算的，
+         * 鼠标停在左右边缘时它是 0，乘上去 `fraction` 恒为 0（横向完全不动）。
+         * `edgeScrollX` 自己已经带了 0~1 的强度和方向。
+         */
         if (this.edgeScrollX !== 0) {
             (editor as unknown as { scrollViewX?: (f: number) => void })
-                .scrollViewX?.(
-                    this.edgeScrollX * this.edgeScrollStrength * (dt / 1000),
-                );
+                .scrollViewX?.(this.edgeScrollX * (dt / 1000));
         }
 
         editor.applyDragAt?.(editor.canvasPoint);
@@ -3923,12 +3924,6 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
      * 边缘要看到更小的值 → `median` 减小 → `fraction` 为负。
      */
     scrollViewX(fraction: number): void {
-        console.log("[scrollViewX]", {
-            fraction,
-            auto: this.autoRangeEnabled,
-            range: this.valueRange,
-        });
-
         if (this.autoRangeEnabled) return;
 
         const [min, max] = this.valueRange;
