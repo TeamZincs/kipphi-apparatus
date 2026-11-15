@@ -11,12 +11,47 @@
      */
     import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
     import { javascript } from "@codemirror/lang-javascript";
+    import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
     import { EditorState } from "@codemirror/state";
     import {
         EditorView,
         keymap,
         placeholder as placeholderExt
     } from "@codemirror/view";
+    import { tags } from "@lezer/highlight";
+
+    /**
+     * 语法着色。
+     *
+     * `javascript()` 只给"语言支持"（能解析、能缩进），**不会上色** ——
+     * 颜色要靠 `HighlightStyle`。这里按当前主题选一套 token 配色，
+     * 面板打开时读一次 `data-theme` 就够了（打开期间不会切主题）。
+     */
+    const darkTokens = [
+        { tag: tags.keyword, color: "#c792ea" },
+        { tag: [tags.number, tags.bool, tags.null], color: "#f78c6c" },
+        { tag: [tags.string, tags.special(tags.string)], color: "#c3e88d" },
+        {
+            tag: [tags.propertyName, tags.function(tags.variableName)],
+            color: "#82aaff"
+        },
+        { tag: tags.variableName, color: "#eeffff" },
+        { tag: tags.comment, color: "#676e95", fontStyle: "italic" },
+        { tag: [tags.operator, tags.punctuation], color: "#89ddff" }
+    ];
+
+    const lightTokens = [
+        { tag: tags.keyword, color: "#a626a4" },
+        { tag: [tags.number, tags.bool, tags.null], color: "#986801" },
+        { tag: [tags.string, tags.special(tags.string)], color: "#50a14f" },
+        {
+            tag: [tags.propertyName, tags.function(tags.variableName)],
+            color: "#4078f2"
+        },
+        { tag: tags.variableName, color: "#383a42" },
+        { tag: tags.comment, color: "#a0a1a7", fontStyle: "italic" },
+        { tag: [tags.operator, tags.punctuation], color: "#0184bc" }
+    ];
 
     let { value, placeholder = "" } = $props<{
         value: { get: () => string; set: (v: string) => void };
@@ -55,6 +90,10 @@
 </script>
 
 <script onmount>
+    // 面板打开那一刻的主题决定用哪套 token 颜色
+    const dark = document.documentElement.dataset.theme !== "light";
+    const highlight = HighlightStyle.define(dark ? darkTokens : lightTokens);
+
     view = new EditorView({
         state: EditorState.create({
             doc: value.get(),
@@ -63,6 +102,8 @@
                 keymap.of([...defaultKeymap, ...historyKeymap]),
                 EditorView.lineWrapping,
                 javascript(),
+                // `javascript()` 只解析不上色，颜色靠这个
+                syntaxHighlighting(highlight),
                 theme,
                 placeholderExt(placeholder),
                 EditorView.updateListener.of((update) => {

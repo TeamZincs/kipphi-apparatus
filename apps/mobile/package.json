@@ -15,11 +15,13 @@
     "dependencies": {
         "@codemirror/commands": "^6.11.1",
         "@codemirror/lang-javascript": "^6.2.5",
+        "@codemirror/language": "^6.13.1",
         "@codemirror/state": "^6.7.6",
         "@codemirror/view": "^6.43.15",
         "@graints/runtime": "link:@graints/runtime",
         "@kpa/canvas": "workspace:*",
         "@kpa/shared": "workspace:*",
+        "@lezer/highlight": "^1.2.5",
         "@tauri-apps/api": "^2.12.4",
         "@tauri-apps/plugin-fs": "^2.7.1",
         "@tauri-apps/plugin-opener": "^2.7.2",
