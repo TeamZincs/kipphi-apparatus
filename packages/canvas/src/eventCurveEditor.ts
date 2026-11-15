@@ -243,6 +243,8 @@ export class EventSequenceEditors extends EventTarget {
     edgeScrollEnabled = true;
 
     private edgeScroll = 0;
+    /** 横向分量（`scrollViewX` 的 fraction/秒） */
+    private edgeScrollX = 0;
     private edgeScrollStrength = 0;
     private edgeScrollRaf = 0;
     private edgeScrollLast = 0;
@@ -295,10 +297,29 @@ export class EventSequenceEditors extends EventTarget {
             strength = 1 - (height - localY) / zone;
         }
 
+        /*
+         * 横向：`matrix` 里 `x = (value - median) * ratio`，值大在右。
+         * 拖到**左**边缘要看到更小的值 → `median` 减小 → `dx` 取负。
+         */
+        let dx = 0;
+
+        const [left, , width] = this.clippingRect;
+        const localX = point.x - left;
+        const zoneX = width / 6;
+
+        if (Number.isFinite(localX) && zoneX > 0) {
+            if (localX < zoneX) {
+                dx = -(1 - Math.max(0, localX) / zoneX);
+            } else if (localX > width - zoneX) {
+                dx = 1 - (width - localX) / zoneX;
+            }
+        }
+
         this.edgeScroll = direction;
+        this.edgeScrollX = Math.max(-1, Math.min(1, dx));
         this.edgeScrollStrength = Math.max(0, Math.min(1, strength));
 
-        if (direction === 0) {
+        if (direction === 0 && this.edgeScrollX === 0) {
             this.stopEdgeScroll();
         } else {
             this.startEdgeScroll();
@@ -309,7 +330,6 @@ export class EventSequenceEditors extends EventTarget {
         if (this.edgeScrollRaf) return;
         if (typeof requestAnimationFrame !== "function") return;
 
-        console.log("[edgeScroll] start", this.edgeScroll, this.edgeScrollStrength);
         this.edgeScrollLast = 0;
         this.edgeScrollRaf = requestAnimationFrame((now) =>
             this.tickEdgeScroll(now),
@@ -322,7 +342,7 @@ export class EventSequenceEditors extends EventTarget {
             applyDragAt?: (coord: Coordinate) => void;
         };
 
-        if (!this.edgeScroll || !editor?.canvasPoint) {
+        if ((!this.edgeScroll && !this.edgeScrollX) || !editor?.canvasPoint) {
             this.edgeScrollRaf = 0;
 
             return;
@@ -363,6 +383,14 @@ export class EventSequenceEditors extends EventTarget {
          */
         if (dy !== 0) this.scrollTimeBy(dy);
 
+        // 横向：平移值域（`autoRangeEnabled` 开着时子编辑器会忽略）
+        if (this.edgeScrollX !== 0) {
+            (editor as unknown as { scrollViewX?: (f: number) => void })
+                .scrollViewX?.(
+                    this.edgeScrollX * this.edgeScrollStrength * (dt / 1000),
+                );
+        }
+
         editor.applyDragAt?.(editor.canvasPoint);
         this.draw(this.lastBeats);
 
@@ -373,6 +401,7 @@ export class EventSequenceEditors extends EventTarget {
 
     stopEdgeScroll(): void {
         this.edgeScroll = 0;
+        this.edgeScrollX = 0;
         this.edgeScrollStrength = 0;
 
         if (this.edgeScrollRaf && typeof cancelAnimationFrame === "function") {
@@ -1012,6 +1041,27 @@ export class EventSequenceEditors extends EventTarget {
          * 所以只在具体序列的编辑器里追加。
          */
         if (!this.modesVisible) return buttons;
+
+        /*
+         * `AUTO`：值域自动跟随（`autoRangeEnabled`）。
+         *
+         * 它是**用户可调的状态**（不是内部属性），关掉之后值域就固定，
+         * 横向边缘滚动才有意义。**松手也不自动恢复** —— 由用户自己再点开。
+         */
+        buttons.push({
+            id: "auto-range",
+            label: "AUTO",
+            active: !!(this.activatedEditor as unknown as { autoRangeEnabled?: boolean })
+                .autoRangeEnabled,
+            onClick: () => {
+                const editor = this.activatedEditor as unknown as {
+                    autoRangeEnabled?: boolean;
+                };
+
+                editor.autoRangeEnabled = !editor.autoRangeEnabled;
+                this.draw(this.lastBeats);
+            },
+        });
 
         /*
          * 剪贴板相关的成员只存在于泛型子类 `EventSequenceEditor<VT>` 上，
@@ -1763,6 +1813,24 @@ export abstract class EventSequenceEditorBase extends EventTarget {
                 y: this.zoomAnchor.y + dy,
             };
         }
+    }
+
+    /**
+     * 横向视野平移（边缘滚动用）。
+     *
+     * `fraction` 是"屏幕宽度的几分之几"，内部乘值域宽度。`autoRangeEnabled`
+     * 开着时直接忽略 —— 那种情况下 `adjust()` 每帧都会把值域重算回去。
+     *
+     * 方向：`matrix` 里 `x = (value - median) * ratio`，值大在右。拖到**左**
+     * 边缘要看到更小的值 → `median` 减小 → `fraction` 为负。
+     */
+    scrollViewX(fraction: number): void {
+        if (this.autoRangeEnabled) return;
+
+        const [min, max] = this.valueRange;
+        const dx = (max - min) * fraction;
+
+        this.valueRange = [min + dx, max + dx];
     }
 
     /**
