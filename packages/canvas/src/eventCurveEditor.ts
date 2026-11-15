@@ -313,6 +313,11 @@ export class EventSequenceEditors extends EventTarget {
             } else if (localX > width - zoneX) {
                 dx = 1 - (width - localX) / zoneX;
             }
+
+            if (dx !== 0) {
+                console.log("[edge] x", { localX, zoneX, width, dx });
+            }
+            }
         }
 
         this.edgeScroll = direction;
@@ -3919,6 +3924,12 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
      * 边缘要看到更小的值 → `median` 减小 → `fraction` 为负。
      */
     scrollViewX(fraction: number): void {
+        console.log("[scrollViewX]", {
+            fraction,
+            auto: this.autoRangeEnabled,
+            range: this.valueRange,
+        });
+
         if (this.autoRangeEnabled) return;
 
         const [min, max] = this.valueRange;
