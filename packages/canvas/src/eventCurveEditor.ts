@@ -658,6 +658,8 @@ export class EventSequenceEditors extends EventTarget {
                 };
 
                 this.pan = {
+                    startX: point.x,
+                    startY: point.y,
                     x: point.x,
                     y: point.y,
                     range: anyEditor.valueRange
@@ -788,7 +790,14 @@ export class EventSequenceEditors extends EventTarget {
     wheelReversed = false;
 
     /** 轴向锁定（时间 / 横轴），和音符编辑器同一套语义 */
-    panAxis: "time" | "x" = "time";
+    /**
+     * 轴向锁定：
+     *   · `"time"` —— 只滚时间；
+     *   · `"x"`    —— 只滚横向（值的窗口）；
+     *   · `"free"` —— 按手势方向自动判：与某一轴夹角 < 20° 就锁那一轴，
+     *                否则两轴同时平移（默认）。
+     */
+    panAxis: "time" | "x" | "free" = "free";
 
     /**
      * 第一排：三个状态按钮。
@@ -884,11 +893,17 @@ export class EventSequenceEditors extends EventTarget {
      * `"x"` 横向平移值的窗口（改子编辑器的 `valueRange`，只是视图，不写谱面）。
      */
     private pan: {
+        /** 按下位置（判方向用，拖动期间不变） */
+        startX: number;
+        startY: number;
+        /** 上一次的位置（算增量用，会随拖动更新） */
         x: number;
         y: number;
         range: [number, number];
         /** 按下时子编辑器的 `autoRangeEnabled`，松手要还回去 */
         autoRange: boolean;
+        /** `"free"` 模式下这一次拖动锁定的轴（定一次，拖动期间不变） */
+        axis?: "x" | "time" | "free";
     } | null = null;
 
     private panBy(event: MouseEvent | TouchEvent): void {
@@ -897,38 +912,75 @@ export class EventSequenceEditors extends EventTarget {
         if (!pan) return;
 
         const point = this.pointerInBitmap(event);
-        const dx = point.x - pan.x;
-        const dy = point.y - pan.y;
+        const axis =
+            this.panAxis === "free"
+                ? this.freePanAxis(pan, point)
+                : this.panAxis;
 
-        if (this.panAxis === "time") {
+        // `"free"` 模式下位移还太小，方向未定 —— 这一帧先不动
+        if (!axis) return;
+
+        if (axis !== "x") {
             const timeRatio = this.activatedEditor.timeRatio;
 
-            if (!timeRatio) return;
+            if (timeRatio) {
+                // 事件画布的时间轴是向上递增的（`matrix` 里 `-timeRatio`），
+                // 所以往下拖 = 时间前进，符号和音符画布相反
+                const deltaBeats = (point.y - pan.y) / timeRatio;
 
-            // 事件画布的时间轴是向上递增的（`matrix` 里 `-timeRatio`），
-            // 所以往下拖 = 时间前进，符号和音符画布相反
-            const deltaBeats = dy / timeRatio;
+                pan.y = point.y;
 
-            pan.y = point.y;
-
-            if (Math.abs(deltaBeats) > 1e-6) this.scrollTimeBy(deltaBeats);
-
-            return;
+                if (Math.abs(deltaBeats) > 1e-6) {
+                    this.scrollTimeBy(deltaBeats);
+                }
+            }
         }
 
-        const anyEditor = this.activatedEditor as unknown as {
-            valueRange?: [number, number];
-            valueRatio?: number;
-        };
+        if (axis !== "time") {
+            const anyEditor = this.activatedEditor as unknown as {
+                valueRange?: [number, number];
+                valueRatio?: number;
+            };
 
-        if (!anyEditor.valueRange || !anyEditor.valueRatio) return;
+            if (anyEditor.valueRange && anyEditor.valueRatio) {
+                const deltaValue = -(point.x - pan.x) / anyEditor.valueRatio;
 
-        const deltaValue = -dx / anyEditor.valueRatio;
+                anyEditor.valueRange = [
+                    pan.range[0] + deltaValue,
+                    pan.range[1] + deltaValue,
+                ];
+                pan.x = point.x;
+            }
+        }
 
-        anyEditor.valueRange = [
-            pan.range[0] + deltaValue,
-            pan.range[1] + deltaValue,
-        ];
+        this.draw(this.lastBeats);
+    }
+
+    /**
+     * `"free"` 模式下按**起始段的手势方向**决定这一次拖动锁哪个轴。
+     *
+     * 只判定一次，之后锁定到拖动结束 —— 每帧重算会在 20° 边界附近来回跳。
+     */
+    private freePanAxis(
+        pan: NonNullable<typeof this.pan>,
+        point: { x: number; y: number },
+    ): "x" | "time" | "free" | null {
+        if (pan.axis) return pan.axis;
+
+        const dx = Math.abs(point.x - pan.startX);
+        const dy = Math.abs(point.y - pan.startY);
+
+        // 位移太小，方向不可信（刚按下时的抖动）
+        if (Math.hypot(dx, dy) < 6) return null;
+
+        const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+        // 与横轴 / 纵轴的夹角（都取锐角）
+        const fromX = Math.min(angle, 180 - angle);
+        const fromY = Math.abs(angle - 90);
+
+        pan.axis = fromX < 20 ? "x" : fromY < 20 ? "time" : "free";
+
+        return pan.axis;
     }
 
     /** 当前激活的编辑器自己的状态 */
@@ -1080,13 +1132,21 @@ export class EventSequenceEditors extends EventTarget {
 
         buttons.push(
             {
-                // 方向箭头直白表示"现在能往哪边拖"
+                // 方向箭头直白表示"现在能往哪边拖"；四向箭头 = 按手势判
                 id: "axis-lock",
                 icon: (this.panAxis === "x"
                     ? "axisX"
-                    : "axisTime") as IconName,
+                    : this.panAxis === "free"
+                      ? "axisFree"
+                      : "axisTime") as IconName,
                 onClick: () => {
-                    this.panAxis = this.panAxis === "time" ? "x" : "time";
+                    // 时间 → 横向 → 自由 → 时间
+                    this.panAxis =
+                        this.panAxis === "time"
+                            ? "x"
+                            : this.panAxis === "x"
+                              ? "free"
+                              : "time";
                     this.draw();
                 }
             },
@@ -1834,7 +1894,14 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      *   · `"time"` —— 滚轮/拖动滑时间；
      *   · `"x"`    —— 时间锁住，只允许横向平移。
      */
-    panAxis: "time" | "x" = "time";
+    /**
+     * 轴向锁定：
+     *   · `"time"` —— 只滚时间；
+     *   · `"x"`    —— 只滚横向（值的窗口）；
+     *   · `"free"` —— 按手势方向自动判：与某一轴夹角 < 20° 就锁那一轴，
+     *                否则两轴同时平移（默认）。
+     */
+    panAxis: "time" | "x" | "free" = "free";
 
     /**
      * 同值联动：开启后，**连续同值**的节点视为一组 —— 拖任意一个就整组

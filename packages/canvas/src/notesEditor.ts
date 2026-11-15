@@ -135,7 +135,14 @@ export class NotesEditor extends EventTarget {
      *   · `"time"` —— 允许滑动时间（滚轮/拖动改时间），横向锁住；
      *   · `"x"`    —— 时间锁住，只允许横向平移。
      */
-    panAxis: "time" | "x" = "time";
+    /**
+     * 轴向锁定：
+     *   · `"time"` —— 只滚时间；
+     *   · `"x"`    —— 只滚横向；
+     *   · `"free"` —— 按手势方向自动判：与某一轴夹角 < 20° 就锁那一轴，
+     *                否则两轴同时平移（默认）。
+     */
+    panAxis: "time" | "x" | "free" = "free";
 
     /**
      * 滚轮方向是否反过来（桌面端全局设置 `KPASettings.useRpeWheel`）。
@@ -150,34 +157,77 @@ export class NotesEditor extends EventTarget {
      *   · `"time"` —— 竖向拖 = 时间前后（派发 `timescroll`，页面去 seek）
      *   · `"x"`    —— 横向拖 = 左右平移（改 `positionBasis`）
      */
-    private pan: { startPixelX: number; lastY: number; basis: number } | null =
-        null;
+    private pan: {
+        startPixelX: number;
+        startPixelY: number;
+        lastY: number;
+        basis: number;
+        /** `"free"` 模式下这一次拖动锁定的轴（定一次，拖动期间不变） */
+        axis?: "x" | "time" | "free";
+    } | null = null;
 
-    private panBy(y: number, pixelX: number): void {
+    private panBy(y: number, pixelX: number, pixelY: number): void {
         const pan = this.pan;
 
         if (!pan) return;
 
+        const axis =
+            this.panAxis === "free"
+                ? this.freePanAxis(pan, pixelX, pixelY)
+                : this.panAxis;
+
+        // `"free"` 模式下位移还太小，方向未定 —— 这一帧先不动
+        if (!axis) return;
+
         // 时间轴：`y` 是模型单位（拍数），直接加即可
-        if (this.panAxis === "time") {
+        if (axis !== "x") {
             const deltaBeats = -(y - pan.lastY);
 
             pan.lastY = y;
 
             if (Math.abs(deltaBeats) > 1e-6) this.scrollTimeBy(deltaBeats);
-
-            return;
         }
 
-        /*
-         * 横轴必须用**位图像素**的位移。
-         *
-         * 用模型 x 会自激：`matrixInverted` 里含 `positionBasis` 的平移，
-         * 拖动改了 basis → 同一个屏幕点解出来的 x 也变 → 下一次计算再改 basis
-         * → 两个位置来回闪。
-         */
-        this.positionBasis = pan.basis + (pixelX - pan.startPixelX);
-        this.draw(this.lastBeats);
+        if (axis !== "time") {
+            /*
+             * 横轴必须用**位图像素**的位移。
+             *
+             * 用模型 x 会自激：`matrixInverted` 里含 `positionBasis` 的平移，
+             * 拖动改了 basis → 同一个屏幕点解出来的 x 也变 → 下一次计算再改
+             * basis → 两个位置来回闪。
+             */
+            this.positionBasis = pan.basis + (pixelX - pan.startPixelX);
+            this.draw(this.lastBeats);
+        }
+    }
+
+    /**
+     * `"free"` 模式下按**起始段的手势方向**决定这一次拖动锁哪个轴。
+     *
+     * 只判定一次，之后锁定到拖动结束 —— 每帧重算会在 20° 边界附近来回跳，
+     * 表现为"滚着滚着突然换方向"。
+     */
+    private freePanAxis(
+        pan: NonNullable<typeof this.pan>,
+        pixelX: number,
+        pixelY: number,
+    ): "x" | "time" | "free" | null {
+        if (pan.axis) return pan.axis;
+
+        const dx = Math.abs(pixelX - pan.startPixelX);
+        const dy = Math.abs(pixelY - pan.startPixelY);
+
+        // 位移太小，方向不可信（刚按下时的抖动）
+        if (Math.hypot(dx, dy) < 6) return null;
+
+        const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+        // 与横轴 / 纵轴的夹角（都取锐角）
+        const fromX = Math.min(angle, 180 - angle);
+        const fromY = Math.abs(angle - 90);
+
+        pan.axis = fromX < 20 ? "x" : fromY < 20 ? "time" : "free";
+
+        return pan.axis;
     }
 
     /**
@@ -525,7 +575,9 @@ export class NotesEditor extends EventTarget {
         if (this.pan) {
             const { y } = canvasCoord.mul(this.matrixInverted);
 
-            this.panBy(y, this.pointerInBitmap(event).x);
+            const pointer = this.pointerInBitmap(event);
+
+            this.panBy(y, pointer.x, pointer.y);
 
             return;
         }
@@ -848,7 +900,14 @@ export class NotesEditor extends EventTarget {
 
     /** 轴向锁定：时间 ↔ 横轴 */
     private togglePanAxis(): void {
-        this.panAxis = this.panAxis === "time" ? "x" : "time";
+        // 时间 → 横向 → 自由 → 时间
+        this.panAxis =
+            this.panAxis === "time"
+                ? "x"
+                : this.panAxis === "x"
+                  ? "free"
+                  : "time";
+
         this.draw(this.lastBeats);
     }
 
@@ -931,13 +990,15 @@ export class NotesEditor extends EventTarget {
                 onClick: () => this.stepLine(1),
             },
             {
-                // 用方向箭头直接表示"现在能往哪边拖"：
-                // 上下箭头 = 滑时间（横向锁），左右箭头 = 滑横轴（时间锁）
+                // 用图标直接表示"现在能往哪边拖"：
+                // 上下箭头 = 滑时间 / 左右箭头 = 滑横轴 / 四向箭头 = 按手势判
                 id: "axis-lock",
                 icon:
                     this.panAxis === "x"
                         ? ("axisX" as const)
-                        : ("axisTime" as const),
+                        : this.panAxis === "free"
+                          ? ("axisFree" as const)
+                          : ("axisTime" as const),
                 onClick: () => this.togglePanAxis(),
             },
             // 复制 / 粘贴
@@ -1643,6 +1704,7 @@ export class NotesEditor extends EventTarget {
                 if (!snote) {
                     this.pan = {
                         startPixelX: this.pointerInBitmap(event).x,
+                        startPixelY: this.pointerInBitmap(event).y,
                         lastY: y,
                         basis: this.positionBasis,
                     };

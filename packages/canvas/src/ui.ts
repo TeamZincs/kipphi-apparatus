@@ -23,6 +23,7 @@ import {
     Info,
     Lock,
     LockOpen,
+    Move,
     Pencil,
     Redo2,
     Replace,
@@ -49,6 +50,7 @@ const ICON_NODES: Record<string, IconNode> = {
     Info,
     Lock,
     LockOpen,
+    Move,
     Undo2,
     Redo2,
     ZoomIn,
@@ -89,9 +91,10 @@ export const ICONS = {
     scopeReplace: "Replace",
     scopeAdd: "SquaresUnite",
     scopeSub: "SquaresSubtract",
-    /** 轴向：当前允许滑动的方向（上下 = 时间，左右 = 横轴） */
+    /** 轴向：当前允许滑动的方向（上下 = 时间，左右 = 横轴，自由 = 按手势判） */
     axisTime: "ArrowUpDown",
     axisX: "ArrowLeftRight",
+    axisFree: "Move",
     /** 复制 / 粘贴 */
     copy: "Copy",
     paste: "ClipboardPaste",
