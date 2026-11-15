@@ -972,6 +972,12 @@ export class NotesEditor extends EventTarget {
     }
 
     /** 第二排按钮表 */
+    /**
+     * 第二排：换线 / 轴向锁定 / 批量编辑。
+     *
+     * **一排最多 8 个按钮** —— 40px 方块 + 6px 间隙 ×8 = 362px，两侧各 14px
+     * 边距，390px 宽的窄屏刚好塞满；再加就会挤出左边缘。
+     */
     private navButtonList(): CanvasButton[] {
         return [
             {
@@ -1143,6 +1149,12 @@ export class NotesEditor extends EventTarget {
     }
 
     /** 把当前模式映射成按钮表（监听器挂在按钮上，管理器不认业务） */
+    /**
+     * 第一排：指针 / 框选 / 音符类型。
+     *
+     * **一排最多 8 个按钮** —— 40px 方块 + 6px 间隙 ×8 = 362px，两侧各 14px
+     * 边距，390px 宽的窄屏刚好塞满；再加就会挤出左边缘。
+     */
     private toolbarButtons(): CanvasButton[] {
         const state = this.state;
         const selecting = state === NotesEditorState.selecting;

@@ -983,7 +983,12 @@ export class EventSequenceEditors extends EventTarget {
         return pan.axis;
     }
 
-    /** 当前激活的编辑器自己的状态 */
+    /**
+     * 第一排：AUTO + 指针 / 框选 / 放置。
+     *
+     * **一排最多 8 个按钮** —— 40px 方块 + 6px 间隙 ×8 = 362px，两侧各 14px
+     * 边距，390px 宽的窄屏刚好塞满；再加就会挤出左边缘。
+     */
     private modeButtonList(): CanvasButton[] {
         const state = this.activatedEditor.state;
         const selecting = state === EventCurveEditorState.selecting;
@@ -992,6 +997,31 @@ export class EventSequenceEditors extends EventTarget {
             state === EventCurveEditorState.selectingScope;
 
         return [
+            /*
+             * `AUTO`：值域自动跟随（`autoRangeEnabled`）。
+             *
+             * 它是**用户可调的状态**（不是内部属性），关掉之后值域就固定，
+             * 横向边缘滚动才有意义。**松手也不自动恢复** —— 由用户自己再点开。
+             *
+             * 放在最左边（数组第一个 = 最左，`toolbar` 是右对齐、从左往右排）。
+             */
+            {
+                id: "auto-range",
+                label: "AUTO",
+                active: !!(
+                    this.activatedEditor as unknown as {
+                        autoRangeEnabled?: boolean;
+                    }
+                ).autoRangeEnabled,
+                onClick: () => {
+                    const editor = this.activatedEditor as unknown as {
+                        autoRangeEnabled?: boolean;
+                    };
+
+                    editor.autoRangeEnabled = !editor.autoRangeEnabled;
+                    this.draw(this.lastBeats);
+                },
+            },
             {
                 id: "select",
                 icon: (selecting ? "selecting" : "select") as IconName,
@@ -1084,6 +1114,12 @@ export class EventSequenceEditors extends EventTarget {
         this.draw();
     }
 
+    /**
+     * 第二排：换线 / 轴向锁定 / 批量编辑。
+     *
+     * **一排最多 8 个按钮** —— 40px 方块 + 6px 间隙 ×8 = 362px，两侧各 14px
+     * 边距，390px 宽的窄屏刚好塞满；再加就会挤出左边缘。
+     */
     private navButtonList(): CanvasButton[] {
         const buttons: CanvasButton[] = [
             { id: "prev-line", icon: "previousLine", onClick: () => this.stepLine(-1) },
@@ -1098,27 +1134,6 @@ export class EventSequenceEditors extends EventTarget {
          * 所以只在具体序列的编辑器里追加。
          */
         if (!this.modesVisible) return buttons;
-
-        /*
-         * `AUTO`：值域自动跟随（`autoRangeEnabled`）。
-         *
-         * 它是**用户可调的状态**（不是内部属性），关掉之后值域就固定，
-         * 横向边缘滚动才有意义。**松手也不自动恢复** —— 由用户自己再点开。
-         */
-        buttons.push({
-            id: "auto-range",
-            label: "AUTO",
-            active: !!(this.activatedEditor as unknown as { autoRangeEnabled?: boolean })
-                .autoRangeEnabled,
-            onClick: () => {
-                const editor = this.activatedEditor as unknown as {
-                    autoRangeEnabled?: boolean;
-                };
-
-                editor.autoRangeEnabled = !editor.autoRangeEnabled;
-                this.draw(this.lastBeats);
-            },
-        });
 
         /*
          * 剪贴板相关的成员只存在于泛型子类 `EventSequenceEditor<VT>` 上，
