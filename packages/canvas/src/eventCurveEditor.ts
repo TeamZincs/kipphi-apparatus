@@ -253,6 +253,14 @@ export class EventSequenceEditors extends EventTarget {
      * 和音符侧同一套规则：越靠边越快，上限每秒半个视野。
      */
     updateEdgeScroll(event: MouseEvent | TouchEvent): void {
+        // TODO 临时日志：确认事件侧到底卡在哪一步
+        console.log("[edgeScroll] update", {
+            enabled: this.edgeScrollEnabled,
+            state: (this.activatedEditor as unknown as { state?: number })?.state,
+            hasPointer: typeof (this.activatedEditor as any)?.pointerInBitmap,
+            hasRect: !!(this.activatedEditor as any)?.clippingRect,
+        });
+
         const editor = this.activatedEditor as unknown as {
             state?: number;
             pointerInBitmap?: (e: MouseEvent | TouchEvent) => { x: number; y: number };
