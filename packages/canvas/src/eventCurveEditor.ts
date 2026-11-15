@@ -943,13 +943,22 @@ export class EventSequenceEditors extends EventTarget {
             };
 
             if (anyEditor.valueRange && anyEditor.valueRatio) {
+                /*
+                 * `pan.range` 是**按下时的快照**，所以这里必须用**累计位移**
+                 *（`point.x - pan.x`，而 `pan.x` 保持按下的值不动）。
+                 *
+                 * 更新 `pan.x` 的话就变成"本帧增量 + 快照基准" —— 每帧只挪
+                 * 一点点又退回去，表现为"横向拖不动、一直回弹"。
+                 *
+                 * 纵向不一样：`scrollTimeBy` 是**增量累加**，所以那边必须更新
+                 * `pan.y`。
+                 */
                 const deltaValue = -(point.x - pan.x) / anyEditor.valueRatio;
 
                 anyEditor.valueRange = [
                     pan.range[0] + deltaValue,
                     pan.range[1] + deltaValue,
                 ];
-                pan.x = point.x;
             }
         }
 
