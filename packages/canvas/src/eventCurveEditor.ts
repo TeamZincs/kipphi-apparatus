@@ -317,7 +317,6 @@ export class EventSequenceEditors extends EventTarget {
             if (dx !== 0) {
                 console.log("[edge] x", { localX, zoneX, width, dx });
             }
-            }
         }
 
         this.edgeScroll = direction;
