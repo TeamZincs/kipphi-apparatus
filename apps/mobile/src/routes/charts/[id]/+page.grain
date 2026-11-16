@@ -749,12 +749,21 @@
 
         movedBy = dx;
 
-        const relY = event.offsetY / playerBox.clientHeight;
+        /*
+         * 纵向位置要按**整块播放器**算，不能用 `event.offsetY`。
+         *
+         * `offsetY` 是相对**事件 target** 的 —— 按在画布上、按在提示文字上、
+         * 按在控制条上，target 各不相同，同一个手指位置算出来的 `relY` 会跳。
+         * 用容器自己的 `rect`，`clientY - top` 和 `height` 就是同一参照系。
+         */
+        const rect = playerBox.getBoundingClientRect();
+        const relY = (event.clientY - rect.top) / Math.max(rect.height, 1);
         const rate = relY > 0.33 ? 1 : 0.25;
 
-        // 整宽 = 整首时长（B 站那种手感）
+        // 整宽 = 整首时长（B 站那种手感）。宽度也取同一个 `rect`，
+        // 免得和上面的高度一个含缩放、一个不含
         const span = total || 30;
-        const scale = span / Math.max(playerBox.clientWidth, 1);
+        const scale = span / Math.max(rect.width, 1);
         timeDelta += dx * scale * rate;
         const next = clamp(startTime + timeDelta, 0, (chart?.duration ?? 30));
 
