@@ -32,6 +32,7 @@ import {
     SquareStack,
     SquaresSubtract,
     SquaresUnite,
+    Trash2,
     Undo2,
     ZoomIn,
     ZoomOut
@@ -51,6 +52,7 @@ const ICON_NODES: Record<string, IconNode> = {
     Lock,
     LockOpen,
     Move,
+    Trash2,
     Undo2,
     Redo2,
     ZoomIn,
@@ -99,7 +101,9 @@ export const ICONS = {
     copy: "Copy",
     paste: "ClipboardPaste",
     /** 多元素批量编辑：叠起来的方框 */
-    multiEdit: "SquareStack"
+    multiEdit: "SquareStack",
+    /** 垃圾桶：删除选中的元素 */
+    trash: "Trash2"
 } as const;
 
 export type IconName = keyof typeof ICONS;

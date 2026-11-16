@@ -618,7 +618,8 @@ export class EventSequenceEditors extends EventTarget {
                 (this.modesVisible && this.scopeButtons.press(point.x, point.y)) ||
                 this.zoomButtons.press(point.x, point.y) ||
                 (this.nodeSelectionSize() > 0 &&
-                    this.multiButtons.press(point.x, point.y))
+                    (this.multiButtons.press(point.x, point.y) ||
+                        this.trashButtons.press(point.x, point.y)))
             ) {
                 // 记住这次按下属于按钮：松手时**不能**再交给编辑器，
                 // 否则它的 upHandler 会把刚切好的模式又改回去（表现为"切了没用"）
@@ -708,6 +709,7 @@ export class EventSequenceEditors extends EventTarget {
             this.scopeButtons.release(point.x, point.y);
             this.zoomButtons.release(point.x, point.y);
             this.multiButtons.release(point.x, point.y);
+            this.trashButtons.release(point.x, point.y);
 
             if (this.buttonPressed) {
                 this.buttonPressed = false;
@@ -850,6 +852,19 @@ export class EventSequenceEditors extends EventTarget {
         x: 0,
         y: 14 + (40 + 6) * 2,
         cell: 86,
+        height: 40
+    });
+
+    /**
+     * 垃圾桶：**一格宽**，排在「批量编辑」左边（这一排靠右对齐，所以还要再往左让）。
+     *
+     * 只在一批节点被选中时出现，点一下删掉它们。
+     */
+    readonly trashButtons = new ButtonManager("screen", {
+        kind: "row",
+        x: 0,
+        y: 14 + (40 + 6) * 2,
+        cell: 40,
         height: 40
     });
 
@@ -1310,6 +1325,44 @@ export class EventSequenceEditors extends EventTarget {
         return (this.activatedEditor as any)?.nodesSelection?.size ?? 0;
     }
 
+    /** 垃圾桶按钮：有框选才给 */
+    private trashButtonList(): CanvasButton[] {
+        if (this.nodeSelectionSize() === 0) return [];
+
+        return [
+            {
+                id: "trash",
+                icon: "trash",
+                onClick: () => this.deleteSelected(),
+            },
+        ];
+    }
+
+    /** 删掉当前框选的节点（一条 `MultiNodeDeleteOperation`，背靠背成对删） */
+    private deleteSelected(): void {
+        const editor = this.activatedEditor as unknown as {
+            nodesSelection?: Set<EventStartNode<any>>;
+            dispatchEvent?: (event: any) => boolean;
+        };
+        const nodes = [...(editor?.nodesSelection ?? [])];
+
+        if (nodes.length === 0) return;
+
+        this.operationList.do(new O.MultiNodeDeleteOperation(nodes));
+
+        editor.nodesSelection?.clear();
+        /*
+         * 由**子编辑器**派发：页面用 `addEventListenerForAll` 挂在子编辑器上，
+         * 外层派发收不到。
+         */
+        editor.dispatchEvent?.(
+            new KPANodeScopeselectedEvent(
+                (editor.nodesSelection ?? new Set()) as Set<any>,
+            ),
+        );
+        this.draw(this.lastBeats);
+    }
+
     /** 「批量编辑」按钮：框选到节点才给 */
     private multiButtonList(): CanvasButton[] {
         const count = this.nodeSelectionSize();
@@ -1420,14 +1473,26 @@ export class EventSequenceEditors extends EventTarget {
          * width - 右边距 - 组宽 - 间隙 - 自身宽（两格 = 86）。
          */
         if (this.nodeSelectionSize() > 0) {
+            const x = context.canvas.width - 14 - 132 - 6 - 86;
+
             this.multiButtons.setLayout({
                 kind: "row",
-                x: context.canvas.width - 14 - 132 - 6 - 86,
+                x,
                 y: 14 + (40 + 6) * 2,
                 cell: 86,
                 height: 40
             });
             this.multiButtons.draw(context, this.multiButtonList());
+
+            // 垃圾桶排在「批量编辑」左边一格
+            this.trashButtons.setLayout({
+                kind: "row",
+                x: x - 6 - 40,
+                y: 14 + (40 + 6) * 2,
+                cell: 40,
+                height: 40
+            });
+            this.trashButtons.draw(context, this.trashButtonList());
         }
 
         context.restore();

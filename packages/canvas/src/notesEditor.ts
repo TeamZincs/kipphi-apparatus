@@ -863,6 +863,19 @@ export class NotesEditor extends EventTarget {
     });
 
     /**
+     * 垃圾桶：**一格宽**，紧挨「批量编辑」右边（`152 + 86 + 6 = 244`）。
+     *
+     * 只在一批元素被选中时出现，点一下删掉它们。
+     */
+    readonly trashButtons = new ButtonManager("screen", {
+        kind: "row",
+        x: 244,
+        y: 14 + (40 + 6) * 2,
+        cell: 40,
+        height: 40
+    });
+
+    /**
      * 放大镜档位：**纵向**一列，贴右上角。
      *
      * 之前塞在第二排末尾，横向排成一长条，档位一多就横穿整个画布；
@@ -1097,6 +1110,32 @@ export class NotesEditor extends EventTarget {
     }
 
     /** 第三排：三种范围选择方式（点一下就进 selectScope） */
+    /** 垃圾桶按钮：有框选才给 */
+    private trashButtonList(): CanvasButton[] {
+        if (this.notesSelection.size === 0) return [];
+
+        return [
+            {
+                id: "trash",
+                icon: "trash",
+                onClick: () => this.deleteSelected(),
+            },
+        ];
+    }
+
+    /** 删掉当前框选的音符（一条 `MultiNoteDeleteOperation`，可整体撤销） */
+    private deleteSelected(): void {
+        if (this.notesSelection.size === 0) return;
+
+        this.operationList.do(
+            new O.MultiNoteDeleteOperation(this.notesSelection),
+        );
+
+        this.notesSelection.clear();
+        this.dispatchEvent(new KPANoteScopselectedEvent(this.notesSelection));
+        this.draw(this.lastBeats);
+    }
+
     /** 「批量编辑」按钮：框选到东西才给（否则 `draw` / 命中都跳过） */
     private multiButtonList(): CanvasButton[] {
         if (this.notesSelection.size === 0) return [];
@@ -1237,9 +1276,10 @@ export class NotesEditor extends EventTarget {
         this.navButtons.draw(this.context, this.navButtonList());
         this.scopeButtons.draw(this.context, this.scopeButtonList());
 
-        // 「批量编辑」：只有框选到东西才出现
+        // 「批量编辑」/ 垃圾桶：只有框选到东西才出现
         if (this.notesSelection.size > 0) {
             this.multiButtons.draw(this.context, this.multiButtonList());
+            this.trashButtons.draw(this.context, this.trashButtonList());
         }
 
         // 档位按钮贴右边缘：x 依赖画布宽度，每帧重算
@@ -1309,7 +1349,8 @@ export class NotesEditor extends EventTarget {
             this.scopeButtons.press(x, y) !== null ||
             this.zoomButtons.press(x, y) !== null ||
             (this.notesSelection.size > 0 &&
-                this.multiButtons.press(x, y) !== null);
+                (this.multiButtons.press(x, y) !== null ||
+                    this.trashButtons.press(x, y) !== null));
 
         this.toolbarPressed = hit;
 
@@ -1756,6 +1797,7 @@ export class NotesEditor extends EventTarget {
             this.scopeButtons.release(point.x, point.y);
             this.zoomButtons.release(point.x, point.y);
             this.multiButtons.release(point.x, point.y);
+            this.trashButtons.release(point.x, point.y);
         }
 
         // 这次手势属于按钮（onRelease 已在上面处理过），别再走画布那套
