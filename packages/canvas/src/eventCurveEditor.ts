@@ -665,15 +665,19 @@ export class EventSequenceEditors extends EventTarget {
                     range: anyEditor.valueRange
                         ? [...anyEditor.valueRange]
                         : [0, 0],
-                    autoRange: anyEditor.autoRangeEnabled ?? false,
                 };
 
                 /*
-                 * 横向拖动期间关掉 autoRange —— 否则每帧的 `adjust()` 都会
-                 * 按"当前帧内的节点值"把视野拽回去，手指怎么拖都不动。
-                 * 松手时（mouseup）恢复成按下前的值。
+                 * 可能横向拖动时关掉 autoRange —— 否则每帧的 `adjust()` 都会
+                 * 按"当前帧内的节点值"重算 `valueRange`，把平移结果拽回去
+                 *（表现：视野不是平移，而是一侧边界钉死、另一侧不断延伸）。
+                 *
+                 * 条件不能是 `panAxis === "x"`：默认的 `"free"` 也会横向拖，
+                 * 漏掉它就一直拖不动。
+                 *
+                 * **松手不恢复** —— AUTO 是用户可调的状态，关掉后由他自己再点开。
                  */
-                if (this.panAxis === "x" && anyEditor.autoRangeEnabled) {
+                if (this.panAxis !== "time" && anyEditor.autoRangeEnabled) {
                     anyEditor.autoRangeEnabled = false;
                     anyEditor.xPanning = true;
                 }
@@ -712,14 +716,17 @@ export class EventSequenceEditors extends EventTarget {
                 return;
             }
 
-            // 轴向拖动结束：把 autoRange 还回去（alpha 之类的类型本来是关着的）
+            /*
+             * 轴向拖动结束：只清 `xPanning`，**不恢复** `autoRangeEnabled`。
+             *
+             * 恢复的话，松手瞬间 `adjust()` 立刻按节点分布重算，视野又跳回
+             * 原处，等于白拖。AUTO 交给用户自己点开。
+             */
             if (this.pan) {
                 const anyEditor = this.activatedEditor as unknown as {
-                    autoRangeEnabled?: boolean;
                     xPanning?: boolean;
                 };
 
-                anyEditor.autoRangeEnabled = this.pan.autoRange;
                 anyEditor.xPanning = false;
             }
 
@@ -900,8 +907,6 @@ export class EventSequenceEditors extends EventTarget {
         x: number;
         y: number;
         range: [number, number];
-        /** 按下时子编辑器的 `autoRangeEnabled`，松手要还回去 */
-        autoRange: boolean;
         /** `"free"` 模式下这一次拖动锁定的轴（定一次，拖动期间不变） */
         axis?: "x" | "time" | "free";
     } | null = null;
@@ -4845,6 +4850,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 ]),
             ).sort((a, b) => a - b);
         }
+
     }
 
     /** 这一帧收集到的值（`adjust` 的并集那一路用）；必须初始化，`draw` 第一帧就会读它 */
