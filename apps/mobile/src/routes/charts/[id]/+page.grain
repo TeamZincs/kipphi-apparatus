@@ -1520,7 +1520,7 @@
                         <Switch
                             bind:checked={get: () => notesEditor?.showsNNNListAttachable ?? true, set: (value: boolean) => {
                                 applyShowsNNN(value);
-                            }}
+                            }, active: true}
                         />
                     </div>
 
@@ -1529,7 +1529,7 @@
                         <Switch
                             bind:checked={get: () => notesEditor?.edgeScrollEnabled ?? true, set: (value: boolean) => {
                                 applyEdgeScroll(value);
-                            }}
+                            }, active: true}
                         />
                     </div>
 
