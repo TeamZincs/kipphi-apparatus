@@ -2944,12 +2944,23 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
 
                 // 段的时间范围 = 节点区间 ∩ 序列范围
                 const segStart = Math.max(nodeBeats, from);
-                const segEnd =
+                const rawEnd =
                     endNode.type === NodeType.TAIL
                         ? to
-                        : Math.min(TC.toBeats(endNode.time), to);
+                        : TC.toBeats(endNode.time);
+                const segEnd = Math.min(rawEnd, to);
                 const startY = (segStart - beats) * timeRatio - yZero;
                 const endY = (segEnd - beats) * timeRatio - yZero;
+
+                /*
+                 * 节点被夹到窗口边界时，值要**朝段内**画。
+                 *
+                 * 原来两端都固定用「起点上方 / 终点下方」：起点夹到窗口顶端后，
+                 * 基线 `bottom` 会把开始值整个画到画布外（被裁掉），看起来就是
+                 * "只有结束值、没有开始值"。夹取方向反过来，文字就落在条带里。
+                 */
+                const startClamped = nodeBeats < from;
+                const endClamped = rawEnd > to;
 
                 if (endNode.type === NodeType.TAIL) {
                     context.fillStyle = "#3467";
@@ -2960,7 +2971,7 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
                         Math.max(endY - startY, 0),
                     );
                     context.fillStyle = "#DDD";
-                    context.textBaseline = "bottom";
+                    context.textBaseline = startClamped ? "top" : "bottom";
                     context.fillText(display(startNode.value), offset, -startY);
                     break;
                 }
@@ -2986,9 +2997,9 @@ export class GeneralEventSequencesEditor extends EventSequenceEditorBase {
                 );
 
                 context.fillStyle = "#DDD";
-                context.textBaseline = "bottom";
+                context.textBaseline = startClamped ? "top" : "bottom";
                 context.fillText(display(startNode.value), offset, -startY);
-                context.textBaseline = "top";
+                context.textBaseline = endClamped ? "bottom" : "top";
                 context.fillText(display(endNode.value), offset, -endY);
                 startNode = endNode.next;
             }
