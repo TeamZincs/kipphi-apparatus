@@ -633,10 +633,14 @@
         const value = Number(raw);
 
         if (!Number.isFinite(value) || value <= 0) return;
-        if (!notesEditor) return;
 
-        notesEditor.timeSpan = value;
-        notesEditor.draw();
+        // 两侧都改：事件画布原来一直是默认跨度，和音符对不上
+        if (notesEditor) {
+            notesEditor.timeSpan = value;
+            notesEditor.draw();
+        }
+
+        eventEditors?.setTimeSpan(value);
     }
 
     function applyPositionSpan(raw: string): void {

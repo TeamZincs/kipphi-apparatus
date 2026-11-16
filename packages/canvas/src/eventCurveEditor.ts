@@ -432,6 +432,29 @@ export class EventSequenceEditors extends EventTarget {
         this.draw(this.lastBeats);
     }
 
+    /**
+     * 设置所有子编辑器的时间跨度（可见拍数）。
+     *
+     * 音符侧和事件侧原来各管各的，设置页只改音符 —— 事件画布的时间轴一直是
+     * 默认跨度，和音符对不上。
+     */
+    setTimeSpan(span: number): void {
+        const editors = [
+            ...this.numericSubEditors(),
+            this.text,
+            this.color,
+            this.video,
+            this.effectShader,
+            this.general,
+        ];
+
+        for (const editor of editors) {
+            editor.timeSpan = span;
+        }
+
+        this.draw(this.lastBeats);
+    }
+
     /** 设置所有子编辑器的画布底色（页面按主题切换时调） */
     setBackgroundColor(color: string): void {
         const editors: { backgroundColor: string }[] = [
