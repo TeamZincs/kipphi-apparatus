@@ -642,6 +642,17 @@
     let gridPresets = $state<number[]>([45, 90, 135, 270]);
 
     /*
+     * 选项要**派生**，不能在模板里直接 `toOptions(divisorPresets)`。
+     *
+     * 传进普通函数后编译期追踪不到依赖（`divisorPresets` 只是个参数），
+     * 列表变了界面不重建 —— 表现就是"新提交的值没进 Segmented"。
+     */
+    const divisorOptions = $node(() => toOptions(divisorPresets));
+    const timeSpanOptions = $node(() => toOptions(timeSpanPresets));
+    const positionSpanOptions = $node(() => toOptions(positionSpanPresets));
+    const gridOptions = $node(() => toOptions(gridPresets));
+
+    /*
      * 四组「输入框 + 预设」共用**同一个** `$node`。
      *
      * 之前两边各写一个 `bind: ... active: true`：一方改了值，另一方读的
@@ -1571,7 +1582,7 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={toOptions(divisorPresets)}
+                            options={divisorOptions}
                             bind:value={divisorNode}
                         />
                     </div>
@@ -1588,7 +1599,7 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={toOptions(timeSpanPresets)}
+                            options={timeSpanOptions}
                             bind:value={timeSpanNode}
                         />
                     </div>
@@ -1605,7 +1616,7 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={toOptions(positionSpanPresets)}
+                            options={positionSpanOptions}
                             bind:value={positionSpanNode}
                         />
                     </div>
@@ -1622,7 +1633,7 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={toOptions(gridPresets)}
+                            options={gridOptions}
                             bind:value={gridNode}
                         />
                     </div>
