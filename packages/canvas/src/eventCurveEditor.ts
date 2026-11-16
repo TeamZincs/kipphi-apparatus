@@ -3178,6 +3178,14 @@ export abstract class EventSequenceEditor<
     protected focusMagnifier(): void {}
     nodesSelection: Set<EventStartNode<VT>> = new Set();
 
+    /**
+     * 拖动开始时的值快照（多选联动用）。
+     *
+     * 按下的节点在 `nodesSelection` 里时，整批按「自己的起点 + 同一个偏移」
+     * 移动；各自累加会把间距拉歪。`null` 表示这次只拖一个。
+     */
+    dragGroupStart: Map<EventStartNode<any>, number> | null = null;
+
     constructor(
         type: EventType,
         canvas: HTMLCanvasElement,
@@ -4525,6 +4533,32 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         switch (this.state) {
             case EventCurveEditorState.selecting: {
                 /*
+                 * 多选联动：每个节点 = **自己的起点值** + 同一个偏移。
+                 *
+                 * 时间暂时不跟着走（`EventNodePairTimeChangeOperation` 要顾
+                 * 背靠背配对，整批平移容易把序列结构搞乱）。
+                 */
+                if (this.dragGroupStart && this.dragGroupStart.size > 1) {
+                    const base =
+                        this.dragGroupStart.get(
+                            this.selectedNode as EventStartNode<any>,
+                        ) ?? this.pointedValue;
+                    const deltaValue = this.pointedValue - base;
+                    const operations = [...this.dragGroupStart].map(
+                        ([node, startValue]) =>
+                            new O.EventNodeValueChangeOperation(
+                                node,
+                                startValue + deltaValue,
+                            ),
+                    );
+
+                    this.operationList.do(
+                        new O.ComplexOperation(...operations),
+                    );
+                    break;
+                }
+
+                /*
                  * 背靠背联动：按下时锁定的那一对一起改**值和时刻**。
                  *
                  * 只改值不改时刻的话，交界处的两个节点会被拉开，"背靠背"
@@ -4583,9 +4617,25 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                     : EventCurveEditorState.selecting;
                 // 每次按下都重新算，避免上一次的联动状态残留
                 this.linkedDrag = false;
+                this.dragGroupStart = null;
 
                 if (snode && snode.target instanceof EventNode) {
                     this.selectedNode = snode.target;
+
+                    /*
+                     * 多选联动：按下的节点在框选集合里 → 整批一起拖。
+                     * 记每个节点**自己的**起点值，之后加同一个偏移。
+                     */
+                    this.dragGroupStart =
+                        this.nodesSelection.size > 1 &&
+                        this.nodesSelection.has(this.selectedNode as any)
+                            ? new Map(
+                                  [...this.nodesSelection].map((node) => [
+                                      node,
+                                      (node as any).value as number,
+                                  ]),
+                              )
+                            : null;
                     /*
                      * 背靠背联动：在这里就把"这次拖要不要带伙伴"定下来。
                      *

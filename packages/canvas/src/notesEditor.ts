@@ -285,6 +285,15 @@ export class NotesEditor extends EventTarget {
     /** 当前选中的Note */
     selectedNote: Note = null;
 
+    /**
+     * 拖动开始时的横位置快照（多选联动用）。
+     *
+     * 按下时如果被按的音符在 `notesSelection` 里，整批一起动：每个音符按
+     * 「自己的起点 + 同一个偏移」走，不能各自累加（那样间距会被拉歪）。
+     * `null` 表示这次只拖一个。
+     */
+    private dragGroupStart: Map<Note, number> | null = null;
+
     /** 放大镜：按住音符时放大主视图 + 侧边局部视图 */
     readonly magnifier = new Magnifier();
 
@@ -624,14 +633,38 @@ export class NotesEditor extends EventTarget {
                     );
                     break;
                 }
-                this.operationList.tryDo(
-                    () =>
-                        new O.NotePropChangeOperation(
-                            this.selectedNote,
-                            "positionX",
-                            this.pointedPositionX,
-                        ),
-                );
+                if (this.dragGroupStart && this.dragGroupStart.size > 1) {
+                    /*
+                     * 多选联动：每个音符 = **自己的起点** + 同一个偏移。
+                     *
+                     * 各自累加（`note.positionX + delta`）会让间距越拖越歪。
+                     */
+                    const base =
+                        this.dragGroupStart.get(this.selectedNote) ??
+                        this.selectedNote.positionX;
+                    const deltaX = this.pointedPositionX - base;
+                    const operations = [...this.dragGroupStart].map(
+                        ([note, startX]) =>
+                            new O.NotePropChangeOperation(
+                                note,
+                                "positionX",
+                                startX + deltaX,
+                            ),
+                    );
+
+                    this.operationList.tryDo(
+                        () => new O.ComplexOperation(...operations),
+                    );
+                } else {
+                    this.operationList.tryDo(
+                        () =>
+                            new O.NotePropChangeOperation(
+                                this.selectedNote,
+                                "positionX",
+                                this.pointedPositionX,
+                            ),
+                    );
+                }
                 if (this.selectingTail) {
                     this.operationList.tryDo(
                         () =>
@@ -1745,6 +1778,24 @@ export class NotesEditor extends EventTarget {
                     const isTail = (this.selectingTail =
                         tar instanceof HoldTail);
                     this.selectedNote = isTail ? tar.note : tar;
+
+                    /*
+                     * 多选联动：按下的音符在框选集合里 → 整批一起拖。
+                     *
+                     * 记下每个音符**自己的**起点，之后所有音符加同一个偏移；
+                     * 各自累加会把间距拉歪。
+                     */
+                    this.dragGroupStart =
+                        this.notesSelection.size > 1 &&
+                        this.notesSelection.has(this.selectedNote)
+                            ? new Map(
+                                  [...this.notesSelection].map((note) => [
+                                      note,
+                                      note.positionX,
+                                  ]),
+                              )
+                            : null;
+
                     // 放大镜以这个音符为中心（松手才收起）
                     this.focusMagnifier();
                     // 按住不动也得把局部视图画出来 —— 否则要等下一次 move 才看得见
@@ -1784,6 +1835,9 @@ export class NotesEditor extends EventTarget {
     upHandler(event: TouchEvent | MouseEvent) {
         // 边缘滚动只在拖动期间有效
         this.stopEdgeScroll();
+
+        // 多选联动的快照只活在这一次手势里
+        this.dragGroupStart = null;
 
         {
             // 先按松手的位置更新指针指向（拖出即放要落在"离开的地方"），
