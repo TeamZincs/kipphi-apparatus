@@ -23,6 +23,7 @@
     import { fetchTexture, _ReturnType } from "@kpa/shared/background/tauri";
 
     import NumField from "#/components/NumField.grain";
+    import Segmented from "#/components/Segmented.grain";
     import Switch from "#/components/Switch.grain";
 
     import JudgeLineList from "./JudgeLineList.grain";
@@ -613,6 +614,20 @@
     theme.subscribe(applyCanvasTheme);
 
     //#region 画布设置
+    /*
+     * 每个设置项下面那排「常用值」，点一下等于把输入框填成该值。
+     *
+     * 值是**数字本身**（`Segmented` 的 `option[0]`），不是下标 —— 输入框里
+     * 有自定义值时一个都不高亮，符合预期。
+     */
+    const asPresets = (values: number[]): [number, string][] =>
+        values.map((value) => [value, `${value}`]);
+
+    const DIVISOR_PRESETS = asPresets([2, 3, 4, 6, 8, 12, 16]);
+    const TIME_SPAN_PRESETS = asPresets([1, 2, 4, 8, 16]);
+    const POSITION_SPAN_PRESETS = asPresets([900, 1350, 1800]);
+    const GRID_PRESETS = asPresets([45, 90, 135, 270]);
+
     /*
      * 这里改的是**编辑器上的字段**，不是谱面数据 —— 不需要走 operationList。
      * 每次改完立刻 `draw()`，`updateMatrix` 会跟着重算。
@@ -1491,12 +1506,32 @@
                         />
                     </div>
 
+                    <div class="presets">
+                        <Segmented
+                            variant="plain"
+                            options={DIVISOR_PRESETS}
+                            bind:value={get: () => notesEditor?.timeDivisor ?? 4, set: (value: number) => {
+                                applyTimeDivisor(String(value));
+                            }, active: true}
+                        />
+                    </div>
+
                     <div class="setting">
                         <span>时间跨度（拍）</span>
                         <NumField
                             bind:value={get: () => String(notesEditor?.timeSpan ?? 4), set: (raw: string) => {
                                 applyTimeSpan(raw);
                             }}
+                        />
+                    </div>
+
+                    <div class="presets">
+                        <Segmented
+                            variant="plain"
+                            options={TIME_SPAN_PRESETS}
+                            bind:value={get: () => notesEditor?.timeSpan ?? 4, set: (value: number) => {
+                                applyTimeSpan(String(value));
+                            }, active: true}
                         />
                     </div>
 
@@ -1509,12 +1544,32 @@
                         />
                     </div>
 
+                    <div class="presets">
+                        <Segmented
+                            variant="plain"
+                            options={POSITION_SPAN_PRESETS}
+                            bind:value={get: () => notesEditor?.positionSpan ?? 1350, set: (value: number) => {
+                                applyPositionSpan(String(value));
+                            }, active: true}
+                        />
+                    </div>
+
                     <div class="setting">
                         <span>音符网格间距</span>
                         <NumField
                             bind:value={get: () => String(notesEditor?.positionGridSpan ?? 135), set: (raw: string) => {
                                 applyNoteGrid(raw);
                             }}
+                        />
+                    </div>
+
+                    <div class="presets">
+                        <Segmented
+                            variant="plain"
+                            options={GRID_PRESETS}
+                            bind:value={get: () => notesEditor?.positionGridSpan ?? 135, set: (value: number) => {
+                                applyNoteGrid(String(value));
+                            }, active: true}
                         />
                     </div>
 
@@ -2042,6 +2097,13 @@
     border-bottom: 1px solid var(--border);
     font-size: 14px;
     color: var(--text);
+}
+
+/* 设置项下面那排常用值：贴右对齐，和输入框同一条竖线 */
+.presets {
+    display: flex;
+    justify-content: flex-end;
+    padding: 6px 0 8px;
 }
 
 .settings-hint {
