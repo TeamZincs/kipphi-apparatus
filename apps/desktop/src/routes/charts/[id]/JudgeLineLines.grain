@@ -1,0 +1,26 @@
+<script>
+    /*
+     * 一列判定线。
+     *
+     * 单独成组件是**必须**的：以前 `JudgeLinesManager` 在 `{#if}` 分支里直接
+     * 写带组件的 `{#for}`，Grain 会把每个 `<JudgeLinePalette>` 的更新器定义在
+     * 循环体函数里，而分支的 `dispose` 在外层引用它 —— 切布局时抛
+     * `update$N is not defined`。
+     *
+     * 分支里只放组件实例，定义和 dispose 就同一作用域了。
+     */
+    import type { JudgeLine } from "kipphi";
+
+    import JudgeLinePalette from "./JudgeLineManager.grain";
+
+    let { lines, flat = false, level = 0 } = $props<{
+        lines: JudgeLine[];
+        /** 平铺：不展开子判定线（按序布局用） */
+        flat?: boolean;
+        level?: number;
+    }>();
+</script>
+
+{#for line of lines with key = line}
+    <JudgeLinePalette target={line} flat={flat} level={level} />
+{/for}

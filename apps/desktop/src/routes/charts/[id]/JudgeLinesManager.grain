@@ -1,7 +1,8 @@
 <script>
 import type { Chart } from "kipphi";
 import { JudgeLineGroup as KPJudgeLineGroup } from "kipphi";
-import JudgeLinePalette from "./JudgeLineManager.grain";
+import JudgeLineGroups from "./JudgeLineGroups.grain";
+import JudgeLineLines from "./JudgeLineLines.grain";
 
 import { _ } from "#/i18n";
     import PopupOption from "#/components/PopupOption/PopupOption.grain";
@@ -46,18 +47,12 @@ export function update() {
     ></PopupOption>
 <div class="judgelines-manager" data-key={key}>
     {#if layout === ORDERED}
-        {#for judgeLine of chart.judgeLines with key = judgeLine}
-            <!-- 按序布局是平的：不展开子判定线 -->
-            <JudgeLinePalette target={judgeLine} flat={true}/>
-        {/for}
+        <!-- 按序布局是平的：不展开子判定线 -->
+        <JudgeLineLines lines={chart.judgeLines} flat={true}/>
     {:else if layout === TREE}
-        {#for judgeLine of chart.orphanLines with key = judgeLine}
-            <JudgeLinePalette level={0} target={judgeLine}/>
-        {/for}
+        <JudgeLineLines lines={chart.orphanLines} level={0}/>
     {:else if layout === GROUPED}
-        {#for group of judgeLineGroups with key = group}
-            <JudgeLineGroup target={group}/>
-        {/for}
+        <JudgeLineGroups groups={judgeLineGroups}/>
         <div class="flex-row">
         <input type="text" placeholder={_("main.lines.name")} bind:value={newGroupName}/>
         <ProgressiveButton onclick={

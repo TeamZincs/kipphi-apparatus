@@ -1,0 +1,15 @@
+<script>
+    /*
+     * 一列分组。和 `JudgeLineLines` 同样的理由单独成组件 ——
+     * `{#if}` 分支里不能直接写带组件的 `{#for}`。
+     */
+    import type { JudgeLineGroup as KPJudgeLineGroup } from "kipphi";
+
+    import JudgeLineGroup from "./JudgeLineGroup.grain";
+
+    let { groups } = $props<{ groups: KPJudgeLineGroup[] }>();
+</script>
+
+{#for group of groups with key = group}
+    <JudgeLineGroup target={group} />
+{/for}
