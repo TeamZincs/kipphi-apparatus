@@ -4847,7 +4847,8 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         }
     }
 
-    protected valuesInFrame: number[];
+    /** 这一帧收集到的值（`adjust` 的并集那一路用）；必须初始化，`draw` 第一帧就会读它 */
+    protected valuesInFrame: number[] = [];
 
     /** [value, time] -> [x, y] */
     protected matrix: Matrix33;
