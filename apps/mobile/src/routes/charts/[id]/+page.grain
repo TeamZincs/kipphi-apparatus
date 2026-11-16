@@ -586,6 +586,17 @@
 
         // 编辑器刚建好：按当前主题上色（订阅还没触发过）
         applyCanvasTheme(theme.get());
+
+        /*
+         * 设置页那几项按当前编辑器同步一次。
+         *
+         * `divisorValue` 那几个 `$state` 的初值是硬编码默认值，编辑器可能
+         * 带着谱面自己的配置（拍数分母等），不同步的话打开设置页显示的是错的。
+         */
+        divisorValue = notesEditor?.timeDivisor ?? 4;
+        timeSpanValue = notesEditor?.timeSpan ?? 4;
+        positionSpanValue = notesEditor?.positionSpan ?? 1350;
+        gridValue = notesEditor?.positionGridSpan ?? 135;
     }
 
     /**
@@ -646,50 +657,31 @@
      *
      * 传进普通函数后编译期追踪不到依赖（`divisorPresets` 只是个参数），
      * 列表变了界面不重建 —— 表现就是"新提交的值没进 Segmented"。
+     *
+     * 必须写成 `{ get }`，不能写 `$node(() => ...)` —— 简写会把箭头函数
+     * 当**表达式**再包一层，`get()` 返回的是函数而不是数组（按钮全没了）。
      */
-    const divisorOptions = $node(() => toOptions(divisorPresets));
-    const timeSpanOptions = $node(() => toOptions(timeSpanPresets));
-    const positionSpanOptions = $node(() => toOptions(positionSpanPresets));
-    const gridOptions = $node(() => toOptions(gridPresets));
+    const divisorOptions = $node({ get: () => toOptions(divisorPresets) });
+    const timeSpanOptions = $node({ get: () => toOptions(timeSpanPresets) });
+    const positionSpanOptions = $node({
+        get: () => toOptions(positionSpanPresets),
+    });
+    const gridOptions = $node({ get: () => toOptions(gridPresets) });
 
     /*
-     * 四组「输入框 + 预设」共用**同一个** `$node`。
+     * 四组「输入框 + 预设」共用的值。
      *
-     * 之前两边各写一个 `bind: ... active: true`：一方改了值，另一方读的
-     * 还是自己那份 getter，不同步。挂到同一个节点上，`NumField` 和
-     * `Segmented` 读的是同一个真相来源。
+     * 用 `$state` 而不是 `$node`：`$node` 的 setter 在 `bind:` 的 set 表达式
+     * 里**不会被改写**（产物只剩 `divisorNode = Number(raw)` 这种普通赋值），
+     * `applyXxx` 永远不执行，常用值也就收集不到。`$state` 的赋值会被编译器
+     * 正常改写。
+     *
+     * 初值在 `bootEditors` 末尾按当前编辑器同步。
      */
-    const divisorNode = $node({
-        get: () => notesEditor?.timeDivisor ?? 4,
-        set: (value: number) => {
-            applyTimeDivisor(String(value));
-        },
-        active: true,
-    });
-
-    const timeSpanNode = $node({
-        get: () => notesEditor?.timeSpan ?? 4,
-        set: (value: number) => {
-            applyTimeSpan(String(value));
-        },
-        active: true,
-    });
-
-    const positionSpanNode = $node({
-        get: () => notesEditor?.positionSpan ?? 1350,
-        set: (value: number) => {
-            applyPositionSpan(String(value));
-        },
-        active: true,
-    });
-
-    const gridNode = $node({
-        get: () => notesEditor?.positionGridSpan ?? 135,
-        set: (value: number) => {
-            applyNoteGrid(String(value));
-        },
-        active: true,
-    });
+    let divisorValue = $state(4);
+    let timeSpanValue = $state(4);
+    let positionSpanValue = $state(1350);
+    let gridValue = $state(135);
 
     /*
      * 这里改的是**编辑器上的字段**，不是谱面数据 —— 不需要走 operationList。
@@ -700,6 +692,7 @@
 
         if (!Number.isFinite(value) || value <= 0) return;
 
+        divisorValue = value;
         divisorPresets = remember(divisorPresets, value);
 
         if (notesEditor) notesEditor.timeDivisor = value;
@@ -714,6 +707,7 @@
 
         if (!Number.isFinite(value) || value <= 0) return;
 
+        timeSpanValue = value;
         timeSpanPresets = remember(timeSpanPresets, value);
 
         // 两侧都改：事件画布原来一直是默认跨度，和音符对不上
@@ -730,6 +724,7 @@
 
         if (!Number.isFinite(value) || value <= 0) return;
 
+        positionSpanValue = value;
         positionSpanPresets = remember(positionSpanPresets, value);
 
         if (!notesEditor) return;
@@ -743,6 +738,7 @@
 
         if (!Number.isFinite(value) || value <= 0) return;
 
+        gridValue = value;
         gridPresets = remember(gridPresets, value);
 
         if (!notesEditor) return;
@@ -1573,8 +1569,8 @@
                         <span>拍数分母</span>
                         <NumField
                             inputmode="numeric"
-                            bind:value={get: () => String(divisorNode), set: (raw: string) => {
-                                divisorNode = Number(raw);
+                            bind:value={get: () => String(divisorValue), set: (raw: string) => {
+                                applyTimeDivisor(raw);
                             }}
                         />
                     </div>
@@ -1583,15 +1579,17 @@
                         <Segmented
                             variant="plain"
                             options={divisorOptions}
-                            bind:value={divisorNode}
+                            bind:value={get: () => divisorValue, set: (value: number) => {
+                                applyTimeDivisor(String(value));
+                            }}
                         />
                     </div>
 
                     <div class="setting">
                         <span>时间跨度（拍）</span>
                         <NumField
-                            bind:value={get: () => String(timeSpanNode), set: (raw: string) => {
-                                timeSpanNode = Number(raw);
+                            bind:value={get: () => String(timeSpanValue), set: (raw: string) => {
+                                applyTimeSpan(raw);
                             }}
                         />
                     </div>
@@ -1600,15 +1598,17 @@
                         <Segmented
                             variant="plain"
                             options={timeSpanOptions}
-                            bind:value={timeSpanNode}
+                            bind:value={get: () => timeSpanValue, set: (value: number) => {
+                                applyTimeSpan(String(value));
+                            }}
                         />
                     </div>
 
                     <div class="setting">
                         <span>值跨度</span>
                         <NumField
-                            bind:value={get: () => String(positionSpanNode), set: (raw: string) => {
-                                positionSpanNode = Number(raw);
+                            bind:value={get: () => String(positionSpanValue), set: (raw: string) => {
+                                applyPositionSpan(raw);
                             }}
                         />
                     </div>
@@ -1617,15 +1617,17 @@
                         <Segmented
                             variant="plain"
                             options={positionSpanOptions}
-                            bind:value={positionSpanNode}
+                            bind:value={get: () => positionSpanValue, set: (value: number) => {
+                                applyPositionSpan(String(value));
+                            }}
                         />
                     </div>
 
                     <div class="setting">
                         <span>音符网格间距</span>
                         <NumField
-                            bind:value={get: () => String(gridNode), set: (raw: string) => {
-                                gridNode = Number(raw);
+                            bind:value={get: () => String(gridValue), set: (raw: string) => {
+                                applyNoteGrid(raw);
                             }}
                         />
                     </div>
@@ -1634,7 +1636,9 @@
                         <Segmented
                             variant="plain"
                             options={gridOptions}
-                            bind:value={gridNode}
+                            bind:value={get: () => gridValue, set: (value: number) => {
+                                applyNoteGrid(String(value));
+                            }}
                         />
                     </div>
 
