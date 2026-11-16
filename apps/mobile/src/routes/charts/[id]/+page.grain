@@ -615,18 +615,70 @@
 
     //#region 画布设置
     /*
-     * 每个设置项下面那排「常用值」，点一下等于把输入框填成该值。
+     * 每个设置项下面那排「常用值」。
      *
-     * 值是**数字本身**（`Segmented` 的 `option[0]`），不是下标 —— 输入框里
-     * 有自定义值时一个都不高亮，符合预期。
+     * 初始只有预设；用户在上面输入框提交新值就追加进来，最多 8 个，
+     * 后来的顶替最早的。值是**数字本身**（`Segmented` 的 `option[0]`），
+     * 不是下标 —— 输入框里是自定义值时一个都不高亮。
      */
-    const asPresets = (values: number[]): [number, string][] =>
-        values.map((value) => [value, `${value}`]);
+    const PRESET_LIMIT = 8;
 
-    const DIVISOR_PRESETS = asPresets([2, 3, 4, 6, 8, 12, 16]);
-    const TIME_SPAN_PRESETS = asPresets([1, 2, 4, 8, 16]);
-    const POSITION_SPAN_PRESETS = asPresets([900, 1350, 1800]);
-    const GRID_PRESETS = asPresets([45, 90, 135, 270]);
+    function remember(list: number[], value: number): number[] {
+        if (!Number.isFinite(value) || value <= 0) return list;
+
+        const next = [...list.filter((item) => item !== value), value];
+
+        return next.length > PRESET_LIMIT
+            ? next.slice(next.length - PRESET_LIMIT)
+            : next;
+    }
+
+    const toOptions = (list: number[]): [number, string][] =>
+        list.map((value) => [value, `${value}`]);
+
+    let divisorPresets = $state<number[]>([2, 3, 4, 6, 8, 12, 16]);
+    let timeSpanPresets = $state<number[]>([1, 2, 4, 8, 16]);
+    let positionSpanPresets = $state<number[]>([900, 1350, 1800]);
+    let gridPresets = $state<number[]>([45, 90, 135, 270]);
+
+    /*
+     * 四组「输入框 + 预设」共用**同一个** `$node`。
+     *
+     * 之前两边各写一个 `bind: ... active: true`：一方改了值，另一方读的
+     * 还是自己那份 getter，不同步。挂到同一个节点上，`NumField` 和
+     * `Segmented` 读的是同一个真相来源。
+     */
+    const divisorNode = $node({
+        get: () => notesEditor?.timeDivisor ?? 4,
+        set: (value: number) => {
+            applyTimeDivisor(String(value));
+        },
+        active: true,
+    });
+
+    const timeSpanNode = $node({
+        get: () => notesEditor?.timeSpan ?? 4,
+        set: (value: number) => {
+            applyTimeSpan(String(value));
+        },
+        active: true,
+    });
+
+    const positionSpanNode = $node({
+        get: () => notesEditor?.positionSpan ?? 1350,
+        set: (value: number) => {
+            applyPositionSpan(String(value));
+        },
+        active: true,
+    });
+
+    const gridNode = $node({
+        get: () => notesEditor?.positionGridSpan ?? 135,
+        set: (value: number) => {
+            applyNoteGrid(String(value));
+        },
+        active: true,
+    });
 
     /*
      * 这里改的是**编辑器上的字段**，不是谱面数据 —— 不需要走 operationList。
@@ -636,6 +688,8 @@
         const value = Number(raw);
 
         if (!Number.isFinite(value) || value <= 0) return;
+
+        divisorPresets = remember(divisorPresets, value);
 
         if (notesEditor) notesEditor.timeDivisor = value;
         if (eventEditors) eventEditors.timeDivisor = value;
@@ -648,6 +702,8 @@
         const value = Number(raw);
 
         if (!Number.isFinite(value) || value <= 0) return;
+
+        timeSpanPresets = remember(timeSpanPresets, value);
 
         // 两侧都改：事件画布原来一直是默认跨度，和音符对不上
         if (notesEditor) {
@@ -662,6 +718,9 @@
         const value = Number(raw);
 
         if (!Number.isFinite(value) || value <= 0) return;
+
+        positionSpanPresets = remember(positionSpanPresets, value);
+
         if (!notesEditor) return;
 
         notesEditor.positionSpan = value;
@@ -672,6 +731,9 @@
         const value = Number(raw);
 
         if (!Number.isFinite(value) || value <= 0) return;
+
+        gridPresets = remember(gridPresets, value);
+
         if (!notesEditor) return;
 
         notesEditor.positionGridSpan = value;
@@ -1500,8 +1562,8 @@
                         <span>拍数分母</span>
                         <NumField
                             inputmode="numeric"
-                            bind:value={get: () => String(notesEditor?.timeDivisor ?? 4), set: (raw: string) => {
-                                applyTimeDivisor(raw);
+                            bind:value={get: () => String(divisorNode), set: (raw: string) => {
+                                divisorNode = Number(raw);
                             }}
                         />
                     </div>
@@ -1509,18 +1571,16 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={DIVISOR_PRESETS}
-                            bind:value={get: () => notesEditor?.timeDivisor ?? 4, set: (value: number) => {
-                                applyTimeDivisor(String(value));
-                            }, active: true}
+                            options={toOptions(divisorPresets)}
+                            bind:value={divisorNode}
                         />
                     </div>
 
                     <div class="setting">
                         <span>时间跨度（拍）</span>
                         <NumField
-                            bind:value={get: () => String(notesEditor?.timeSpan ?? 4), set: (raw: string) => {
-                                applyTimeSpan(raw);
+                            bind:value={get: () => String(timeSpanNode), set: (raw: string) => {
+                                timeSpanNode = Number(raw);
                             }}
                         />
                     </div>
@@ -1528,18 +1588,16 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={TIME_SPAN_PRESETS}
-                            bind:value={get: () => notesEditor?.timeSpan ?? 4, set: (value: number) => {
-                                applyTimeSpan(String(value));
-                            }, active: true}
+                            options={toOptions(timeSpanPresets)}
+                            bind:value={timeSpanNode}
                         />
                     </div>
 
                     <div class="setting">
                         <span>值跨度</span>
                         <NumField
-                            bind:value={get: () => String(notesEditor?.positionSpan ?? 1350), set: (raw: string) => {
-                                applyPositionSpan(raw);
+                            bind:value={get: () => String(positionSpanNode), set: (raw: string) => {
+                                positionSpanNode = Number(raw);
                             }}
                         />
                     </div>
@@ -1547,18 +1605,16 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={POSITION_SPAN_PRESETS}
-                            bind:value={get: () => notesEditor?.positionSpan ?? 1350, set: (value: number) => {
-                                applyPositionSpan(String(value));
-                            }, active: true}
+                            options={toOptions(positionSpanPresets)}
+                            bind:value={positionSpanNode}
                         />
                     </div>
 
                     <div class="setting">
                         <span>音符网格间距</span>
                         <NumField
-                            bind:value={get: () => String(notesEditor?.positionGridSpan ?? 135), set: (raw: string) => {
-                                applyNoteGrid(raw);
+                            bind:value={get: () => String(gridNode), set: (raw: string) => {
+                                gridNode = Number(raw);
                             }}
                         />
                     </div>
@@ -1566,10 +1622,8 @@
                     <div class="presets">
                         <Segmented
                             variant="plain"
-                            options={GRID_PRESETS}
-                            bind:value={get: () => notesEditor?.positionGridSpan ?? 135, set: (value: number) => {
-                                applyNoteGrid(String(value));
-                            }, active: true}
+                            options={toOptions(gridPresets)}
+                            bind:value={gridNode}
                         />
                     </div>
 
@@ -1602,7 +1656,7 @@
                     </div>
 
                     <p class="settings-hint">
-                        时间 / 值跨度只影响音符画布；事件网格留空表示各类型默认值。
+                        时间跨度同时作用于两个画布；事件网格留空表示各类型默认值。
                     </p>
                 </div>
             </div>
@@ -2083,9 +2137,12 @@
     will-change: transform;
 }
 
-/* 画布设置面板：一行一个字段，和最右的输入框对齐 */
+/* 画布设置面板：一行一个字段，和最右的输入框对齐；一屏装不下就滚 */
 .settings {
     padding: 16px;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .setting {
@@ -2093,17 +2150,22 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
+    padding: 10px 0 4px;
     font-size: 14px;
     color: var(--text);
 }
 
-/* 设置项下面那排常用值：贴右对齐，和输入框同一条竖线 */
+/*
+ * 设置项下面那排常用值：贴右对齐，和输入框同一条竖线。
+ *
+ * 分隔横线放在**这里**（不在 `.setting` 上）—— 一排预设属于上一个字段，
+ * 线画在它下面才对。
+ */
 .presets {
     display: flex;
     justify-content: flex-end;
-    padding: 6px 0 8px;
+    padding: 2px 0 8px;
+    border-bottom: 1px solid var(--border);
 }
 
 .settings-hint {

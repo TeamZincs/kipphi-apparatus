@@ -48,9 +48,8 @@
         font: inherit;
         font-size: 12px;
         text-align: center;
+        /* 不要把内容藏进省略号：宁可挤，也要完整显示 */
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
         cursor: pointer;
     }
 
