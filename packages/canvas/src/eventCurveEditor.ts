@@ -964,6 +964,13 @@ export class EventSequenceEditors extends EventTarget {
                     pan.range[0] + deltaValue,
                     pan.range[1] + deltaValue,
                 ];
+
+                // 范围变了就立刻重算吸附表，别等 draw 里的 adjust 早退
+                (
+                    this.activatedEditor as unknown as {
+                        refreshValueGrid?: () => void;
+                    }
+                ).refreshValueGrid?.();
             }
         }
 
@@ -4026,6 +4033,9 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         const dx = (max - min) * fraction;
 
         this.valueRange = [min + dx, max + dx];
+
+        // 和 `panBy` 一样：范围一变立刻重算吸附表
+        this.refreshValueGrid();
     }
 
     /**
@@ -4748,6 +4758,31 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
      * 这时视野每帧都在变，`attachableValues` 必须无条件重算。
      */
     xPanning = false;
+
+    /**
+     * 只按**当前** `valueRange` 重算吸附表（不碰 autoRange / 步长分配）。
+     *
+     * 视野一移动就调它 —— 不能等 `draw` 里的 `adjust`：`adjust` 有若干
+     * 早退分支（`state`、`liveView`、节点值分布），任何一个不满足就整段跳过，
+     * 吸附表于是停在旧范围上。`panBy` / `scrollViewX` 改完 `valueRange`
+     * 立刻调这里，才是"勤劳重算"。
+     */
+    refreshValueGrid(): void {
+        const valueGridSpan = this.baseValueGridStep;
+        const step = this.magnifier.active
+            ? chooseGridStep(
+                  valueGridSpan,
+                  this.magnifier.zoom,
+                  lengthOf(this.valueRange),
+              )
+            : valueGridSpan;
+
+        this.currentValueGridStep = step;
+        this.attachableValues = generateAttachable(
+            [step, 0],
+            this.valueRange,
+        );
+    }
 
     adjust(values: number[]): void {
         /*
