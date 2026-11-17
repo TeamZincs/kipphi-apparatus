@@ -822,19 +822,19 @@ updateTip();
                 <!-- 播放器开关 / 时间参数：全部用移动端的 Switch + NumField -->
                 <div class="setting">
                     <span>{_("main.player.showsUI")}</span>
-                    <Switch bind:checked={get: () => $store(playerShowsUI), set: (v: boolean) => $store(playerShowsUI).set(v)} />
+                    <Switch bind:checked={get: () => playerShowsUI.get(), set: (v: boolean) => playerShowsUI.set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.showsLineID")}</span>
-                    <Switch bind:checked={get: () => $store(playerShowsLineID), set: (v: boolean) => $store(playerShowsLineID).set(v)} />
+                    <Switch bind:checked={get: () => playerShowsLineID.get(), set: (v: boolean) => playerShowsLineID.set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.hitEffectNoFollows")}</span>
-                    <Switch bind:checked={get: () => $store(playerHitEffectNoFollows), set: (v: boolean) => $store(playerHitEffectNoFollows).set(v)} />
+                    <Switch bind:checked={get: () => playerHitEffectNoFollows.get(), set: (v: boolean) => playerHitEffectNoFollows.set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.showsCurve")}</span>
-                    <Switch bind:checked={get: () => $store(playerShowsCurve), set: (v: boolean) => $store(playerShowsCurve).set(v)} />
+                    <Switch bind:checked={get: () => playerShowsCurve.get(), set: (v: boolean) => playerShowsCurve.set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.volume")}</span>
@@ -848,18 +848,18 @@ updateTip();
                 <div class="setting">
                     <span>{_("main.player.cameraZoom")}</span>
                     <NumField
-                        bind:value={get: () => String($store(playerCameraZoom)), set: (raw: string) => {
+                        bind:value={get: () => String(playerCameraZoom.get()), set: (raw: string) => {
                             const next = Number(raw);
-                            if (Number.isFinite(next)) $store(playerCameraZoom).set(next);
+                            if (Number.isFinite(next)) playerCameraZoom.set(next);
                         }}
                     />
                 </div>
                 <div class="setting">
                     <span>{_("main.sidebar.timeDivisor.term")}</span>
                     <NumField
-                        bind:value={get: () => String($store(timeDivisor)), set: (raw: string) => {
+                        bind:value={get: () => String(timeDivisor.get()), set: (raw: string) => {
                             const next = Number(raw);
-                            if (Number.isFinite(next) && next > 0) $store(timeDivisor).set(next);
+                            if (Number.isFinite(next) && next > 0) timeDivisor.set(next);
                         }}
                     />
                 </div>
