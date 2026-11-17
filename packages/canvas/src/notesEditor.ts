@@ -292,7 +292,10 @@ export class NotesEditor extends EventTarget {
      * 「自己的起点 + 同一个偏移」走，不能各自累加（那样间距会被拉歪）。
      * `null` 表示这次只拖一个。
      */
-    private dragGroupStart: Map<Note, number> | null = null;
+    private dragGroupStart: Map<
+        Note,
+        { x: number; beats: number }
+    > | null = null;
 
     /** 放大镜：按住音符时放大主视图 + 侧边局部视图 */
     readonly magnifier = new Magnifier();
@@ -638,23 +641,50 @@ export class NotesEditor extends EventTarget {
                      * 多选联动：每个音符 = **自己的起点** + 同一个偏移。
                      *
                      * 各自累加（`note.positionX + delta`）会让间距越拖越歪。
+                     *
+                     * 时间方向同理：`startTime` 也按「自己的起点 + 同一个拍数
+                     * 偏移」走，目标时刻没有 NN 节点的就跳过那一条。
                      */
-                    const base =
-                        this.dragGroupStart.get(this.selectedNote) ??
-                        this.selectedNote.positionX;
-                    const deltaX = this.pointedPositionX - base;
-                    const operations = [...this.dragGroupStart].map(
-                        ([note, startX]) =>
-                            new O.NotePropChangeOperation(
-                                note,
-                                "positionX",
-                                startX + deltaX,
-                            ),
+                    const base = this.dragGroupStart.get(this.selectedNote) ?? {
+                        x: this.selectedNote.positionX,
+                        beats: TC.toBeats(this.selectedNote.startTime),
+                    };
+                    const deltaX = this.pointedPositionX - base.x;
+                    const deltaBeats = timeT
+                        ? TC.toBeats(timeT) - base.beats
+                        : 0;
+
+                    const operations = [...this.dragGroupStart].flatMap(
+                        ([note, start]) => {
+                            const ops: O.Operation[] = [
+                                new O.NotePropChangeOperation(
+                                    note,
+                                    "positionX",
+                                    start.x + deltaX,
+                                ),
+                            ];
+
+                            if (deltaBeats !== 0) {
+                                const next = note.parentNode.parentSeq.getNodeOf(
+                                    [start.beats + deltaBeats, 0, 1],
+                                );
+
+                                if (next) {
+                                    ops.push(
+                                        new O.NoteTimeChangeOperation(note, next),
+                                    );
+                                }
+                            }
+
+                            return ops;
+                        },
                     );
 
-                    this.operationList.tryDo(
-                        () => new O.ComplexOperation(...operations),
-                    );
+                    if (operations.length > 0) {
+                        this.operationList.tryDo(
+                            () => new O.ComplexOperation(...operations),
+                        );
+                    }
                 } else {
                     this.operationList.tryDo(
                         () =>
@@ -1791,7 +1821,10 @@ export class NotesEditor extends EventTarget {
                             ? new Map(
                                   [...this.notesSelection].map((note) => [
                                       note,
-                                      note.positionX,
+                                      {
+                                          x: note.positionX,
+                                          beats: TC.toBeats(note.startTime),
+                                      },
                                   ]),
                               )
                             : null;

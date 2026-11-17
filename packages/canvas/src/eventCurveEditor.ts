@@ -3184,7 +3184,10 @@ export abstract class EventSequenceEditor<
      * 按下的节点在 `nodesSelection` 里时，整批按「自己的起点 + 同一个偏移」
      * 移动；各自累加会把间距拉歪。`null` 表示这次只拖一个。
      */
-    dragGroupStart: Map<EventStartNode<any>, number> | null = null;
+    dragGroupStart: Map<
+        EventStartNode<any>,
+        { value: number; beats: number }
+    > | null = null;
 
     constructor(
         type: EventType,
@@ -4533,28 +4536,51 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         switch (this.state) {
             case EventCurveEditorState.selecting: {
                 /*
-                 * 多选联动：每个节点 = **自己的起点值** + 同一个偏移。
+                 * 多选联动：每个节点 = **自己的起点** + 同一个偏移（值和时刻
+                 * 都跟着走）。
                  *
-                 * 时间暂时不跟着走（`EventNodePairTimeChangeOperation` 要顾
-                 * 背靠背配对，整批平移容易把序列结构搞乱）。
+                 * 时刻用 `EventNodePairTimeChangeOperation`：它内部会找背靠背
+                 * 的伙伴一起移。伙伴也在选中集合里时，第二次操作作用在已经移过
+                 * 的节点上 —— 由「自己的起点 + 偏移」保证结果仍然正确。
                  */
                 if (this.dragGroupStart && this.dragGroupStart.size > 1) {
-                    const base =
-                        this.dragGroupStart.get(
-                            this.selectedNode as EventStartNode<any>,
-                        ) ?? this.pointedValue;
-                    const deltaValue = this.pointedValue - base;
-                    const operations = [...this.dragGroupStart].map(
-                        ([node, startValue]) =>
-                            new O.EventNodeValueChangeOperation(
-                                node,
-                                startValue + deltaValue,
-                            ),
+                    const selected = this.selectedNode as EventStartNode<any>;
+                    const base = this.dragGroupStart.get(selected) ?? {
+                        value: this.pointedValue,
+                        beats: TC.toBeats(selected.time),
+                    };
+                    const deltaValue = this.pointedValue - base.value;
+                    const deltaBeats = this.pointedTime
+                        ? TC.toBeats(this.pointedTime) - base.beats
+                        : 0;
+
+                    const operations = [...this.dragGroupStart].flatMap(
+                        ([node, start]) => {
+                            const ops: O.Operation[] = [
+                                new O.EventNodeValueChangeOperation(
+                                    node,
+                                    start.value + deltaValue,
+                                ),
+                            ];
+
+                            if (deltaBeats !== 0) {
+                                ops.push(
+                                    new O.EventNodePairTimeChangeOperation(
+                                        node,
+                                        [start.beats + deltaBeats, 0, 1],
+                                    ),
+                                );
+                            }
+
+                            return ops;
+                        },
                     );
 
-                    this.operationList.do(
-                        new O.ComplexOperation(...operations),
-                    );
+                    if (operations.length > 0) {
+                        this.operationList.do(
+                            new O.ComplexOperation(...operations),
+                        );
+                    }
                     break;
                 }
 
@@ -4632,7 +4658,10 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                             ? new Map(
                                   [...this.nodesSelection].map((node) => [
                                       node,
-                                      (node as any).value as number,
+                                      {
+                                          value: (node as any).value as number,
+                                          beats: TC.toBeats((node as any).time),
+                                      },
                                   ]),
                               )
                             : null;
