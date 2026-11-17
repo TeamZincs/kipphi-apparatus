@@ -10,7 +10,9 @@
         "tauri": "tauri",
         "build": "vite build",
         "preview": "vite preview",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "locales": "bun scripts/type-i18n",
+        "watchLocales": "bun scripts/type-i18n --watch"
     },
     "dependencies": {
         "@codemirror/commands": "^6.11.1",
@@ -26,7 +28,8 @@
         "@tauri-apps/plugin-fs": "^2.7.1",
         "@tauri-apps/plugin-opener": "^2.7.2",
         "kipphi": "link:kipphi",
-        "kipphi-player": "link:kipphi-player"
+        "kipphi-player": "link:kipphi-player",
+        "yaml": "^2.9.1"
     },
     "devDependencies": {
         "@graints/vite-plugin": "link:@graints/vite-plugin",

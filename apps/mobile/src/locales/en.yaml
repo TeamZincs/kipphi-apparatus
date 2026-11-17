@@ -1,0 +1,394 @@
+chartIndex:
+  noCharts: No charts yet. Create one now!
+  nav:
+    settings: Settings
+    create: Create Chart
+    import: Import Chart
+    export: Export Chart
+  charts:
+    edit: Edit
+    delete: Delete
+    deleteConfirm: Are you sure you want to delete chart {name}?
+    deleteSuccess: Chart {name} has been deleted.
+    export: Export
+    history: History
+  licenseDeclaration: Although this software is licensed under MIT, the author does not encourage or support paid redistribution. Please be aware.
+  subscribe: "Please bookmark our website: https://pgrfm.miraheze.org/!"
+settings:
+  language: Language
+  useRpeEasingId: Use RPE Easing ID
+  useRpeEasingIdWarning: Using RPE Easing ID will disable EaseInOutQuint and EaseInOutExpo.
+  autosaveEnabled: Enable Autosave
+  autosaveComment: |-
+    Autosave only saves modified charts. Each autosave increases charting time by one.
+    (This means if you leave it idle, autosave won't fill up your hard drive or count that time)
+  autosaveInterval: Autosave Interval
+  playerHeight: Player Height
+  hotkey: Hotkey
+  joke: Just kidding, hotkeys don't support customization. This is just a tutorial (lol)
+  hotkeys:
+    playpause: Play/Pause
+    placeNode: (Event Sequence Editor) Place event node pair
+    placeNote: (Notes Editor) Place note (Tap/Drag/Flick/Hold)
+    toLines: Switch to Judge Line List
+    scrollTime: Scroll Timeline
+    switchLine: Switch Judge Line
+    save: Save Chart
+    switchSeq: Switch to Next Sequence
+    switchSeqPrev: Switch to Previous Sequence
+  respack: Resource Pack
+  respackExists: A resource pack with this name already exists.
+  uploadSuccess: Upload successful.
+  upload: Upload
+create:
+  title: Create Chart
+  name: Track Name
+  bpm: Base BPM
+  composer: Composer
+  create: Create
+  alert:
+    name: Please enter the track name
+    bpm: Please enter the correct base BPM
+  success: Chart created successfully. Redirecting to the chart in 3 seconds.
+import:
+  title: Import Chart
+  formathint: You can import charts using PEZ/ZIP packages, or upload the chart (compatible with RPEJSON), music, and illustration separately.
+  retail: Use Separate Files
+  archive: Use Chart Package
+  chart: Chart File
+  alert:
+    chart: Please provide a chart file
+    archive: Please provide a chart archive (.pez/.zip)
+    imcompleteMeta: Incomplete metadata
+    incompleteArchive: "Incomplete archive, missing: {missing}"
+    unzipFailed: Unzip failed. Please check if the file is corrupted or in the correct format.
+  unzipSuccess: Unzip successful.
+  noMeta: Metadata not found, inferring.
+  gotFile: Got the chart, illustration and music files.
+form:
+  hint: Chart identifier is used to index charts. Please use easy-to-remember English + numeric names (preferably without spaces)
+  id: Chart Identifier
+  music: Music File
+  illustration: Illustration File
+  chartsLocation: Chart list is located at {location}
+  idState:
+    occupied: This identifier is already in use
+    available: This identifier is available
+    empty: Please enter an identifier
+    invalid: This identifier contains illegal characters
+  alert:
+    music: Please provide a music file
+    illustration: Please provide an illustration file
+    unknownImageType: "Unknown image type: {filename}"
+    unknownAudioType: "Unknown audio type: {filename}"
+    folderOccupied: "This folder is already in use but was not previously recognized as a chart: {folder}"
+delete:
+  confirm: "Are you sure you want to delete chart {name}, identifier: {id}?"
+  success: Chart {name} has been deleted.
+  notFound: You have entered a chart that does not exist.
+  delete: Delete
+  alreadyWritten: You have been working on this chart for {mins} minutes since its creation.
+  notKPA: This chart is not a KPAJSON chart. It appears to have been imported from elsewhere.
+  hint: Deleted charts will be moved to {path}.
+main:
+  sidebar:
+    timeDivisor:
+      term: Time Divisor
+      desc: Controls the timeline density of the editor.
+    renderingOffset:
+      term: Audio-Visual Offset
+      desc: |-
+        Controls the rendering offset relative to the music/audio. Bluetooth headphone users usually need to set a lower value.
+        Note: This is not the "chart offset" we usually refer to. Please edit the offset in "Chart Info".
+    linenumber: Judge Line Number
+    judgeLineLayout:
+      ordered: Ordered
+      tree: Tree
+      group: Grouped
+    player: Player Settings
+    notes: Note Edit Settings
+    events: Event Edit Settings
+  secondary:
+    lines: Lines
+    note: Note Editor
+    event: Event Editor
+    line: Manage Selected Line
+    chart: Chart Info
+    multiNode: Multi-Node Editor
+    multiNote: Multi-Note Editor
+    errors: Errors
+    general: Settings
+    script: User Scripts
+    macro: Macro
+  macro:
+    noMacro: No macro is selected
+    id: Macro ID
+    kind:
+      note: Note Macro
+      value: Value Macro
+      time: Time Macro
+      evaluator: Macro Evaluator
+    expression: Macro Expression
+    expressionDesc: Tokens starting with @ are replaced with the value of the corresponding element, e.g. @note.positionX. Applied when the input loses focus.
+    parametric: Parametric
+    consumers: Bound Elements
+    protos: Proto Elements
+    apply: Apply to All Bound Elements
+    applyDesc: Re-evaluates the macro and writes the results into every element bound to it.
+    applied: Applied macro to {count} element(s)
+    switch: Switch Macro
+    switchValue: Switch Value Macro
+    switchTime: Switch Time Macro
+  note:
+    noNote: No target note or target note has been removed
+    type: Type
+    time: Time
+    positionX: X Position
+    direction: Direction
+    above: Above
+    below: Below
+    speed: Speed Factor
+    real: Real Value
+    alpha: Opacity
+    absoluteYOffset: Absolute Y Offset
+    visibleBeats: Visible Beats
+    size: Width
+    tint: Tint
+    tintHitEffect: Hit Effect Tint
+    judgeSize: Judgement Area Size
+    setAsDefault: Set as Default
+    delete: Delete
+    warning-not-from-selected-line: "Warning: This Note does not belong to the selected judge line {line}."
+    warning-lone-note: "Warning: This Note does not exist in the chart."
+    macro: Macro
+    macroBound: "Bound macro: {id}"
+    macroLinked: "Linked macro: {id}"
+    noMacro: No macro
+  event:
+    noEvent: No target event or target event has been removed
+    startNode: Start Node
+    endNode: End Node
+    time: Time
+    value: Value
+    evaluator: Evaluator
+    easing: Easing
+    evaluators:
+      eased: Eased Evaluator
+      expression: Expression Evaluator
+      macro: Macro Evaluator
+    easings:
+      normal: Normal Easing
+      template: Template Easing
+      bezier: Bezier Easing
+    delete: Delete Node Pair
+    goto: Go to This Easing
+    macro: Macro
+    macroValue: "Value macro: {id}"
+    macroTime: "Time macro: {id}"
+    macroLinked: "Linked macro: {id}"
+    noMacro: No macro
+  judgeline:
+    cover:
+      term: Cover
+      desc: |-
+        If set to true, notes will not render on the opposite side of where they are located.
+        Set to true if you want to create the effect of notes emerging from the judge line.
+    father:
+      term: Father Line
+      desc: |-
+        Allows this judge line to inherit the coordinate system of the father line.
+        Setting it to -1 means not having a father and using global coordinate system.
+    anchor:
+      term: Anchor Position
+      desc: Controls the position of the judge line anchor relative to the texture (actually changes the texture position)
+    group:
+      term: Judge Line Group
+      desc: |-
+        Groups judge lines. Only affects editing.
+        Judge lines in the same non-default group will be rendered together in the note and event editing areas.
+    zOrder:
+      term: Z Order
+      desc: Controls the order of the judge line on the Z axis. Higher values are closer to the front.
+    attachUI:
+      term: UI Binding
+      desc: |-
+        Bind chart UI components (such as chart name, combo count) to the judge line so they move with the judge line.
+        A UI can only be bound to one judge line, but a judge line can bind multiple UIs.
+      name: Track Name
+      bar: Progress Bar
+      combo: COMBO Text
+      combonumber: Combo Count
+      level: Difficulty Level
+      pause: Pause Button
+      score: Score
+      attach: Attach
+      detach: Detach
+      attachedTo: Attached to {id}
+    rotatesWithFather:
+      term: Rotate with Father
+      desc: When father line is enabled, controls whether this judge line inherits the angle of the father line.
+    texture:
+      term: Texture
+      desc: Judge line texture. The default texture is a white rectangle.
+      notFound: Texture not found
+    upload: Upload
+    select: Select
+    uploadWarning: Filename is already in use. Upload will overwrite the existing texture. See {dir}
+    uploadSuccess: Upload successful.
+    delete: Delete
+  lines:
+    name: New Group Name
+  player:
+    showsUI: Show UI
+    showsLineID: Show Line Number
+    hitEffectNoFollows: Hit Effect Lag
+    showsCurve: Show Line Trail
+    cameraZoom: Camera Zoom
+    volume: Volume
+  notes:
+    showsNNN:
+      term: Show Snap
+      desc: Displays secondary note nodes as snap-able timelines in the note editing area. They are typically the time points where you have previously tapped notes.
+    NNList:
+      term: Note Node List
+      desc: |-
+        Note node list is a sequence of note nodes. They contain notes of the same major category, speed, and Y offset range.
+        * represents displaying all lists of the judge line.
+    addNote: Add Note
+    noteType: Note Type
+    positionXInterval: Vertical Line Interval
+  events:
+    layerAndSeq: Event Layer and Sequence
+    layers:
+      "0": Default Layer (0)
+      "1": Normal 1 (1)
+      "2": Normal 2 (2)
+      "3": Normal 3 (3)
+      ex: Special Layer (ex)
+    timeSpan: Time Span
+    addNodePair: Add Node Pair
+    encapsule: Encapsulate
+    templateName: Template Name
+    templateNameEmpty: Please enter a template name
+    templateNameOccupied: This template name is already in use
+    encapsuleErr:
+      noContinuous: Node pairs are not continuous
+      notBelongToSourceSequence: Node does not belong to source sequence
+      zeroDelta: Value change is 0. Encapsulated template easing requires non-zero value change. Please check the blue nodes at the beginning and end.
+    range: Value Range
+    invalidRange: Invalid Value Range
+    noNodeSelected: No node selected.
+    rangeTooltip: "Format: <Lower Limit> <Upper Limit> <Step Size>"
+  multiNode:
+    title: Multi-Node Editor ({count} nodes from {ids})
+    delete: Delete
+    reverse: Reverse
+    execute: Execute
+    start: Start Node
+    end: End Node
+    backToBack: Back-to-Back
+    faceToFace: Face-to-Face
+    value: Value
+    time: Time
+    snippets: Code Snippets
+    snippetHelp: Help
+    snippetFillCurve: Fill Curve
+    each: Each
+  multiNote:
+    title: Multi-Note Editor ({count} notes from {lines} judge lines)
+    warning-different-lines: "Warning: Selected notes are from different judge lines, but the 'Fill' function will only fill notes in the selected judge lines."
+    delete: Delete
+    reverse: Reverse
+    execute: Execute
+    eachNote: Each Note
+    snippets: Code Snippets
+    fillEachNeighbors: "Fill between adjacent notes, step size:"
+    fill: Fill
+  chart:
+    info: Chart Info
+    id: Chart Identifier
+    title: Title
+    charter: Charter
+    illustrator: Illustrator
+    composer: Composer
+    offset: Offset
+    level: Difficulty Level
+    save: Save Chart
+    beautify: Beautify output
+    beautifyTooltip: If enabled, it adds newlines and indentaions to the JSON so as to make it readable, but the file size will increase.
+    forcesave: Force Save
+    exit: Exit Chart
+    confirm: Chart is not saved. Are you sure you want to leave?
+    noMessage: Write a commit summary to briefly summarize what you modified in the chart for easy version lookup
+    saveSuccess: Chart has been saved successfully.
+    summary: Chart Summary
+    openInExplorer: Open in Explorer
+  errors:
+    title: Errors
+    notify: There are errors in the chart. Open the "Errors" sidebar to check.
+    check: Check Errors
+    checkComplete: Check completed. Discovered {count} error(s) in {secs} seconds.
+    nodeParentNotFound: This node has been out of the chart.
+    sequenceNotReferenced: This sequence is not referenced by any line.
+  general:
+    baseOffset: Global basic offset
+    baseOffsetDesc: |-
+      Set the base offset of the editor.
+      This option is established since the actual offset varies depending on the environment.
+      It is recommended to adjust this option using an already adjusted chart.
+      Set greater value if the sound effect is earlier than the beats, otherwise set smaller value.
+      This option is persistent and will be saved in the local storage.
+    replayCompensation: Replay Time Compensation
+    replayCompensationDesc: Subtracts this value from the time when replaying after pausing to compensate for backward offset in some environments.
+  script:
+    run: Run
+    close: Close Editor
+    open: Open Editor
+  loadFailed: "Failed to open chart: "
+history:
+  title: History
+  loading: Loading history…
+  empty: No saved versions yet.
+  restore: Restore
+  restoring: Restoring…
+  restored: Restored to the selected version.
+  openFromError: Open this chart's history
+export:
+  convertToRPEJSONOnly: Convert to RPEJSON Only
+  exportPEZ: Export PEZ File
+  noShaderSupport: KPA only packages textures, not shaders. (In fact, it does not support using shaders)
+about:
+  title: About
+  desc: Kipphi Apparatus (KPA) is a Phigros chart editor developed by Zes Minkey Young (杨哲思).
+  player: Kipphi Player Version
+  canvasEditor: Kipphi Canvas Editor Version
+  apparatus: This Software Version
+  kipphi: Kipphi Core Version
+general:
+  pixel: pixel
+  preservesPitch: PrsvPtch
+  eventTypes:
+    moveX: MoveX
+    moveY: MoveY
+    rotate: Rotate
+    scaleX: ScaleX
+    scaleY: ScaleY
+    alpha: Opacity
+    color: Color
+    text: Text
+    speed: Speed
+    easing: Easing
+    bpm: BPM
+    general: RO Overview
+  beat: beat
+  wheel: wheel
+  pressIconToReturn: Press icon to return to home
+  multiSelectMode: Multi-Select Mode
+  modes:
+    replace: Replace
+    extend: Extend
+    substract: Subtract
+    none: Non-Multi
+  return: Return to the Mainpage
+error:
+  chart: Oops! We encountered an error. You can press F12 to open the developer tools to view the error details. If you can't figure out the error and it persists, please join the official group (478824121) and send the chart to Zes Minkey Young.

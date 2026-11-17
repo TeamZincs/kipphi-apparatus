@@ -10,6 +10,7 @@
  * 简单、且不会留下"有些字没换"的半吊子状态。
  */
 import { setLocale as KPCESetLocale } from '@kpa/canvas/messages';
+import { parse as parseYAML } from 'yaml';
 
 import { KPASettings } from './settings';
 import type { I18nMapping } from './i18n-types';
@@ -25,11 +26,26 @@ export type LocaleName = keyof typeof localeLangNames;
 /** 扁平化之后的词典：`main.note.type` -> 文本 */
 type Table = Record<string, string>;
 
+/**
+ * 语言文件是 **YAML**（注释、多行文案、diff 都比 JSON 好读）。
+ *
+ * 用 `?raw` 取原文再自己 `parse` —— 让 vite 直接 import `.yaml` 需要额外插件，
+ * 而 `yaml` 包本来就装了（生成类型的脚本也在用）。
+ */
 const loaders: Record<string, () => Promise<{ default: Record<string, unknown> }>> = {
-    'zh-Hans': () => import('./locales/zh-Hans.json'),
-    'zh-Hant': () => import('./locales/zh-Hant.json'),
-    en: () => import('./locales/en.json')
+    // 字面量 `import('...yaml?raw')`：vite 要静态看到路径才能打进包里
+    'zh-Hans': () => loadYaml(() => import('./locales/zh-Hans.yaml?raw')),
+    'zh-Hant': () => loadYaml(() => import('./locales/zh-Hant.yaml?raw')),
+    en: () => loadYaml(() => import('./locales/en.yaml?raw'))
 };
+
+function loadYaml(
+    loader: () => Promise<{ default: string }>,
+): Promise<{ default: Record<string, unknown> }> {
+    return loader().then((module) => ({
+        default: parseYAML(module.default) as Record<string, unknown>,
+    }));
+}
 
 const FALLBACK_LOCALE = 'zh-Hans';
 

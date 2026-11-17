@@ -3,6 +3,8 @@ import { watch } from 'fs/promises';
 import { readFile, writeFile } from 'fs/promises';
 import { resolve } from 'path';
 
+import { parse as parseYAML } from 'yaml';
+
 /**
  * 递归提取所有键路径
  */
@@ -54,11 +56,11 @@ export interface I18nMapping {
  */
 async function main() {
   try {
-    const inputFile = resolve('src/locales/zh-Hans.json');
+    const inputFile = resolve('src/locales/zh-Hans.yaml');
     const outputFile = resolve('src/i18n-types.d.ts');
     
-    // 读取JSON文件
-    const jsonData = JSON.parse(await readFile(inputFile, 'utf-8'));
+    // 语言文件是 YAML（`yaml` 包和 `i18n.ts` 用的是同一个）
+    const jsonData = parseYAML(await readFile(inputFile, 'utf-8')) as Record<string, unknown>;
     
     // 提取所有键
     const keyMapping = extractKeys(jsonData);
