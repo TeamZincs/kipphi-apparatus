@@ -1,0 +1,131 @@
+<script>
+    /*
+     * 谱面信息面板（替代被废掉的 `ChartInfoEditor`）。
+     *
+     * 和移动端的 Sheet 一个形态：一行一个字段，改完**走 operationList**，
+     * 所以能撤销。用原生 `<input>` 而不是 `NumField` —— 曲名、谱师这些是
+     * 字符串，`NumField` 是给数字用的。
+     */
+    import { Op } from "kipphi";
+
+    import NumField from "#/components/NumField.grain";
+    import { operationList } from "./store";
+
+    let { onclose } = $props<{ onclose: () => void }>();
+
+    const chart = operationList?.chart;
+
+    type TextProp = "name" | "level" | "composer" | "charter" | "illustrator";
+
+    function commit(prop: TextProp, raw: string): void {
+        const value = raw.trim();
+
+        if (!operationList || !chart || value.length === 0) return;
+
+        const current = (chart as unknown as Record<string, unknown>)[prop];
+
+        if (current === value) return;
+
+        operationList.do(new Op.ChartPropChangeOperation(chart, prop, value));
+    }
+
+    function commitOffset(raw: string): void {
+        const value = Number(raw);
+
+        if (!operationList || !chart || !Number.isFinite(value)) return;
+        if (chart.offset === value) return;
+
+        operationList.do(
+            new Op.ChartPropChangeOperation(chart, "offset", value),
+        );
+    }
+</script>
+
+<div class="chart-info">
+    <div class="field">
+        <span>曲名</span>
+        <input
+            value={chart?.name ?? ""}
+            onchange={(event) => commit("name", event.target.value)}
+        />
+    </div>
+
+    <div class="field">
+        <span>难度</span>
+        <input
+            value={chart?.level ?? ""}
+            onchange={(event) => commit("level", event.target.value)}
+        />
+    </div>
+
+    <div class="field">
+        <span>作曲</span>
+        <input
+            value={chart?.composer ?? ""}
+            onchange={(event) => commit("composer", event.target.value)}
+        />
+    </div>
+
+    <div class="field">
+        <span>谱师</span>
+        <input
+            value={chart?.charter ?? ""}
+            onchange={(event) => commit("charter", event.target.value)}
+        />
+    </div>
+
+    <div class="field">
+        <span>曲绘</span>
+        <input
+            value={chart?.illustrator ?? ""}
+            onchange={(event) => commit("illustrator", event.target.value)}
+        />
+    </div>
+
+    <div class="field">
+        <span>偏移</span>
+        <NumField
+            bind:value={get: () => String(chart?.offset ?? 0), set: (raw: string) => {
+                commitOffset(raw);
+            }}
+        />
+    </div>
+</div>
+
+<style>
+.chart-info {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 140px;
+    align-items: center;
+    column-gap: 12px;
+    padding: 10px 0 6px;
+    border-bottom: 1px solid var(--border, #666);
+    font-size: 14px;
+    color: var(--text, #eee);
+}
+
+.field > span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.field >:global(input) {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    border: 1px solid var(--input-border-color, #bbb);
+    border-radius: var(--border-radius, 4px);
+    background: var(--surface-2, #4a4a4a);
+    color: var(--text, #eee);
+    font: inherit;
+    font-size: 13px;
+}
+</style>
