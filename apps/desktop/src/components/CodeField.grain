@@ -1,0 +1,135 @@
+<script>
+    /*
+     * 轻量代码输入框：CodeMirror 6，只装 JS 语法高亮 + 历史 + 折行。
+     *
+     * 为什么不用 Monaco：移动端包体太大（2MB+），而这里只需要"能高亮一段
+     * 表达式"。CM6 按需引入四个包，gzip 后约 100KB。
+     *
+     * 用的是 `$bindable` 那种 `{ get, set }` 传值，和 `NumField` 一致；
+     * 输入即回传（不是失焦才回传）—— 面板里点「应用」才真正发操作，所以
+     * 每敲一个字回传一次没有副作用。
+     */
+    import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+    import { javascript } from "@codemirror/lang-javascript";
+    import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+    import { EditorState } from "@codemirror/state";
+    import {
+        EditorView,
+        keymap,
+        placeholder as placeholderExt
+    } from "@codemirror/view";
+    import { tags } from "@lezer/highlight";
+
+    /**
+     * 语法着色。
+     *
+     * `javascript()` 只给"语言支持"（能解析、能缩进），**不会上色** ——
+     * 颜色要靠 `HighlightStyle`。这里按当前主题选一套 token 配色，
+     * 面板打开时读一次 `data-theme` 就够了（打开期间不会切主题）。
+     */
+    const darkTokens = [
+        { tag: tags.keyword, color: "#c792ea" },
+        { tag: [tags.number, tags.bool, tags.null], color: "#f78c6c" },
+        { tag: [tags.string, tags.special(tags.string)], color: "#c3e88d" },
+        {
+            tag: [tags.propertyName, tags.function(tags.variableName)],
+            color: "#82aaff"
+        },
+        { tag: tags.variableName, color: "#eeffff" },
+        { tag: tags.comment, color: "#676e95", fontStyle: "italic" },
+        { tag: [tags.operator, tags.punctuation], color: "#89ddff" }
+    ];
+
+    const lightTokens = [
+        { tag: tags.keyword, color: "#a626a4" },
+        { tag: [tags.number, tags.bool, tags.null], color: "#986801" },
+        { tag: [tags.string, tags.special(tags.string)], color: "#50a14f" },
+        {
+            tag: [tags.propertyName, tags.function(tags.variableName)],
+            color: "#4078f2"
+        },
+        { tag: tags.variableName, color: "#383a42" },
+        { tag: tags.comment, color: "#a0a1a7", fontStyle: "italic" },
+        { tag: [tags.operator, tags.punctuation], color: "#0184bc" }
+    ];
+
+    let { value, placeholder = "" } = $props<{
+        value: { get: () => string; set: (v: string) => void };
+        placeholder?: string;
+    }>();
+
+    let host: HTMLElement;
+    let view: EditorView | null = null;
+
+    /** 主题跟着 `app.css` 的变量走，亮 / 暗色自动切换 */
+    const theme = EditorView.theme({
+        "&": {
+            backgroundColor: "var(--surface)",
+            color: "var(--text)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            fontSize: "13px"
+        },
+        "&.cm-focused": { outline: "none" },
+        ".cm-content": {
+            fontFamily:
+                "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            padding: "8px 9px",
+            caretColor: "var(--text)"
+        },
+        ".cm-line": { padding: "0" },
+        ".cm-scroller": { overflow: "auto", lineHeight: "1.5" },
+        ".cm-selectionBackground, ::selection": {
+            backgroundColor: "rgba(120, 170, 255, 0.35)"
+        },
+        ".cm-tooltip": {
+            backgroundColor: "var(--surface-2)",
+            border: "1px solid var(--border)"
+        }
+    });
+</script>
+
+<script onmount>
+    // 面板打开那一刻的主题决定用哪套 token 颜色
+    const dark = document.documentElement.dataset.theme !== "light";
+    const highlight = HighlightStyle.define(dark ? darkTokens : lightTokens);
+
+    view = new EditorView({
+        state: EditorState.create({
+            doc: value.get(),
+            extensions: [
+                history(),
+                keymap.of([...defaultKeymap, ...historyKeymap]),
+                EditorView.lineWrapping,
+                javascript(),
+                // `javascript()` 只解析不上色，颜色靠这个
+                syntaxHighlighting(highlight),
+                theme,
+                placeholderExt(placeholder),
+                EditorView.updateListener.of((update) => {
+                    if (update.docChanged) {
+                        value.set(update.state.doc.toString());
+                    }
+                })
+            ]
+        }),
+        parent: host
+    });
+</script>
+
+<div class="code-field" bind:this={host}></div>
+
+<style>
+    .code-field {
+        min-height: 78px;
+    }
+
+    /* 高度主要靠 CM 自己的主题控制，这里只兜个底 */
+    .code-field .cm-editor {
+        min-height: 78px;
+    }
+
+    .code-field .cm-scroller {
+        max-height: 160px;
+    }
+</style>

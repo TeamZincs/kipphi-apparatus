@@ -200,8 +200,7 @@
     ></PopupOption>
 
     {#if type !== 'bpm'}
-    <SuggestionInput
-    getSuggestions={async (s) => operationList.chart.templateEasingLib.easings.keys().toArray().filter(k => k.startsWith(s))}
+    <input
     placeholder={_('main.events.templateName')}
     bind:value={$store(templateName)}/>
 

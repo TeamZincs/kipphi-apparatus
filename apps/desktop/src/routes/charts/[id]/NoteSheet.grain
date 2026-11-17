@@ -1,0 +1,708 @@
+<script macro>
+    /*
+     * `$lsprop(对象, 字段)` —— 展开成一个**绑定值**（get / set / listen）：
+     *
+     *   get    读 `对象.字段`
+     *   set    发一条对应的操作（只改这一个字段）
+     *   listen 订阅操作列表，撤销 / 重做 / 别处改动时重算
+     *
+     * 宏没有卫生性，拼出来的字符串直接用组件 `<script>` 里 import 的
+     * `Op` 和 `operationList`，所以这里不需要（也不能）import 它们。
+     *
+     * `listen` 返回取消订阅函数 —— 运行时重新 listen 之前会先调它，
+     * 所以反复挂载不会在事件总线上堆重复回调。
+     */
+    function $lsprop(target: string, field: string) {
+        return [
+            'get',
+            ':',
+            /* 值永远从**对象**上读 —— `operationList` 是唯一真相来源 */
+            `() => ${target}.${field}`,
+            ',',
+            'set',
+            ':',
+            `(v) => operationList.do(new Op.NotePropChangeOperation(${target}, "${field}", v))`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
+
+    /** 音符类型：操作类是 `NoteTypeChangeOperation`，其余同 `$lsprop` */
+    function $lstype(target: string) {
+        return [
+            'get',
+            ':',
+            `() => ${target}.type`,
+            ',',
+            'set',
+            ':',
+            `(v) => operationList.do(new Op.NoteTypeChangeOperation(${target}, v))`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
+
+    /**
+     * 数值字段（`positionX` / `alpha` / `size` / `judgeSize`）：
+     * 输入框给过来的是**字符串**，这里转成数字、校验、只发自己那一条操作。
+     *
+     * `get` 也返回字符串（`NumField` 的文本就是字符串），值仍然从对象上现读。
+     */
+    function $lsnum(target: string, field: string) {
+        return [
+            'get',
+            ':',
+            `() => String(${target}.${field})`,
+            ',',
+            'set',
+            ':',
+            `(v) => { const __n = Number(v); if (!Number.isFinite(__n) || __n === ${target}.${field}) return; operationList.do(new Op.NotePropChangeOperation(${target}, "${field}", __n)); }`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
+
+    /**
+     * 需要判定线参与的操作（`speed` / `yOffset`）：操作类从 `line` 上取，所以
+     * 多一步"从对象反查所属判定线"，拿不到就静默放弃。
+     */
+    function $lsmove(target: string, field: string, operation: string) {
+        return [
+            'get',
+            ':',
+            `() => String(${target}.${field})`,
+            ',',
+            'set',
+            ':',
+            `(v) => { const __n = Number(v); if (!Number.isFinite(__n) || __n === ${target}.${field}) return; const __line = ${target}.parentNode?.parentSeq?.parentLine; if (!__line) return; operationList.do(new Op.${operation}(${target}, __n, __line)); }`,
+            ',',
+            'listen',
+            ':',
+            '(u) => { operationList.addEventListener("needsupdate", u); return () => operationList.removeEventListener("needsupdate", u); }'
+        ];
+    }
+</script>
+
+<script>
+    /*
+     * 音符面板（底部面板的**内容**部分）。
+     *
+     * 只管一件事：把 `note` 的字段摆出来、改了就发操作。
+     * 骨架（遮罩 / 凸起 / 动画）在 `SheetShell.grain` 里。
+     *
+     * 为什么属性存在本地 `$state`：grain 的子组件 props 不会跟着父组件状态刷新，
+     * 所以值必须由这个组件自己持有；对象的引用在面板打开期间是稳定的。
+     */
+    import { NoteType, Op, TC, type Note } from "kipphi";
+
+    import NumField from "#/components/NumField.grain";
+    import Segmented from "#/components/Segmented.grain";
+    import Switch from "#/components/Switch.grain";
+
+    import { operationList } from "#/store";
+    import {
+        beatsOf,
+        formatTime,
+        num,
+        parseTime,
+        splitBeats,
+        toTime
+    } from "#/time";
+
+    /*
+     * 桌面端 store 没有单独导出 `chart` —— 它在 `operationList.chart` 上
+     *（`OperationList` 的构造器把它当只读字段持有）。面板创建时读一次即可：
+     * 谱面对象整个生命周期不换。
+     */
+    const chart = operationList.chart;
+
+    let { note, editor, onclose, onmacro } = $props<{
+        note: Note;
+        editor: any;
+        onclose: () => void;
+        /** 点关联宏标签时，把宏交给页面去开宏面板 */
+        onmacro?: (macro: any) => void;
+    }>();
+
+    /** 时间用三个框还是一整个分数框 */
+    let timeSingle = $state(false);
+    let error = $state<string | null>(null);
+
+    // 草稿：数值一律存字符串（输入过程中允许 `-`、`.` 这种中间态）
+
+    let startB = $state("0");
+    let startN = $state("0");
+    let startD = $state("1");
+    let endB = $state("0");
+    let endN = $state("0");
+    let endD = $state("1");
+    let startText = $state("");
+    let endText = $state("");
+    /*
+     * 数值 / 布尔 / 类型字段不再有本地草稿：`$lsnum` / `$lsprop` / `$lstype`
+     * 直接读写对象本身（`operationList` 是唯一真相），输入框中转由 `NumField` 自己管。
+     */
+
+    const TYPE_OPTIONS: [number, string][] = [
+        [NoteType.tap, "Tap"],
+        [NoteType.drag, "Drag"],
+        [NoteType.flick, "Flick"],
+        [NoteType.hold, "Hold"]
+    ];
+
+    //#region 宏（和桌面 NoteEditor 同一套 `chart.macroLib.noteMacros`）
+    /** 谱面里的音符宏 */
+    let noteMacros = $state<any[]>([]);
+    /** 当前音符绑的宏 id，空串表示"无" */
+    let noteMacroId = $state("");
+    /** 这个音符被哪些宏关联（只读展示） */
+    let linkedMacros = $state<any[]>([]);
+
+    /** 绑定 / 切换 / 解绑音符宏 */
+    function setNoteMacro(id: string): void {
+        const ops = operationList;
+        const macro = id ? chart?.macroLib?.noteMacros.get(id) : null;
+
+        // id 非空但库里找不到：不动（可能是桌面端刚删掉）
+        if (!ops || (id && !macro)) return;
+        if ((macro ?? null) === ((note as any).macro ?? null)) return;
+
+        ops.do(
+            macro
+                ? new Op.NoteMacroAssignOperation(macro, note)
+                : new Op.NoteMacroDeassginOperation(note)
+        );
+    }
+    //#endregion
+
+    function pull(): void {
+        startB = String(note.startTime[0]);
+        startN = String(note.startTime[1]);
+        startD = String(note.startTime[2]);
+        endB = String(note.endTime[0]);
+        endN = String(note.endTime[1]);
+        endD = String(note.endTime[2]);
+        startText = formatTime(note.startTime);
+        endText = formatTime(note.endTime);
+
+        // 宏：列表可能被桌面端改过，每次重取；当前绑的引用用来回显
+        const macroLib = chart?.macroLib;
+
+        noteMacros = macroLib ? [...macroLib.noteMacros.values()] : [];
+        noteMacroId = (note as any).macro?.id ?? "";
+        linkedMacros = [...((note as any).linkedMacros ?? [])];
+    }
+
+    /*
+     * 初始化读一次值。
+     *
+     * 包 try/catch：目标如果是个已经脱离判定线的旧引用（编辑过时间 / 速度的操作
+     * 会 remove + add 换对象），这里抛错会打断整棵子树渲染 —— 表现是面板只剩凸起。
+     * 出错就把原因写进 `error` 显示在面板里，至少不会被一堵看不见的模型挡住。
+     */
+    try {
+        pull();
+    } catch (e) {
+        error = `读取音符失败：${String(e)}`;
+    }
+
+    // 撤销 / 重做 / 别处改了同一个音符 → 文本草稿回灌
+    //（`$lsprop` 那些绑定值不需要这里：它们自己 listen `operationList`）
+    const onOperation = (): void => {
+        try {
+            pull();
+        } catch (e) {
+            error = `同步音符失败：${String(e)}`;
+        }
+    };
+
+    operationList?.addEventListener("needsupdate", onOperation);
+
+    /**
+     * 是不是 hold 类型 —— 只有 hold 才有"结束时间"，别的类型那两格要禁用。
+     *
+     * 用 `$node` + `listen`：`note.type` 是普通对象字段，读它不产生编译期依赖，
+     * 靠 `operationList` 的通知驱动重算（和 `$lsprop` 同一套思路）。
+     */
+    const isHold = $node({
+        get: () => note.type === NoteType.hold,
+        listen: (update: () => void) => {
+            operationList?.addEventListener("needsupdate", update);
+
+            return () => operationList?.removeEventListener("needsupdate", update);
+        },
+    });
+
+    /** 三个框 ↔ 单个框，互相换算，切来切去不丢输入 */
+    function toggleTimeMode(): void {
+        timeSingle = !timeSingle;
+
+        if (timeSingle) {
+            const start = beatsOf(startB, startN, startD);
+            const end = beatsOf(endB, endN, endD);
+
+            startText = Number.isFinite(start) ? formatTime(toTime(start)) : "";
+            endText = Number.isFinite(end) ? formatTime(toTime(end)) : "";
+
+            return;
+        }
+
+        const apply = (
+            text: string,
+            set: (b: string, n: string, d: string) => void
+        ): void => {
+            const beats = parseTime(text);
+
+            if (!Number.isFinite(beats)) return;
+
+            set(...splitBeats(beats));
+        };
+
+        apply(startText, (b, n, d) => {
+            startB = b;
+            startN = n;
+            startD = d;
+        });
+        apply(endText, (b, n, d) => {
+            endB = b;
+            endN = n;
+            endD = d;
+        });
+    }
+
+    /**
+     * 提交**单个字段**：每个控件只产生它自己那一条操作。
+     *
+     * 之前是一个 `commit()` 把所有字段一起 diff —— 改 alpha 也可能顺带发出
+     * `NoteTimeChangeOperation`（内部是 remove + add 整颗音符），
+     * 这就是"点一个控件却动了别的属性"的来源。
+     */
+    function commitField(field: string): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        error = null;
+
+        switch (field) {
+            case "start":
+            case "end": {
+                const seq = note.parentNode?.parentSeq;
+
+                if (!seq) {
+                    error = "这个音符还没挂在判定线上";
+
+                    return;
+                }
+
+                const start = timeSingle
+                    ? parseTime(startText)
+                    : beatsOf(startB, startN, startD);
+                const end = timeSingle
+                    ? parseTime(endText)
+                    : beatsOf(endB, endN, endD);
+
+                if (!Number.isFinite(start) || !Number.isFinite(end)) {
+                    error = "时间格式不对（`3` / `3:1/4` / `3.25` 都行）";
+
+                    return;
+                }
+
+                if (!(start >= 0) || !(end > start)) {
+                    error = "结束时间必须晚于开始时间";
+
+                    return;
+                }
+
+                const startChanged =
+                    Math.abs(start - TC.toBeats(note.startTime)) > 1e-6;
+                const endChanged =
+                    Math.abs(end - TC.toBeats(note.endTime)) > 1e-6;
+
+                if (!startChanged && !endChanged) return;
+
+                // 开始时间的变化必须走「换 node」的那条路；结束时间单独一条
+                if (startChanged) {
+                    ops.tryDo(() => {
+                        const move = new Op.NoteTimeChangeOperation(
+                            note,
+                            seq.getNodeOf(toTime(start))
+                        );
+
+                        if (!endChanged) return move;
+
+                        return new Op.ComplexOperation(
+                            move,
+                            new Op.HoldEndTimeChangeOperation(
+                                note,
+                                toTime(end)
+                            )
+                        );
+                    });
+
+                    return;
+                }
+
+                ops.do(
+                    new Op.HoldEndTimeChangeOperation(note, toTime(end))
+                );
+
+                return;
+            }
+        }
+    }
+
+    /** 删除（桌面端 NoteEditor 的「删除」同一个操作） */
+    function remove(): void {
+        if (!operationList) return;
+
+        operationList.do(new Op.NoteDeleteOperation(note));
+        editor?.draw();
+        onclose();
+    }
+
+    /** 设为默认：把当前音符的手感/外观参数存进 defaultNoteConfig */
+    function setAsDefault(): void {
+        if (!editor) return;
+
+        editor.defaultNoteConfig = {
+            absoluteYOffset: note.yOffset,
+            alpha: note.alpha,
+            visibleBeats: note.visibleBeats,
+            size: note.size,
+            tint:
+                note.tint &&
+                [
+                    (note.tint >> 16) & 0xff,
+                    (note.tint >> 8) & 0xff,
+                    note.tint & 0xff
+                ],
+            tintHitEffects:
+                note.tintHitEffects &&
+                [
+                    (note.tintHitEffects >> 16) & 0xff,
+                    (note.tintHitEffects >> 8) & 0xff,
+                    note.tintHitEffects & 0xff
+                ],
+            judgeSize: note.judgeSize,
+            isFake: Number(note.isFake),
+            speed: note.speed,
+            isAbove: Number(note.above)
+        };
+
+        onclose();
+    }
+</script>
+
+<div class="head">
+    <span class="kind">音符</span>
+
+    <!-- 时间输入形态：三个框 ↔ 单个分数框 -->
+    <Switch
+        bind:checked={
+            get: () => timeSingle,
+            set: (v: boolean) => {
+                if (v === timeSingle) return;
+                toggleTimeMode();
+            }
+        }
+    />
+</div>
+
+<!-- change / 失焦都会冒泡到这里：一处覆盖所有输入框，没有"应用"按钮 -->
+<div class="body">
+    <div class="col">
+        <div class="field">
+            <span>类型</span>
+            <Segmented options={TYPE_OPTIONS} bind:value={$lstype(note)} />
+        </div>
+
+        <div class="field">
+            <span>开始</span>
+            {#if timeSingle}
+                <input
+                    class="num"
+                    type="text"
+                    placeholder="3:1/4"
+                    bind:value={startText}
+                    onchange={() => commitField("start")}
+                />
+            {:else}
+                <div class="triple">
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={startB} onchange={() => commitField("start")} />
+                    <span class="sep">:</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={startN} onchange={() => commitField("start")} />
+                    <span class="sep">/</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={startD} onchange={() => commitField("start")} />
+                </div>
+            {/if}
+        </div>
+
+        <div class="field">
+            <span>结束</span>
+            {#if timeSingle}
+                <input
+                    class="num"
+                    type="text"
+                    placeholder="4"
+                    disabled={!isHold}
+                    bind:value={endText}
+                    onchange={() => commitField("end")}
+                />
+            {:else}
+                <div class="triple">
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" disabled={!isHold} bind:value={endB} onchange={() => commitField("end")} />
+                    <span class="sep">:</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" disabled={!isHold} bind:value={endN} onchange={() => commitField("end")} />
+                    <span class="sep">/</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" disabled={!isHold} bind:value={endD} onchange={() => commitField("end")} />
+                </div>
+            {/if}
+        </div>
+
+        <label class="field">
+            <span>X</span>
+            <NumField bind:value={$lsnum(note, "positionX")} />
+        </label>
+
+        <div class="field">
+            <span>在线上方</span>
+            <Switch bind:checked={$lsprop(note, "above")} />
+        </div>
+
+        <div class="field">
+            <span>假音符</span>
+            <Switch bind:checked={$lsprop(note, "isFake")} />
+        </div>
+    </div>
+
+    <div class="col">
+        <label class="field">
+            <span>大小</span>
+            <NumField bind:value={$lsnum(note, "size")} />
+        </label>
+
+        <label class="field">
+            <span>判定大小</span>
+            <NumField bind:value={$lsnum(note, "judgeSize")} />
+        </label>
+
+        <label class="field">
+            <span>透明度</span>
+            <NumField bind:value={$lsnum(note, "alpha")} />
+        </label>
+
+        <label class="field">
+            <span>Y 偏移</span>
+            <NumField
+                bind:value={$lsmove(note, "yOffset", "NoteYOffsetChangeOperation")}
+            />
+        </label>
+
+        <label class="field">
+            <span>速度</span>
+            <NumField
+                bind:value={$lsmove(note, "speed", "NoteSpeedChangeOperation")}
+            />
+        </label>
+    </div>
+</div>
+
+<!--
+    宏：音符宏从 `chart.macroLib.noteMacros` 里选，「（无）」是解绑；
+    关联宏只读展示（这个音符被哪些宏引用着）。
+-->
+{#if noteMacros.length > 0 || linkedMacros.length > 0}
+    <div class="macro">
+        {#if noteMacros.length > 0}
+            <label class="field">
+                <span>音符宏</span>
+                <select
+                    bind:value={
+                        get: () => noteMacroId,
+                        set: (v: string) => setNoteMacro(v)
+                    }
+                >
+                    <option value="">（无）</option>
+                    {#for macro of noteMacros}
+                        <option value={macro.id}>{macro.id}</option>
+                    {/for}
+                </select>
+            </label>
+        {/if}
+
+        {#if linkedMacros.length > 0}
+            <div class="field">
+                <span>关联宏</span>
+                <div class="chips">
+                    {#for item of linkedMacros}
+                        <button class="chip" onclick={() => onmacro?.(item)}>
+                            {item.id}
+                        </button>
+                    {/for}
+                </div>
+            </div>
+        {/if}
+    </div>
+{/if}
+
+{#if error}
+    <p class="error">{error}</p>
+{/if}
+
+<div class="actions">
+    <button class="btn" onclick={() => onmacro?.(null)}>宏</button>
+    <button class="btn danger" onclick={remove}>删除</button>
+    <button class="btn" onclick={setAsDefault}>设为默认</button>
+</div>
+
+<style>
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .kind {
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    /*
+     * 滚动交给 `SheetShell` 的 `.sheet-content` 那一层：这里按内容自然排，
+     * 不再 `flex: 1` + `min-height: 0`（那会在内容超高时被压成 0 高，
+     * 表现为"面板里什么都没有"）。
+     */
+    .body {
+        flex: 0 0 auto;
+        width: 100%;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    /* 两列：左主要属性、右尺寸/偏移；列内自上而下 */
+    .col {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    /* 宏：和上面的属性列一样宽，中间一条分隔线 */
+    .macro {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* 关联宏：只读的小标签，排不下就换行 */
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 3px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+    }
+
+    .field input,
+    .field select {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        /* 自实现的数字框：不要浏览器那对上下箭头 */
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    /* 非 hold 没有结束时间：禁用态要一眼看出来，别让人以为输入坏了 */
+    .field input:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    /* 三个时间框：`[拍:子/母]` */
+    .triple {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .triple .num {
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: center;
+    }
+
+    .triple .sep {
+        align-self: center;
+        color: var(--text-dim);
+        font-size: 13px;
+        line-height: 1;
+    }
+
+    /* 排形按钮 / 开关的样式在组件里（Segmented.grain / Switch.grain） */
+
+    .error {
+        margin: 0;
+        color: #ff7b72;
+        font-size: 12px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .btn.danger {
+        color: #ff7b72;
+        border-color: rgba(255, 123, 114, 0.45);
+    }
+</style>

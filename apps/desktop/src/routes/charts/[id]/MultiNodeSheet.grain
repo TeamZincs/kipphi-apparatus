@@ -1,0 +1,189 @@
+<script>
+    /*
+     * 多事件节点批量编辑（移动端）。
+     *
+     * 和桌面 `MultiNodeEditor.grain` 同一套：先选字段（`value` / `time`），
+     * 再写表达式，作用域是 `(val, node)`。
+     *
+     * `time` 走 `EventNodePairTimeChangeOperation` —— 它内部会找背靠背的
+     * 另一个节点，整对一起移动。
+     */
+    import { Op, type TimeT } from "kipphi";
+
+    import CodeField from "#/components/CodeField.grain";
+    import {
+        compileExpression,
+        EXPRESSION_HELP,
+        type ExpressionEvaluator
+    } from "#/expression";
+    import { operationList, refreshAll } from "#/store";
+
+    let { nodes, onclose } = $props<{
+        nodes: any[];
+        onclose: () => void;
+    }>();
+
+    const FIELDS = ["value", "time"] as const;
+
+    type Field = (typeof FIELDS)[number];
+
+    let field = $state<Field>("value");
+    /** 表达式（`val` = 当前值 / 时刻，`node` = 节点对象） */
+    let code = $state("val");
+
+    function apply(): void {
+        if (!operationList || !nodes.length) return;
+
+        let fn: ExpressionEvaluator;
+
+        try {
+            // 注入 TC / NoteType / easing* —— 和 kipphi 自己的求值器同一套
+            fn = compileExpression(code);
+        } catch (error) {
+            console.error("表达式语法错误", error);
+
+            return;
+        }
+
+        const operations: Op.Operation[] = [];
+
+        for (const node of nodes) {
+            try {
+                operations.push(
+                    field === "value"
+                        ? new Op.EventNodeValueChangeOperation(
+                              node,
+                              fn(node.value, node) as number,
+                          )
+                        : new Op.EventNodePairTimeChangeOperation(
+                              node,
+                              fn(node.time, node) as TimeT,
+                          ),
+                );
+            } catch (error) {
+                console.error("批量编辑跳过一条", error);
+            }
+        }
+
+        if (!operations.length) return;
+
+        operationList.do(new Op.ComplexOperation(...operations));
+        refreshAll();
+        onclose();
+    }
+</script>
+
+<div class="panel">
+    <header class="head">
+        <span class="title">{nodes.length} 个节点</span>
+        <button class="done" onclick={onclose}>关闭</button>
+    </header>
+
+    <div class="field">
+        <span>字段</span>
+        <select bind:value={field}>
+            {#for name of FIELDS with key = name}
+                <option value={name}>{name}</option>
+            {/for}
+        </select>
+    </div>
+
+    <div class="field column">
+        <span>表达式</span>
+        <CodeField
+            bind:value={get: () => code, set: (value: string) => {
+                code = value;
+            }}
+            placeholder="val + 10"
+        />
+    </div>
+
+    <button class="apply" onclick={apply}>应用</button>
+
+    <p class="hint">
+        {EXPRESSION_HELP}
+        例：`val + 10`、`TC.toBeats(val)`、`easingFns.easeInOutSine(0.5)`。
+        时间字段要写完整时间，例如 `[3, 0, 1]`。
+    </p>
+</div>
+
+<style>
+    .panel {
+        padding: 4px 16px 18px;
+    }
+
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0 14px;
+    }
+
+    .title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .done {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .field.column {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .field select,
+    .code {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .apply {
+        width: 100%;
+        margin-top: 16px;
+        padding: 11px 0;
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .hint {
+        margin: 12px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-dim);
+    }
+</style>

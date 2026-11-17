@@ -1,0 +1,1334 @@
+<script module>
+    /*
+     * 三种缓动各自的暂存值。
+     *
+     * 放在模块级：面板关掉 / 重开、组件被 `{#if}` 复用都不会丢。
+     * 没有它们，从贝塞尔 / 模板切回普通时 `normalId` 无处取值，输入框显示
+     * `undefined`，再把这个值写进 `easingArray[undefined]` 就会造出一条
+     * 没有合法 rpeId 的缓动 —— 之后反序列化谱面直接报错。
+     */
+    let normalDraft = 1; // `easingArray` 下标，1 = linear
+    let bezierDraft: number[] = [0.25, 0.1, 0.25, 1];
+    /** 模板缓动没法凭空造，只记上次那一支对象本身 */
+    let templateDraft: any = null;
+    /** 切到表达式之前最后一次用的是哪种缓动，切回来照它恢复 */
+    let lastKindDraft: "normal" | "bezier" | "template" = "normal";
+
+    export function getNormalDraft(): number {
+        return normalDraft;
+    }
+
+    export function setNormalDraft(id: number): void {
+        normalDraft = id;
+    }
+
+    export function getBezierDraft(): number[] {
+        return bezierDraft;
+    }
+
+    export function setBezierDraft(points: number[]): void {
+        bezierDraft = [...points];
+    }
+
+    export function getTemplateDraft(): any {
+        return templateDraft;
+    }
+
+    export function setTemplateDraft(easing: any): void {
+        templateDraft = easing;
+    }
+
+    export function getLastKindDraft(): "normal" | "bezier" | "template" {
+        return lastKindDraft;
+    }
+
+    export function setLastKindDraft(kind: "normal" | "bezier" | "template"): void {
+        lastKindDraft = kind;
+    }
+</script>
+
+<script>
+    /*
+     * 事件节点面板（底部面板的内容部分）。
+     *
+     * 只给最常用的两项：时间、值。缓动 / 求值器 / 宏那一套桌面端才有完整 UI，
+     * 手机上塞不下，先不做。
+     */
+    import {
+        BezierEasing,
+        Easing,
+        EasedEvaluator,
+        easingArray,
+        ExpressionEvaluator,
+        NormalEasing,
+        NumericEasedEvaluator,
+        Op,
+        SegmentedEasing,
+        TC,
+        TemplateEasing
+    } from "kipphi";
+
+    import { EasingCanvas as EasingCanvasImpl } from "@kpa/canvas";
+
+    import BezierEditor from "#/components/BezierEditor.grain";
+    import EasingBox from "#/components/EasingBox.grain";
+    import Segmented from "#/components/Segmented.grain";
+    import Switch from "#/components/Switch.grain";
+
+    import { operationList } from "#/store";
+
+    // 桌面端 store 没有单独导出 `chart`，它在 `operationList.chart` 上
+    const chart = operationList.chart;
+    import {
+        beatsOf,
+        formatTime,
+        num,
+        parseTime,
+        splitBeats,
+        toTime
+    } from "#/time";
+
+    let { node, editor, onclose, onmacro } = $props<{
+        node: any;
+        editor: any;
+        onclose: () => void;
+        /** 点关联宏标签时，把宏交给页面去开宏面板 */
+        onmacro?: (macro: any) => void;
+    }>();
+
+    let timeSingle = $state(false);
+    let error = $state<string | null>(null);
+
+    let beat = $state("0");
+    let numerator = $state("0");
+    let denominator = $state("1");
+    let timeText = $state("");
+    let value = $state("");
+
+    /** 求值器只有两种：缓动 / 表达式（宏求值器留给桌面端） */
+    const EVAL_OPTIONS: [number, string][] = [
+        [0, "缓动"],
+        [1, "表达式"]
+    ];
+
+    /**
+     * 当前节点的求值器种类。
+     *
+     * `evaluator` 是普通对象字段，读它不产生编译期依赖 —— 靠 `operationList`
+     * 的通知驱动重算（和 `$lsprop` 同一套）。
+     */
+    let evalKind = $state<"eased" | "expression">("eased");
+
+    /** 表达式求值器的源码草稿（只在表达式模式下可编辑） */
+    let exprText = $state("");
+
+    /** 三种缓动并列（普通在最左，和桌面端 tabs 顺序一致） */
+    const EASING_KINDS = ["normal", "bezier", "template"] as const;
+    const EASING_OPTIONS: [number, string][] = [
+        [0, "普通"],
+        [1, "贝塞尔"],
+        [2, "模板"]
+    ];
+
+    /**
+     * 当前缓动属于哪一种（不是缓动求值器时是 `other`）。
+     *
+     * 用 `$state` 而不是 `$node`：这两个值决定模板里 `{#if}` 走哪一支，
+     * `$node` 的通知只刷新它所在的那个槽位，分支切换时旧分支的组件 / 画布
+     * 会留在 DOM 里（"切到表达式，缓动的控件还在"）。改成在 `pull()` 里赋值
+     * 之后，分支切换和其它表单字段走同一条可靠的路径。
+     */
+    let easingKind = $state("normal");
+
+    /** 贝塞尔控制点草稿：初值取模块级暂存（面板重开还在） */
+    const initialBezier = getBezierDraft();
+
+    let cp1x = $state(String(initialBezier[0]));
+    let cp1y = $state(String(initialBezier[1]));
+    let cp2x = $state(String(initialBezier[2]));
+    let cp2y = $state(String(initialBezier[3]));
+
+    //#region 缓动曲线画布
+    let curveCanvas: HTMLCanvasElement | null = null;
+    /** 正在拖哪个把手 */
+    let draggingCurve: "cp1" | "cp2" | null = null;
+    const CURVE_PAD = 12;
+
+    /** 三次贝塞尔：首尾固定 (0,0) / (1,1)，只由两个控制点决定 */
+    function bezierAt(
+        cp1: [number, number],
+        cp2: [number, number],
+        t: number
+    ): [number, number] {
+        const s = 1 - t;
+
+        return [
+            3 * cp1[0] * s * s * t + 3 * cp2[0] * s * t * t + t * t * t,
+            3 * cp1[1] * s * s * t + 3 * cp2[1] * s * t * t + t * t * t
+        ];
+    }
+
+    /**
+     * 重画曲线。
+     *
+     * 整个函数包 try/catch：绘制出错只让画布空着，绝不打断面板渲染
+     *（之前把绘制代码直接塞进面板，一次异常就把整块内容带没了）。
+     */
+    function drawCurve(): void {
+        try {
+            const canvas = curveCanvas;
+
+            if (!canvas) return;
+
+            const context = canvas.getContext("2d");
+
+            if (!context) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const width = Math.max(1, Math.round(rect.width));
+            const height = Math.max(1, Math.round(rect.height));
+            const ratio = window.devicePixelRatio || 1;
+
+            canvas.width = Math.round(width * ratio);
+            canvas.height = Math.round(height * ratio);
+            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+            context.clearRect(0, 0, width, height);
+
+            const left = CURVE_PAD;
+            const right = width - CURVE_PAD;
+            const bottom = height - CURVE_PAD;
+            const top = CURVE_PAD;
+            const toX = (t: number): number => left + t * (right - left);
+            const toY = (v: number): number => bottom - v * (bottom - top);
+
+            // 田字格
+            context.strokeStyle = "rgba(255, 255, 255, 0.08)";
+            context.lineWidth = 1;
+
+            for (let i = 1; i < 4; i += 1) {
+                const gridX = left + ((right - left) * i) / 4;
+                const gridY = top + ((bottom - top) * i) / 4;
+
+                context.beginPath();
+                context.moveTo(gridX, top);
+                context.lineTo(gridX, bottom);
+                context.moveTo(left, gridY);
+                context.lineTo(right, gridY);
+                context.stroke();
+            }
+
+            const evaluator = node.evaluator;
+            const easing =
+                evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+
+            /*
+             * 贝塞尔要画**草稿值**，不是对象上的旧值。
+             *
+             * 拖动过程中操作还没提交（松手才发），如果这里读 `easing.cp1`，
+             * 每帧画的都是上一次提交后的曲线 —— 表现就是"拖了不跟手、
+             * 松手才跳一下"。普通缓动没有草稿，照旧读对象。
+             */
+            const draft = [cp1x, cp1y, cp2x, cp2y].map((text) => Number(text));
+            const useDraft =
+                easing instanceof BezierEasing &&
+                draft.every((value) => Number.isFinite(value));
+            const cp1 = (
+                useDraft ? [draft[0], draft[1]] : easing?.cp1
+            ) as [number, number];
+            const cp2 = (
+                useDraft ? [draft[2], draft[3]] : easing?.cp2
+            ) as [number, number];
+            const steps = 48;
+
+            context.strokeStyle = "#4c8dff";
+            context.lineWidth = 2;
+            context.beginPath();
+
+            for (let i = 0; i <= steps; i += 1) {
+                const t = i / steps;
+                let px: number;
+                let py: number;
+
+                if (useDraft) {
+                    const [x, y] = bezierAt(cp1, cp2, t);
+
+                    px = toX(x);
+                    py = toY(y);
+                } else {
+                    const v = easing ? easing.getValue(t) : t;
+
+                    px = toX(t);
+                    py = toY(v);
+                }
+
+                if (i === 0) context.moveTo(px, py);
+                else context.lineTo(px, py);
+            }
+
+            context.stroke();
+
+            if (!(easing instanceof BezierEasing)) return;
+
+            // 把手：从端点连到控制点的一根线 + 一个圆
+            // 把手也画草稿位置 —— 否则拖的时候圆点不跟着走
+            const handles: [[number, number], [number, number]][] = [
+                [[0, 0], cp1],
+                [[1, 1], cp2]
+            ];
+
+            for (const [anchor, cp] of handles) {
+                context.strokeStyle = "rgba(76, 141, 255, 0.5)";
+                context.beginPath();
+                context.moveTo(toX(anchor[0]), toY(anchor[1]));
+                context.lineTo(toX(cp[0]), toY(cp[1]));
+                context.stroke();
+
+                context.fillStyle = "#4c8dff";
+                context.beginPath();
+                context.arc(toX(cp[0]), toY(cp[1]), 6, 0, Math.PI * 2);
+                context.fill();
+            }
+        } catch {
+            // 画不出来就空着，不影响面板本身
+        }
+    }
+
+    /** 画布像素 → 归一化坐标（x 夹在 0..1，y 不夹） */
+    function curvePoint(event: PointerEvent): [number, number] {
+        const canvas = curveCanvas;
+
+        if (!canvas) return [0, 0];
+
+        const rect = canvas.getBoundingClientRect();
+        const left = CURVE_PAD;
+        const right = Math.max(left + 1, rect.width - CURVE_PAD);
+        const bottom = Math.max(CURVE_PAD + 1, rect.height - CURVE_PAD);
+        const top = CURVE_PAD;
+        const x = (event.clientX - rect.left - left) / (right - left);
+        const y = (bottom - (event.clientY - rect.top)) / (bottom - top);
+
+        return [Math.min(1, Math.max(0, x)), y];
+    }
+
+    /** 按下：落在把手 24px 内才开始拖 */
+    function onCurveDown(event: PointerEvent): void {
+        const easing = node.evaluator?.easing;
+
+        if (!(easing instanceof BezierEasing) || !curveCanvas) return;
+
+        const rect = curveCanvas.getBoundingClientRect();
+        const left = CURVE_PAD;
+        const right = Math.max(left + 1, rect.width - CURVE_PAD);
+        const bottom = Math.max(CURVE_PAD + 1, rect.height - CURVE_PAD);
+        const top = CURVE_PAD;
+        const near = (cp: [number, number]): boolean => {
+            const px = left + cp[0] * (right - left);
+            const py = bottom - cp[1] * (bottom - top);
+            const dx = event.clientX - rect.left - px;
+            const dy = event.clientY - rect.top - py;
+
+            return dx * dx + dy * dy <= 24 * 24;
+        };
+
+        if (near(easing.cp1 as [number, number])) draggingCurve = "cp1";
+        else if (near(easing.cp2 as [number, number])) draggingCurve = "cp2";
+        else return;
+
+        curveCanvas.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+    }
+
+    function onCurveMove(event: PointerEvent): void {
+        if (!draggingCurve) return;
+
+        const [x, y] = curvePoint(event);
+        const round = (value: number): string => String(Number(value.toFixed(3)));
+
+        if (draggingCurve === "cp1") {
+            cp1x = round(x);
+            cp1y = round(y);
+        } else {
+            cp2x = round(x);
+            cp2y = round(y);
+        }
+
+        event.preventDefault();
+        drawCurve();
+    }
+
+    function onCurveUp(): void {
+        if (!draggingCurve) return;
+
+        draggingCurve = null;
+        commitBezier();
+    }
+    //#endregion
+
+    /**
+     * 用模块级暂存值造一条**合法**的缓动。
+     *
+     * 之前这里写 `new NormalEasing(t => t)`：`id` / `rpeId` 都是 undefined，
+     * 序列化时 `identifier: undefined`，再打开谱面就找不到编号而报错。
+     * 现在一律从 `easingArray` / `BezierEasing` / 已存在的模板对象里取。
+     */
+    function easingFromDrafts(kind = getLastKindDraft()): any {
+        if (kind === "bezier") {
+            const [x1, y1, x2, y2] = getBezierDraft();
+
+            return new BezierEasing([x1, y1], [x2, y2]);
+        }
+
+        // 模板缓动只能"记住已有的"，没见过就造不出来
+        if (kind === "template") return getTemplateDraft();
+
+        return easingArray[getNormalDraft()] ?? easingArray[1];
+    }
+
+    /** 四个控制点草稿 → 元组（模板里直接写数组字面量会被绑定值解析器拆坏） */
+    const cpValue = (): number[] => [
+        Number(cp1x),
+        Number(cp1y),
+        Number(cp2x),
+        Number(cp2y)
+    ];
+
+    /** 普通缓动当前用的 `easingArray` 下标（初值取模块级暂存） */
+    let normalId = $state(getNormalDraft());
+
+    /** 谱面里可选的模板缓动名（`chart.templateEasingLib`） */
+    let templateNames = $state<string[]>([]);
+    /** 当前节点用的模板缓动名 */
+    let templateName = $state("");
+
+    //#region 宏（值宏绑在节点上，时间宏绑在起始节点上）
+    /** 谱面宏库里的宏（`chart.macroLib`） */
+    let valueMacros = $state<any[]>([]);
+    let timeMacros = $state<any[]>([]);
+    /** 当前绑的宏 id，空串表示"无" */
+    let valueMacroId = $state("");
+    let timeMacroId = $state("");
+    /** 这个节点被哪些宏关联（只读展示） */
+    let linkedMacros = $state<any[]>([]);
+
+    /** 绑定 / 切换 / 解绑值宏 */
+    function setValueMacro(id: string): void {
+        const ops = operationList;
+        const macro = id ? chart?.macroLib?.valueMacros.get(id) : null;
+
+        // id 非空但库里找不到：不动（可能是桌面端刚删掉）
+        if (!ops || (id && !macro)) return;
+        if ((macro ?? null) === (node.macro ?? null)) return;
+
+        ops.do(
+            macro
+                ? new Op.MacroValueAssignOperation(macro, node)
+                : new Op.MacroValueDeassginOperation(node)
+        );
+    }
+
+    /** 绑定 / 切换 / 解绑时间宏 */
+    function setTimeMacro(id: string): void {
+        const ops = operationList;
+        const macro = id ? chart?.macroLib?.timeMacros.get(id) : null;
+
+        if (!ops || (id && !macro)) return;
+        if ((macro ?? null) === (node.macroTime ?? null)) return;
+
+        ops.do(
+            macro
+                ? new Op.MacroTimeAssignOperation(macro, node)
+                : new Op.MacroTimeDeassginOperation(node)
+        );
+    }
+    //#endregion
+
+    /** 换模板缓动 */
+    function setTemplateName(name: string): void {
+        const template = chart?.templateEasingLib.easings.get(name);
+
+        if (!template) return;
+
+        templateName = name;
+        setTemplateDraft(template);
+        setLastKindDraft("template");
+        error = null;
+
+        operationList?.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(template)
+            )
+        );
+    }
+
+    //#region 普通缓动的分段画布（共享包里的 EasingCanvas）
+    let easeCanvasEl: HTMLCanvasElement | null = null;
+    /** 求值器整块的容器（用来清理命令式挂载、框架不认识的画布） */
+    let evalRoot: HTMLDivElement | null = null;
+
+    /**
+     * 切换求值器种类时，只摘掉**命令式**挂上去的 canvas。
+     *
+     * `BezierEditor` 在 `onmount` 里自己 `appendChild`，那些节点不在编译期
+     * 生成的分支 `nodes` 快照里，框架换分支不会删 —— 会残留。
+     *
+     * 但模板里的 `<canvas class="curve seg">` 是框架**拥有**的，绝不能手动
+     * `remove()`：它是分支 `nodes` 快照的一员，删掉之后框架复活分支时会把
+     * 剩下的节点再插一遍，EasingBox 就出现两份（第二次切回缓动时尤其明显）。
+     */
+    function dropStaleCanvases(): void {
+        if (!evalRoot) return;
+
+        for (const canvas of [
+            ...evalRoot.querySelectorAll("canvas:not(.curve)")
+        ]) {
+            canvas.remove();
+        }
+
+        // 编辑器实例还指着已卸载的画布，下次要重建
+        easeEditorEl = null;
+        easeEditor = null;
+    }
+    let easeEditor: any = null;
+
+    /** 当前缓动对象（给画布用） */
+    function currentEasing(): any {
+        const evaluator = node.evaluator;
+
+        return evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+    }
+
+    /** 画布拖完左右边界 → 换成分段缓动 */
+    function commitSegmented(next: any): void {
+        const ops = operationList;
+
+        if (!ops || !next) return;
+
+        /*
+         * 只有真正的 `Easing` 才能当求值器的底。
+         *
+         * 这里曾经把 `SegmentedEasing` 拆成 `.easing` 再包一层 `NumericEasedEvaluator`
+         * —— 区间丢了不说，如果 `next` 不是缓动对象（比如画布还没画过、`detail`
+         * 是空），就会把 `undefined` 写进 `node.evaluator`，
+         * 后面 `getValueAt` 里 `this.evaluator.eval` 直接炸。
+         */
+        if (!(next instanceof Easing)) return;
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(next)
+            )
+        );
+    }
+
+    /** 上一次绑定的元素（`{#if}` 换分支会换一个 canvas 元素） */
+    let easeEditorEl: HTMLCanvasElement | null = null;
+
+    /**
+     * 建画布 / 同步内容。
+     *
+     * 元素身份变了就重建：`{#if}` 从贝塞尔切回普通时，canvas 是一个**新元素**，
+     * 旧的 `easeEditor` 还指着已经卸载的那个 —— 只判断 `easeEditor` 是否为空
+     * 会导致新画布永远没人画（表现就是"普通缓动里啥也没有"）。
+     */
+    function mountEasingCanvas(): void {
+        const el = easeCanvasEl;
+
+        if (!el) return;
+
+        if (easeEditorEl !== el) {
+            easeEditorEl = el;
+
+            /*
+             * 和桌面端完全一致：位图固定 300×600，`rect` 也用这个尺寸。
+             * 画布里的坐标（把手位置、`elementMatrix`）全按这套算，
+             * 用 CSS 的显示尺寸去建会把曲线压扁。
+             */
+            easeEditor = new EasingCanvasImpl(el, [0, 0, 300, 600]);
+            easeEditor.addEventListener("change", (event: any) =>
+                commitSegmented(event.detail)
+            );
+        }
+
+        const easing = currentEasing();
+
+        if (easing) easeEditor?.draw(easing);
+    }
+    //#endregion
+
+    /** 换成预设表里的某一条普通缓动 */
+    function setNormalId(id: number): void {
+        const preset = easingArray[id];
+
+        // 预设表里得真的是个 `Easing`，否则求值器会拿到空底
+        if (!preset || !(preset instanceof Easing)) return;
+
+        normalId = id;
+        setNormalDraft(id); // 切走再切回来还是这一条
+
+        operationList?.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(preset)
+            )
+        );
+    }
+
+    function pull(): void {
+        beat = String(node.time[0]);
+        numerator = String(node.time[1]);
+        denominator = String(node.time[2]);
+        timeText = formatTime(node.time);
+        value = String(node.value);
+        exprText =
+            node.evaluator instanceof ExpressionEvaluator
+                ? node.evaluator.jsExpr
+                : "";
+
+        const evaluator = node.evaluator;
+        const rawEasing =
+            evaluator instanceof EasedEvaluator ? evaluator.easing : null;
+
+        /*
+         * 分段缓动（`SegmentedEasing`）只是给内层缓动裁了个区间，
+         * **类型要看内层**：桌面的 `getEasingId()` 也是这么拆的
+         *（`easing instanceof SegmentedEasing ? easing.easing : easing`）。
+         * 不拆的话分段后会被判成 "other"，面板只剩一句"未识别"。
+         */
+        const easing =
+            rawEasing instanceof SegmentedEasing ? rawEasing.easing : rawEasing;
+
+        // 模板缓动下拉框的选项：谱面里现有的那些（模板库可能被桌面端改过）
+        const templateLib = chart?.templateEasingLib;
+
+        templateNames = templateLib ? [...templateLib.easings.keys()] : [];
+
+        // 宏：库在 `chart.macroLib`，绑在节点上的引用用来回显当前选项
+        const macroLib = chart?.macroLib;
+
+        valueMacros = macroLib ? [...macroLib.valueMacros.values()] : [];
+        timeMacros = macroLib ? [...macroLib.timeMacros.values()] : [];
+        valueMacroId = node.macro?.id ?? "";
+        timeMacroId = node.macroTime?.id ?? "";
+        linkedMacros = [...(node.linkedMacros ?? [])];
+
+        // 求值器 / 缓动种类：模板里的 `{#if}` 靠这两个值选分支
+        const nextEvalKind =
+            evaluator instanceof EasedEvaluator ? "eased" : "expression";
+
+        if (nextEvalKind !== evalKind) dropStaleCanvases();
+
+        evalKind = nextEvalKind;
+
+        /*
+         * 每次读到对象上的真实缓动，就把对应那一种的暂存值更新一次；
+         * 其它两种保持模块里上次的值 —— 这正是"从贝塞尔切回普通"时
+         * 输入框不再显示 undefined 的关键。
+         */
+        if (easing instanceof BezierEasing) {
+            easingKind = "bezier";
+            setLastKindDraft("bezier");
+            cp1x = String(easing.cp1[0]);
+            cp1y = String(easing.cp1[1]);
+            cp2x = String(easing.cp2[0]);
+            cp2y = String(easing.cp2[1]);
+            setBezierDraft([
+                easing.cp1[0],
+                easing.cp1[1],
+                easing.cp2[0],
+                easing.cp2[1]
+            ]);
+        } else if (easing instanceof NormalEasing) {
+            easingKind = "normal";
+            setLastKindDraft("normal");
+
+            // 只认合法下标；undefined 会把 EasingBox / 谱面一起带坏
+            if (Number.isInteger(easing.id) && easingArray[easing.id]) {
+                normalId = easing.id;
+                setNormalDraft(easing.id);
+            }
+        } else if (easing instanceof TemplateEasing) {
+            easingKind = "template";
+            setLastKindDraft("template");
+            setTemplateDraft(easing);
+            templateName = easing.name;
+        } else {
+            easingKind = "other";
+        }
+
+        // 曲线跟着重画（换分支时元素会变，交给 mount 判断重建）
+        requestAnimationFrame(() => {
+            drawCurve();
+            mountEasingCanvas();
+        });
+    }
+
+    pull();
+
+    // 画布要等元素挂上去才有尺寸：下一个宏任务再建/画一次
+    setTimeout(() => {
+        drawCurve();
+        mountEasingCanvas();
+    }, 0);
+
+    // 撤销 / 重做 / 别处改了同一个节点 → 回灌
+    const onOperation = (): void => pull();
+
+    operationList?.addEventListener("needsupdate", onOperation);
+
+    function toggleTimeMode(): void {
+        timeSingle = !timeSingle;
+
+        if (timeSingle) {
+            const beats = beatsOf(beat, numerator, denominator);
+
+            timeText = Number.isFinite(beats) ? formatTime(toTime(beats)) : "";
+
+            return;
+        }
+
+        const beats = parseTime(timeText);
+
+        if (!Number.isFinite(beats)) return;
+
+        const [b, n, d] = splitBeats(beats);
+
+        beat = b;
+        numerator = n;
+        denominator = d;
+    }
+
+    function commit(): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const beats = timeSingle
+            ? parseTime(timeText)
+            : beatsOf(beat, numerator, denominator);
+
+        if (!Number.isFinite(beats)) {
+            error = "时间格式不对（`3` / `3+1/4` / `3.25` 都行）";
+
+            return;
+        }
+
+        const numeric = typeof node.value === "number";
+        const next = numeric ? num(value) : value;
+
+        if (numeric && !Number.isFinite(next)) {
+            error = "值必须是数字";
+
+            return;
+        }
+
+        error = null;
+
+        const queue: any[] = [];
+
+        if (Math.abs(beats - TC.toBeats(node.time)) > 1e-6)
+            queue.push(new Op.EventNodePairTimeChangeOperation(node, toTime(beats)));
+        if (next !== node.value)
+            queue.push(new Op.EventNodeValueChangeOperation(node, next));
+
+        if (queue.length === 0) return;
+
+        ops.tryDo(() =>
+            queue.length === 1 ? queue[0] : new Op.ComplexOperation(...queue)
+        );
+    }
+
+    /** 切换求值器：缓动 ↔ 表达式（各自保留已有配置） */
+    function setEvalKind(kind: string): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const current = node.evaluator;
+        const eased = current instanceof EasedEvaluator;
+
+        if ((kind === "eased") === eased) return;
+
+        error = null;
+
+        if (kind === "eased") {
+            // 切走时 pull() 已经把当前缓动写进对应那一种的暂存值；
+            // 模板那支没有对象可恢复时退回普通预设，绝不给求值器一个空底
+            const easing =
+                easingFromDrafts() ??
+                easingArray[getNormalDraft()] ??
+                easingArray[1];
+
+            ops.do(
+                new Op.EventNodeEvaluatorChangeOperation(
+                    node,
+                    new NumericEasedEvaluator(easing)
+                )
+            );
+
+            return;
+        }
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new ExpressionEvaluator(exprText.trim() || "1")
+            )
+        );
+    }
+
+    /**
+     * 贝塞尔控制点写回。
+     *
+     * 只接受 x ∈ [0, 1]（超出会让曲线在时间轴上折返）；y 不限制。
+     * 值没变就不发操作。
+     */
+    function commitBezier(): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const values = [cp1x, cp1y, cp2x, cp2y].map((text) => Number(text));
+
+        if (!values.every((value) => Number.isFinite(value))) {
+            error = "控制点必须是数字";
+
+            return;
+        }
+
+        const [x1, y1, x2, y2] = values as [number, number, number, number];
+
+        if (x1 < 0 || x1 > 1 || x2 < 0 || x2 > 1) {
+            error = "控制点的 x 必须在 0 到 1 之间";
+
+            return;
+        }
+
+        const current = node.evaluator?.easing;
+        // 分段缓动：改控制点不该把区间丢掉，改完再包回去
+        const inner =
+            current instanceof SegmentedEasing ? current.easing : current;
+
+        if (inner instanceof BezierEasing) {
+            const same =
+                inner.cp1[0] === x1 &&
+                inner.cp1[1] === y1 &&
+                inner.cp2[0] === x2 &&
+                inner.cp2[1] === y2;
+
+            if (same) return;
+        }
+
+        error = null;
+        setBezierDraft([x1, y1, x2, y2]); // 切走再回来还是这条曲线
+        setLastKindDraft("bezier");
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(
+                    // 原来有区间就带着走（改控制点不等于取消分段）
+                    current instanceof SegmentedEasing
+                        ? new SegmentedEasing(
+                              new BezierEasing([x1, y1], [x2, y2]),
+                              current.left,
+                              current.right
+                          )
+                        : new BezierEasing([x1, y1], [x2, y2])
+                )
+            )
+        );
+    }
+
+    /**
+     * 切换缓动种类：三种都从模块级暂存值恢复，不重新"凭空造"一条。
+     * 模板没有暂存对象时给提示（它必须引用谱面里已有的模板）。
+     */
+    function setEasingKind(kind: string): void {
+        const ops = operationList;
+
+        if (!ops || kind === easingKind) return;
+
+        let easing = easingFromDrafts(kind);
+
+        /*
+         * 模板缓动只能引用谱面里已有的。切过来时如果暂存为空，
+         * 就直接用列表里的第一个 —— 总比"切过去什么都不显示"好。
+         */
+        if (!easing && kind === "template") {
+            const first = templateNames[0];
+
+            easing = first
+                ? chart?.templateEasingLib.easings.get(first) ?? null
+                : null;
+        }
+
+        if (!easing) {
+            error = "谱面里还没有可选的模板缓动";
+
+            return;
+        }
+
+        error = null;
+        setLastKindDraft(kind as "normal" | "bezier" | "template");
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new NumericEasedEvaluator(easing)
+            )
+        );
+    }
+
+    /** 表达式源码写回（只有表达式求值器才有这回事） */
+    function commitExpression(): void {
+        const ops = operationList;
+
+        if (!ops) return;
+
+        const current = node.evaluator;
+
+        if (!(current instanceof ExpressionEvaluator)) return;
+
+        const next = exprText.trim() || "1";
+
+        if (next === current.jsExpr) return;
+
+        ops.do(
+            new Op.EventNodeEvaluatorChangeOperation(
+                node,
+                new ExpressionEvaluator(next)
+            )
+        );
+    }
+
+    function remove(): void {
+        if (!operationList) return;
+
+        try {
+            operationList.do(new Op.EventNodePairRemoveOperation(node));
+        } catch {
+            // 头 / 尾节点不能单独删
+            error = "这个节点不能单独删除";
+
+            return;
+        }
+
+        editor?.draw();
+        onclose();
+    }
+</script>
+
+<div class="head">
+    <span class="kind">事件节点</span>
+
+    <Switch
+        bind:checked={
+            get: () => timeSingle,
+            set: (v: boolean) => {
+                if (v === timeSingle) return;
+                toggleTimeMode();
+            }
+        }
+    />
+</div>
+
+<div class="body" onchange={commit} onblur={commit}>
+    <div class="col">
+        <div class="field">
+            <span>时间</span>
+            {#if timeSingle}
+                <input class="num" type="text" placeholder="3:1/4" bind:value={timeText} />
+            {:else}
+                <div class="triple">
+                    <input class="num" type="text" inputmode="numeric" placeholder="拍" bind:value={beat} />
+                    <span class="sep">:</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分子" bind:value={numerator} />
+                    <span class="sep">/</span>
+                    <input class="num" type="text" inputmode="numeric" placeholder="分母" bind:value={denominator} />
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <div class="col">
+        <label class="field">
+            <span>值</span>
+            <input type="text" bind:value={value} />
+        </label>
+    </div>
+</div>
+
+<!--
+    求值器通栏：占满面板宽度，不和"时间 / 值"挤在同一列里。
+    里面依次是：求值器种类 → 表达式源码 / 缓动种类 → 贝塞尔控制点。
+-->
+<div class="eval" bind:this={evalRoot} onchange={commit} onblur={commit}>
+    <div class="field">
+        <span>求值器</span>
+        <Segmented
+            options={EVAL_OPTIONS}
+            bind:value={
+                get: () => (evalKind === "eased" ? 0 : 1),
+                set: (v: number) => setEvalKind(v === 0 ? "eased" : "expression")
+            }
+        />
+    </div>
+
+    {#if evalKind === "expression"}
+        <label class="field">
+            <span>表达式</span>
+            <input
+                class="num"
+                type="text"
+                placeholder="a * b"
+                bind:value={exprText}
+                onchange={commitExpression}
+            />
+        </label>
+    {:else}
+        <div class="field">
+            <span>缓动</span>
+            <Segmented
+                options={EASING_OPTIONS}
+                bind:value={
+                    get: () => EASING_KINDS.indexOf(easingKind),
+                    set: (v: number) =>
+                        setEasingKind(EASING_KINDS[v] ?? "other")
+                }
+            />
+        </div>
+
+        {#if easingKind === "bezier"}
+            <!--
+                画布与四个控制点都在组件里（画布本体来自 `@kpa/canvas`）。
+
+                `listen` 不能省：`cpValue()` 是个普通函数调用，编译器看不见它
+                读了 `cp1x..cp2y` —— 节点被改（撤销 / 画布拖动 / 手输）之后
+                props 更新器不会重算，四个输入框就停在旧值上。订阅操作列表，
+                运行时会把通知接到子组件的 `setProps`。
+            -->
+            <BezierEditor
+                bind:value={
+                    get: () => (cp1x, cp1y, cp2x, cp2y, cpValue()),
+                    set: (v: number[]) => {
+                        cp1x = String(v[0]);
+                        cp1y = String(v[1]);
+                        cp2x = String(v[2]);
+                        cp2y = String(v[3]);
+                        commitBezier();
+                    }
+                }
+            />
+        {:else if easingKind === "normal"}
+            <!-- 普通缓动：序号 / 方向 / 函数，和桌面端 EasingBox 同一套数据 -->
+            <EasingBox
+                bind:value={
+                    get: () => normalId,
+                    set: (v: number) => setNormalId(v)
+                }
+            />
+
+            <!-- 分段画布：拖左右边界产生 SegmentedEasing（共享包的 EasingCanvas） -->
+            <canvas
+                class="curve seg"
+                width="300"
+                height="600"
+                bind:this={easeCanvasEl}
+            ></canvas>
+        {:else if easingKind === "template"}
+            {#if templateNames.length === 0}
+                <p class="hint">
+                    谱面里还没有模板缓动：先在桌面端建一个，这里会列出来
+                </p>
+            {:else}
+                <div class="field">
+                    <span>模板</span>
+                    <select
+                        class="pick"
+                        bind:value={
+                            get: () => templateName,
+                            set: (v: string) => setTemplateName(v)
+                        }
+                    >
+                        {#for name of templateNames}
+                            <option value={name}>{name}</option>
+                        {/for}
+                    </select>
+                </div>
+            {/if}
+        {:else}
+            <p class="hint">这个节点的缓动类型还没识别</p>
+        {/if}
+    {/if}
+</div>
+
+<!--
+    宏：值和时间的宏都从 `chart.macroLib` 里选，选「无」就是解绑。
+    谱面一个宏都没有时不占地方。
+-->
+{#if valueMacros.length > 0 || timeMacros.length > 0 || linkedMacros.length > 0}
+    <div class="macro">
+        {#if valueMacros.length > 0}
+            <label class="field">
+                <span>值宏</span>
+                <select
+                    class="pick"
+                    bind:value={
+                        get: () => valueMacroId,
+                        set: (v: string) => setValueMacro(v)
+                    }
+                >
+                    <option value="">（无）</option>
+                    {#for macro of valueMacros}
+                        <option value={macro.id}>{macro.id}</option>
+                    {/for}
+                </select>
+            </label>
+        {/if}
+
+        {#if timeMacros.length > 0}
+            <label class="field">
+                <span>时间宏</span>
+                <select
+                    class="pick"
+                    bind:value={
+                        get: () => timeMacroId,
+                        set: (v: string) => setTimeMacro(v)
+                    }
+                >
+                    <option value="">（无）</option>
+                    {#for macro of timeMacros}
+                        <option value={macro.id}>{macro.id}</option>
+                    {/for}
+                </select>
+            </label>
+        {/if}
+
+        {#if linkedMacros.length > 0}
+            <div class="field">
+                <span>关联宏</span>
+                <div class="chips">
+                    {#for item of linkedMacros}
+                        <button class="chip" onclick={() => onmacro?.(item)}>
+                            {item.id}
+                        </button>
+                    {/for}
+                </div>
+            </div>
+        {/if}
+    </div>
+{/if}
+
+{#if error}
+    <p class="error">{error}</p>
+{/if}
+
+<div class="actions">
+    <button class="btn" onclick={() => onmacro?.(null)}>宏</button>
+    <button class="btn danger" onclick={remove}>删除</button>
+</div>
+
+<style>
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .kind {
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    /*
+     * 两列不再吃"剩余空间"：面板是 `max-height: 60vh` 的自动高度容器，
+     * `flex: 1` + `min-height: 0` 在内容超高时会把这一块压成 0 高，
+     * 里面的输入框就"看不见"了（不报错，就是高度为 0）。
+     * 现在按内容自然排，超高由下面的 `.eval` 各自滚动。
+     */
+    .body {
+        flex: 0 0 auto;
+        width: 100%;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .col {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* 求值器通栏：与上面两列分开，占满面板宽度；高度按内容，不参与压缩 */
+    .eval {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* 宏：和求值器一样通栏，两个下拉框各占一行 */
+    .macro {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* 关联宏：只读的小标签，排不下就换行 */
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 3px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+    }
+
+    .hint {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    /* 贝塞尔四个控制点：一行四个等宽框 */
+    .quad {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    /* 四个控制点不在 `.field` 里，样式要自己写一份（和 `.field input` 一致） */
+    .quad .num {
+        flex: 1 1 0;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 6px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        text-align: center;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    /* 缓动曲线画布 */
+    .curve {
+        display: block;
+        width: 100%;
+        height: 140px;
+        box-sizing: border-box;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        touch-action: none;
+    }
+
+    /*
+     * 分段缓动那张：位图是 300×600，**必须按 1:2 显示**，
+     * 用 `width:100%` 会被拉成扁平（曲线和把手都变形）。
+     */
+    /*
+     * 分段缓动那张：位图 300×600（1:2），显示宽度至少 60vw，
+     * 高度按比例就是 120vw —— 面板放不下时由骨架内部滚动。
+     */
+    .curve.seg {
+        width: 60vw;
+        height: 120vw;
+        margin: 0 auto;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .field input,
+    .field .pick {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    .triple {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .triple .num {
+        flex: 1 1 0;
+        min-width: 0;
+        text-align: center;
+    }
+
+    .triple .sep {
+        align-self: center;
+        color: var(--text-dim);
+        font-size: 13px;
+        line-height: 1;
+    }
+
+    /* 开关的样式在组件里（Switch.grain） */
+
+    .error {
+        margin: 0;
+        color: #ff7b72;
+        font-size: 12px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .btn.danger {
+        color: #ff7b72;
+        border-color: rgba(255, 123, 114, 0.45);
+    }
+</style>

@@ -1,0 +1,252 @@
+<script>
+    /*
+     * 多音符批量编辑（移动端）。
+     *
+     * 操作模型对齐桌面 `MultiNoteEditor.grain`：**先选字段，再写表达式**，
+     * 表达式的作用域是 `(val, note)` —— `val` 是该字段当前值，`note` 是音符
+     * 本身。比如 `val + 10`、`val * 2`、`true`、`NoteType.hold`。
+     *
+     * 表达式里的 `NoteType` 是可用的（页面全局注入了 kipphi 的命名空间）。
+     */
+    import { Op, type Note } from "kipphi";
+
+    import CodeField from "#/components/CodeField.grain";
+    import {
+        compileExpression,
+        EXPRESSION_HELP,
+        type ExpressionEvaluator
+    } from "#/expression";
+    import { operationList, refreshAll } from "#/store";
+
+    let { notes, onclose } = $props<{
+        notes: Note[];
+        onclose: () => void;
+    }>();
+
+    const FIELDS = [
+        "positionX",
+        "startTime",
+        "endTime",
+        "size",
+        "alpha",
+        "speed",
+        "yOffset",
+        "visibleBeats",
+        "above",
+        "isFake",
+        "judgeSize",
+        "tintHitEffects",
+        "type",
+    ] as const;
+
+    type Field = (typeof FIELDS)[number];
+
+    /** 要改的字段 */
+    let field = $state<Field>("positionX");
+    /** 表达式（`val` = 当前值，`note` = 音符对象） */
+    let code = $state("val");
+
+    /** 字段 → 一条操作；目标不存在（比如时刻落到范围外）就返回 null */
+    function makeOperation(
+        note: Note,
+        fn: (value: any, note: Note) => any,
+    ): Op.Operation | null {
+        switch (field) {
+            case "positionX":
+            case "size":
+            case "alpha":
+            case "above":
+            case "isFake":
+            case "judgeSize":
+            case "visibleBeats":
+            case "tintHitEffects":
+            case "type":
+                return new (Op.NotePropChangeOperation as any)(
+                    note,
+                    field,
+                    fn((note as any)[field], note),
+                );
+
+            case "startTime": {
+                // 和桌面 `MultiNoteEditor` 的 `startTime` 分支一致：
+                // 要的是**目标时刻对应的 NN 节点**，不是时间本身
+                const next = fn(note.startTime, note);
+                const node = note.parentNode.parentSeq.getNodeOf(next);
+
+                return node ? new Op.NoteTimeChangeOperation(note, node) : null;
+            }
+
+            case "endTime":
+                return new Op.HoldEndTimeChangeOperation(
+                    note,
+                    fn(note.endTime, note),
+                );
+
+            case "speed":
+                return new Op.NoteSpeedChangeOperation(
+                    note,
+                    fn(note.speed, note),
+                    note.parentNode.parentSeq.parentLine,
+                );
+
+            case "yOffset":
+                return new Op.NoteYOffsetChangeOperation(
+                    note,
+                    fn(note.yOffset, note),
+                    note.parentNode.parentSeq.parentLine,
+                );
+
+            default:
+                return null;
+        }
+    }
+
+    function apply(): void {
+        if (!operationList || !notes.length) return;
+
+        let fn: ExpressionEvaluator;
+
+        try {
+            // 注入 TC / NoteType / easing* —— 和 kipphi 自己的求值器同一套
+            fn = compileExpression(code);
+        } catch (error) {
+            console.error("表达式语法错误", error);
+
+            return;
+        }
+
+        const operations: Op.Operation[] = [];
+
+        for (const note of notes) {
+            try {
+                const op = makeOperation(note, fn);
+
+                if (op) operations.push(op);
+            } catch (error) {
+                // 单条算错（比如类型不合法）就跳过这一条，别整批回滚
+                console.error("批量编辑跳过一条", error);
+            }
+        }
+
+        if (!operations.length) return;
+
+        operationList.do(new Op.ComplexOperation(...operations));
+        refreshAll();
+        onclose();
+    }
+</script>
+
+<div class="panel">
+    <header class="head">
+        <span class="title">{notes.length} 个音符</span>
+        <button class="done" onclick={onclose}>关闭</button>
+    </header>
+
+    <div class="field">
+        <span>字段</span>
+        <select bind:value={field}>
+            {#for name of FIELDS with key = name}
+                <option value={name}>{name}</option>
+            {/for}
+        </select>
+    </div>
+
+    <div class="field column">
+        <span>表达式</span>
+        <CodeField
+            bind:value={get: () => code, set: (value: string) => {
+                code = value;
+            }}
+            placeholder="val + 10"
+        />
+    </div>
+
+    <button class="apply" onclick={apply}>应用</button>
+
+    <p class="hint">
+        {EXPRESSION_HELP}
+        例：`val + 10`、`true`、`NoteType.hold`、`TC.toBeats(val)`。
+        时间字段要写完整时间，例如 `[3, 0, 1]`。
+    </p>
+</div>
+
+<style>
+    .panel {
+        padding: 4px 16px 18px;
+    }
+
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0 14px;
+    }
+
+    .title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .done {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .field {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .field.column {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .field select,
+    .code {
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+    }
+
+    .code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .apply {
+        width: 100%;
+        margin-top: 16px;
+        padding: 11px 0;
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .hint {
+        margin: 12px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-dim);
+    }
+</style>
