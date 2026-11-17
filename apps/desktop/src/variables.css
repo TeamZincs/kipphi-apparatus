@@ -9,4 +9,17 @@
     --font-size-medium: 2.5vh;
     --font-size-small: 2vh;
     --font-size-smaller: 1.5vh;
+
+    /*
+     * 从移动端搬过来的那批组件（`NoteSheet` / `JudgeLineList` / `Segmented` …）
+     * 用的是这一套色板。桌面端原来没有这些名字，缺了就落到浏览器默认
+     *（字是黑的、背景是白的），所以在这里补齐。
+     */
+    --bg: #3c3c3c;
+    --surface: #444;
+    --surface-2: #4a4a4a;
+    --border: #666;
+    --text: #eee;
+    --text-dim: #999;
+    --accent: #4c8dff;
 }

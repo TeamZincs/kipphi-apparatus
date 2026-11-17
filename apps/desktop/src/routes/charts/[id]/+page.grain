@@ -822,19 +822,19 @@ updateTip();
                 <!-- 播放器开关 / 时间参数：全部用移动端的 Switch + NumField -->
                 <div class="setting">
                     <span>{_("main.player.showsUI")}</span>
-                    <Switch bind:checked={$store(playerShowsUI)} />
+                    <Switch bind:checked={get: () => $store(playerShowsUI), set: (v: boolean) => $store(playerShowsUI).set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.showsLineID")}</span>
-                    <Switch bind:checked={$store(playerShowsLineID)} />
+                    <Switch bind:checked={get: () => $store(playerShowsLineID), set: (v: boolean) => $store(playerShowsLineID).set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.hitEffectNoFollows")}</span>
-                    <Switch bind:checked={$store(playerHitEffectNoFollows)} />
+                    <Switch bind:checked={get: () => $store(playerHitEffectNoFollows), set: (v: boolean) => $store(playerHitEffectNoFollows).set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.showsCurve")}</span>
-                    <Switch bind:checked={$store(playerShowsCurve)} />
+                    <Switch bind:checked={get: () => $store(playerShowsCurve), set: (v: boolean) => $store(playerShowsCurve).set(v)} />
                 </div>
                 <div class="setting">
                     <span>{_("main.player.volume")}</span>
@@ -1020,8 +1020,11 @@ input[type="range"] {
   right: 0;
   top: 0;
   background-color: #555;
+  /* 搬过来的移动端组件按 `--text` 写字，不给就是浏览器默认的黑色 */
+  color: var(--text);
   z-index: 1;
-  padding: 1vh;
+  /* 不再加内边距：移动端的行 / 工具栏自带 padding，叠加起来左右会挤一圈 */
+  padding: 0;
   box-sizing: border-box;
   scrollbar-width: none;
   display: flex;
@@ -1041,7 +1044,8 @@ input[type="range"] {
   box-sizing: border-box;
   overflow-y: auto;
   display: flex;
-  align-items: center;
+  /* `stretch`：搬来的列表 / Sheet 要铺满整宽（`center` 会让它们缩成一条） */
+  align-items: stretch;
   flex-direction: column;
   gap: 3px;
   scrollbar-width: none;
