@@ -1,0 +1,69 @@
+<script>
+    /*
+     * 文本/数字输入框。
+     *
+     * 和 `Switch` / `Segmented` 一样走 `bind:` 的对象形式，但**只有失焦才回传**：
+     * 输入过程中值留在组件内部的草稿里，父组件不会被打字触发重算
+     * （面板里那 10 来个字段，每敲一个字符都跑一遍操作比对太浪费）。
+     *
+     * 外部变化（撤销 / 从操作列表回灌）时：没聚焦就直接显示父级的值，
+     * 聚焦中则以本地的为准，免得把用户正在打的字冲掉。
+     */
+    let { value, placeholder = "", inputmode = "decimal", oncommit } = $props<{
+        value: { get: () => string; set: (v: string) => void };
+        placeholder?: string;
+        /** `decimal` / `numeric` / `text`，只影响手机键盘 */
+        inputmode?: string;
+        /** 回传之后的通知（面板用它去发对应的操作） */
+        oncommit?: () => void;
+    }>();
+
+    let text = $state(value.get());
+    let focused = $state(false);
+
+    function onFocus(): void {
+        focused = true;
+        text = value.get();
+    }
+
+    function commit(): void {
+        focused = false;
+
+        if (text !== value.get()) value.set(text);
+
+        oncommit?.();
+    }
+</script>
+
+<input
+    class="num"
+    type="text"
+    inputmode={inputmode}
+    placeholder={placeholder}
+    value={focused ? text : value.get()}
+    bind:value={text}
+    onfocus={onFocus}
+    onblur={commit}
+    onkeydown={(event) => {
+        if (event.key === "Enter") {
+            (event.currentTarget as HTMLInputElement).blur();
+        }
+    }}
+/>
+
+<style>
+    .num {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        /* 不要浏览器那对上下箭头 */
+        appearance: none;
+        -webkit-appearance: none;
+    }
+</style>

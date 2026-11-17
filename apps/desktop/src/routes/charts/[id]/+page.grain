@@ -664,6 +664,49 @@ updateTip();
     const selectedNodesValue = $node({ get: () => selectedNodes.get(), listen: (update) => selectedNodes.subscribe(update) });
     const selectedNotesValue = $node({ get: () => selectedNotes.get(), listen: (update) => selectedNotes.subscribe(update) });
     const activeSidebarValue = $node({ get: () => activeSidebar.get(), listen: (update) => activeSidebar.subscribe(update) });
+
+    /*
+     * 右侧栏改成**标签页**（移动端那套），原来 11 个面板收进 5 页：
+     *
+     *   判定线 / 属性（折叠面板：音符 / 事件 / 多选）/ 错误 / 设置 / 脚本
+     *
+     * `activeSecondarySidebar` 仍然管「属性」页里具体显示哪一个 —— 选中音符
+     * 自动跳到音符属性这类逻辑不用改。
+     */
+    const SIDEBAR_TABS = [
+        { id: 0, label: "main.secondary.lines" },
+        { id: 1, label: "main.secondary.note" },
+        { id: 2, label: "main.secondary.errors" },
+        { id: 3, label: "main.secondary.general" },
+        { id: 4, label: "main.secondary.script" },
+    ];
+
+    function tabOfPanel(panel: unknown): number {
+        if (panel === SecondarySidebar.LINES) return 0;
+        if (panel === SecondarySidebar.ERRORS) return 2;
+        if (panel === SecondarySidebar.GENERAL) return 3;
+        if (panel === SecondarySidebar.SCRIPT) return 4;
+
+        // 音符 / 事件 / 多选 / 判定线属性 / 谱面 / 宏 都归到「属性」
+        return 1;
+    }
+
+    const activeTabValue = $node({
+        get: () => tabOfPanel(activeSecondarySidebar.get()),
+        set: (id: number) => {
+            selectTab(id);
+        },
+        listen: (update) => activeSecondarySidebar.subscribe(update),
+        active: true,
+    });
+
+    function selectTab(id: number): void {
+        if (id === 0) activeSecondarySidebar.set(SecondarySidebar.LINES);
+        else if (id === 2) activeSecondarySidebar.set(SecondarySidebar.ERRORS);
+        else if (id === 3) activeSecondarySidebar.set(SecondarySidebar.GENERAL);
+        else if (id === 4) activeSecondarySidebar.set(SecondarySidebar.SCRIPT);
+        else activeSecondarySidebar.set(SecondarySidebar.NOTE);
+    }
 </script>
 
 <script onmount>
@@ -682,29 +725,16 @@ updateTip();
     <div id="secondary-sidebar">
         <div class="sidebar-shadow"></div>
         <div class="sidebar-content">
-            <PopupOption wide
-                options={
-                    [SecondarySidebar.LINES, SecondarySidebar.NOTE, SecondarySidebar.EVENT, SecondarySidebar.LINE,
-                    SecondarySidebar.CHART, SecondarySidebar.MULTI_NODE, SecondarySidebar.MULTI_NOTE,
-                    SecondarySidebar.ERRORS, SecondarySidebar.GENERAL, SecondarySidebar.SCRIPT,
-                    SecondarySidebar.MACRO
-                ]
-                }
-                displayTexts={[
-                    _("main.secondary.lines"),
-                    _("main.secondary.note"),
-                    _("main.secondary.event"),
-                    _("main.secondary.line"),
-                    _("main.secondary.chart"),
-                    _("main.secondary.multiNode"),
-                    _("main.secondary.multiNote"),
-                    _("main.secondary.errors"),
-                    _("main.secondary.general"),
-                    _("main.secondary.script"),
-                    _("main.secondary.macro")
-                ]}
-                bind:currentOption={$store(activeSecondarySidebar)}
-            ></PopupOption>
+            <div class="sidebar-tabs">
+                {#for tab of SIDEBAR_TABS with key = tab.id}
+                    <button
+                        class="sidebar-tab {activeTabValue === tab.id ? 'on' : ''}"
+                        onclick={() => selectTab(tab.id)}
+                    >{_(tab.label)}</button>
+                {/for}
+            </div>
+
+
             {#if activeSecondarySidebarValue === SecondarySidebar.LINES}
                 <JudgeLines chart={chart}></JudgeLines>
             {:else if activeSecondarySidebarValue === SecondarySidebar.NOTE}
@@ -966,6 +996,32 @@ input[type="range"] {
 }
 .sidebar-content:focus {
   scroll-behavior: auto;
+}
+/* 右侧栏顶部的标签页：平铺，一屏看到全部 */
+.sidebar-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  flex: none;
+  width: 100%;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #666;
+}
+.sidebar-tab {
+  flex: 1 1 auto;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #ddd;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sidebar-tab.on {
+  background: #4c8dff;
+  color: #fff;
 }
 .monaco-sidebar {
   width: 100%;
