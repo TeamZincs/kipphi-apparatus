@@ -995,7 +995,6 @@ updateTip();
                             applyTimeDivisor(raw);
                         }}
                     />
-                </div>
                 <div class="presets">
                     <Segmented
                         variant="plain"
@@ -1004,6 +1003,7 @@ updateTip();
                             applyTimeDivisor(String(value));
                         }}
                     />
+                </div>
                 </div>
                 <div class="setting">
                     <span>{_("main.sidebar.renderingOffset.term")}</span>
@@ -1045,7 +1045,6 @@ updateTip();
                             applyTimeSpan(raw);
                         }}
                     />
-                </div>
                 <div class="presets">
                     <Segmented
                         variant="plain"
@@ -1055,6 +1054,7 @@ updateTip();
                         }}
                     />
                 </div>
+                </div>
                 <div class="setting">
                     <span>值跨度</span>
                     <NumField
@@ -1062,7 +1062,6 @@ updateTip();
                             applyPositionSpan(raw);
                         }}
                     />
-                </div>
                 <div class="presets">
                     <Segmented
                         variant="plain"
@@ -1072,6 +1071,7 @@ updateTip();
                         }}
                     />
                 </div>
+                </div>
                 <div class="setting">
                     <span>音符网格间距</span>
                     <NumField
@@ -1079,7 +1079,6 @@ updateTip();
                             applyNoteGrid(raw);
                         }}
                     />
-                </div>
                 <div class="presets">
                     <Segmented
                         variant="plain"
@@ -1088,6 +1087,7 @@ updateTip();
                             applyNoteGrid(String(value));
                         }}
                     />
+                </div>
                 </div>
                 <div class="setting">
                     <span>显示 NNN 参考线</span>
