@@ -1209,17 +1209,35 @@ input[type="range"] {
   font-weight: 600;
   box-shadow: inset 0 -2px 0 #4c8dff;
 }
-/* 设置页一行：左边标签、右边控件（移动端 `.setting` 的样子） */
+/*
+ * 设置页一行：左边标签、右边控件。
+ *
+ * 用 grid 而不是 flex —— 右侧固定一列宽度，所有输入框的左右边就对齐了
+ *（flex 下每个输入框按内容撑开，长短不一）。左边 `minmax(0, 1fr)` 允许
+ * 收缩，配 `nowrap` + 省略号，标签长了也不会把输入框挤歪。
+ */
 .setting {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   width: 100%;
   padding: 10px 0 4px;
   font-size: 14px;
   color: #ddd;
   border-bottom: 1px solid #666;
+}
+
+.setting > :first-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 输入框铺满固定那一列；开关保持自己的尺寸、靠右站 */
+.setting > :last-child {
+  width: 100%;
+  justify-self: end;
 }
 /*
  * 设置页 / 错误页的外层留白。
