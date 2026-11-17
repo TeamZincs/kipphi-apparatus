@@ -8,8 +8,11 @@
 
     import Self from "./JudgeLineRow.grain";
 
+    /*
+     * 桌面端 store 在 `./store`（`#/store` 指向 `src/store.ts`，桌面端没有），
+     * 也没有单独导出 `chart` —— 它在 `operationList.chart` 上。
+     */
     import {
-        chart,
         chartLoaded,
         editingLineId,
         openLineId,
@@ -17,7 +20,9 @@
         reflowAll,
         registerRefresh,
         selectedLineId
-    } from "#/store";
+    } from "./store";
+
+    const chart = operationList?.chart;
 
     let {
         target,

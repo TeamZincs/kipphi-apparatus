@@ -340,6 +340,15 @@ export function registerRefresh(handler: () => void) {
  */
 export const chartLoaded = writable(0);
 
+/*
+ * 下面三个是移动端 `JudgeLineRow` 那套要用的：列表行自己管「哪一行展开了
+ * 操作按钮」「正在编辑哪条线的属性」。桌面端原来没有对应概念，补成独立
+ * 信号，最后由页面把 `selectedLineId` 同步给编辑器。
+ */
+export const selectedLineId = writable<number | null>(null);
+export const openLineId = writable<number | null>(null);
+export const editingLineId = writable<number | null>(null);
+
 let refreshing = false;
 
 export function refreshAll() {
