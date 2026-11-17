@@ -3368,39 +3368,62 @@ export abstract class EventSequenceEditor<
      * end 节点在**下方**，这样预览一看就知道落点长什么样。
      */
     override drawPreviewMarker(): void {
-        // 粘贴：整串一起画（只画一个看不出排列，也看不出会在哪几个位置落子）
-        if (this.pasteGhosts.length > 0) {
-            const { context } = this;
-            const width = this.nodeWidth;
-            const height = this.nodeHeight;
-            const beats = this.lastBeats ?? 0;
-            // `matrix` 在基类类型里没有声明，收窄一次（形状交给 Coordinate.mul 自己认）
-            const matrix = (this as unknown as Record<string, never>)["matrix"];
+        const { context } = this;
+        const width = this.nodeWidth;
+        const height = this.nodeHeight;
+        const beats = this.lastBeats ?? 0;
+        // `matrix` 在基类类型里没有声明，收窄一次（形状交给 Coordinate.mul 自己认）
+        const matrix = (this as unknown as Record<string, never>)["matrix"];
 
+        /*
+         * 一对节点用**圆角矩形**画（和正式节点同一套 `paintNode`），
+         * 不用 `Images.START_NODE` / `END_NODE` 那对箭头贴图 —— 预览和落地
+         * 长得不一样，看着像换了个东西。
+         */
+        const paintPair = (value: number, nodeBeats: number): void => {
+            const pos = new Coordinate(value, nodeBeats - beats).mul(matrix);
+
+            this.paintNode(
+                context,
+                pos.x - width / 2,
+                pos.y - height,
+                width,
+                height,
+                NODE_START_COLOR,
+            );
+            this.paintNode(
+                context,
+                pos.x - width / 2,
+                pos.y,
+                width,
+                height,
+                NODE_END_COLOR,
+            );
+        };
+
+        /*
+         * 两类预览走同一条路：
+         *   · `pasteGhosts` —— 粘贴的整串节点（只画一个看不出排列）；
+         *   · `dragGhost`   —— 拖动中的目标位置。
+         */
+        const ghosts = [
+            ...this.pasteGhosts.map((ghost) => ({
+                value: ghost.value,
+                beats: TC.toBeats(ghost.time),
+            })),
+            ...(this.dragGhost
+                ? [...this.dragGhost.values()].map((ghost) => ({
+                      value: ghost.value,
+                      beats: ghost.beats,
+                  }))
+                : []),
+        ];
+
+        if (ghosts.length > 0) {
             context.save();
             context.globalAlpha = 0.6;
 
-            for (const ghost of this.pasteGhosts) {
-                const pos = new Coordinate(
-                    ghost.value,
-                    TC.toBeats(ghost.time) - beats,
-                ).mul(matrix);
-
-                context.drawImage(
-                    Images.START_NODE,
-                    pos.x - width / 2,
-                    pos.y - height,
-                    width,
-                    height,
-                );
-                context.drawImage(
-                    Images.END_NODE,
-                    pos.x - width / 2,
-                    pos.y,
-                    width,
-                    height,
-                );
-            }
+            for (const ghost of ghosts) paintPair(ghost.value, ghost.beats);
 
             context.restore();
 
@@ -3409,22 +3432,28 @@ export abstract class EventSequenceEditor<
 
         if (!this.previewPoint) return;
 
-        const { context } = this;
-        const width = this.nodeWidth;
-        const height = this.nodeHeight;
         const { x, y } = this.previewPoint;
 
         context.save();
         context.globalAlpha = 0.6;
 
-        context.drawImage(
-            Images.START_NODE,
+        // 放置预览也用圆角矩形，和落地后长得一样
+        this.paintNode(
+            context,
             x - width / 2,
             y - height,
             width,
             height,
+            NODE_START_COLOR,
         );
-        context.drawImage(Images.END_NODE, x - width / 2, y, width, height);
+        this.paintNode(
+            context,
+            x - width / 2,
+            y,
+            width,
+            height,
+            NODE_END_COLOR,
+        );
 
         context.restore();
     }
