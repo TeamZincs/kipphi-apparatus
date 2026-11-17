@@ -297,6 +297,18 @@ export class NotesEditor extends EventTarget {
         { x: number; beats: number }
     > | null = null;
 
+    /**
+     * 拖动期间的**预览位置**（ghost）：音符 -> 目标 `{ x, beats }`。
+     *
+     * 拖动时**不提交操作**，只在 `draw` 里按这张表画半透明副本、并隐藏真实
+     * 音符；松手时一次性发 `ComplexOperation`。每帧都提交会让撤销栈里塞进
+     * 几百条，撤销一次只挪一像素。
+     */
+    private dragGhost: Map<
+        Note,
+        { x: number; beats: number; endBeats?: number }
+    > | null = null;
+
     /** 放大镜：按住音符时放大主视图 + 侧边局部视图 */
     readonly magnifier = new Magnifier();
 
@@ -636,84 +648,106 @@ export class NotesEditor extends EventTarget {
                     );
                     break;
                 }
-                if (this.dragGroupStart && this.dragGroupStart.size > 1) {
-                    /*
-                     * 多选联动：每个音符 = **自己的起点** + 同一个偏移。
-                     *
-                     * 各自累加（`note.positionX + delta`）会让间距越拖越歪。
-                     *
-                     * 时间方向同理：`startTime` 也按「自己的起点 + 同一个拍数
-                     * 偏移」走，目标时刻没有 NN 节点的就跳过那一条。
-                     */
-                    const base = this.dragGroupStart.get(this.selectedNote) ?? {
-                        x: this.selectedNote.positionX,
-                        beats: TC.toBeats(this.selectedNote.startTime),
-                    };
-                    const deltaX = this.pointedPositionX - base.x;
-                    const deltaBeats = timeT
-                        ? TC.toBeats(timeT) - base.beats
-                        : 0;
 
-                    const operations = [...this.dragGroupStart].flatMap(
-                        ([note, start]) => {
-                            const ops: O.Operation[] = [
-                                new O.NotePropChangeOperation(
-                                    note,
-                                    "positionX",
-                                    start.x + deltaX,
-                                ),
-                            ];
+                // 只更新预览，**不提交** —— 松手时 `commitDrag` 一次性发操作
+                this.updateDragGhost(timeT);
+        }
+    }
 
-                            if (deltaBeats !== 0) {
-                                const next = note.parentNode.parentSeq.getNodeOf(
-                                    [start.beats + deltaBeats, 0, 1],
-                                );
+    /**
+     * 把当前指针位置换算成 ghost（预览位置），不碰真实数据。
+     *
+     * 多选时每个音符 = **自己的起点** + 同一个偏移（各自累加会把间距拖歪）。
+     * 单拖就是"只有自己在集合里"那种情况。
+     */
+    private updateDragGhost(timeT: TimeT): void {
+        const note = this.selectedNote;
 
-                                if (next) {
-                                    ops.push(
-                                        new O.NoteTimeChangeOperation(note, next),
-                                    );
-                                }
-                            }
+        if (!note) return;
 
-                            return ops;
-                        },
-                    );
+        const group = this.dragGroupStart;
+        const base = group?.get(note) ?? {
+            x: note.positionX,
+            beats: TC.toBeats(note.startTime),
+        };
+        const deltaX = this.pointedPositionX - base.x;
+        const deltaBeats = timeT ? TC.toBeats(timeT) - base.beats : 0;
 
-                    if (operations.length > 0) {
-                        this.operationList.tryDo(
-                            () => new O.ComplexOperation(...operations),
-                        );
-                    }
-                } else {
-                    this.operationList.tryDo(
-                        () =>
-                            new O.NotePropChangeOperation(
-                                this.selectedNote,
-                                "positionX",
-                                this.pointedPositionX,
-                            ),
+        const ghost = new Map<
+            Note,
+            { x: number; beats: number; endBeats?: number }
+        >();
+
+        if (this.selectingTail) {
+            // 拖尾巴：整条不动，只改结束时刻
+            ghost.set(note, {
+                x: base.x,
+                beats: base.beats,
+                endBeats: timeT ? TC.toBeats(timeT) : undefined,
+            });
+        } else {
+            const entries = group ?? new Map([[note, base]]);
+
+            for (const [target, start] of entries) {
+                ghost.set(target, {
+                    x: start.x + deltaX,
+                    beats: start.beats + deltaBeats,
+                });
+            }
+        }
+
+        this.dragGhost = ghost;
+    }
+
+    /**
+     * 松手：把 ghost 一次性落成操作。
+     *
+     * 按**时间倒序**提交 —— `NoteTimeChangeOperation` 会改 NN 结构，
+     * 从前往后改的话后面那些 `getNodeOf` 会算到已经被挪动过的树上。
+     */
+    private commitDrag(): void {
+        const ghost = this.dragGhost;
+
+        this.dragGhost = null;
+        this.dragGroupStart = null;
+
+        if (!ghost || ghost.size === 0) return;
+
+        const entries = [...ghost].sort((a, b) => b[1].beats - a[1].beats);
+        const operations: O.Operation[] = [];
+
+        for (const [note, target] of entries) {
+            operations.push(
+                new O.NotePropChangeOperation(note, "positionX", target.x),
+            );
+
+            if (target.endBeats !== undefined) {
+                operations.push(
+                    new O.HoldEndTimeChangeOperation(note, [
+                        target.endBeats,
+                        0,
+                        1,
+                    ]),
+                );
+            } else {
+                const next = note.parentNode.parentSeq.getNodeOf([
+                    target.beats,
+                    0,
+                    1,
+                ]);
+
+                if (next) {
+                    operations.push(
+                        new O.NoteTimeChangeOperation(note, next),
                     );
                 }
-                if (this.selectingTail) {
-                    this.operationList.tryDo(
-                        () =>
-                            new O.HoldEndTimeChangeOperation(
-                                this.selectedNote,
-                                timeT,
-                            ),
-                    );
-                } else {
-                    this.operationList.tryDo(
-                        () =>
-                            new O.NoteTimeChangeOperation(
-                                this.selectedNote,
-                                this.selectedNote.parentNode.parentSeq.getNodeOf(
-                                    timeT,
-                                ),
-                            ),
-                    );
-                }
+            }
+        }
+
+        if (operations.length > 0) {
+            this.operationList.tryDo(
+                () => new O.ComplexOperation(...operations),
+            );
         }
     }
 
@@ -1678,6 +1712,59 @@ export class NotesEditor extends EventTarget {
     }
 
     /** 画预览（半透明的音符贴图，跟着指针走） */
+    /**
+     * 拖动预览：把 `dragGhost` 里的音符按目标位置画成半透明副本。
+     *
+     * 不复用 `drawNote` —— 那个会往 `selectionManager` 里注册命中区，ghost
+     * 混进去会让"点到 ghost 也选中真实音符"。
+     */
+    private drawGhosts(): void {
+        const ghost = this.dragGhost;
+
+        if (!ghost || ghost.size === 0) return;
+
+        const context = this.context;
+        const { matrix, respack, timeRatio } = this;
+        const W = this.noteWidth;
+        const H = this.noteHeight;
+
+        context.save();
+        context.globalAlpha = 0.55;
+
+        for (const [note, target] of ghost) {
+            // 拖尾巴时只改了结束时刻，长度要按 ghost 的 `endBeats` 算
+            const spanBeats =
+                target.endBeats !== undefined
+                    ? target.endBeats - target.beats
+                    : TC.toBeats(note.endTime) - TC.toBeats(note.startTime);
+            const start = target.beats - this.matrixBeats;
+            const end = start + spanBeats;
+            const { x: posX, y: posY } = new Coordinate(target.x, start).mul(
+                matrix,
+            );
+
+            if (note.type === NoteType.hold) {
+                context.drawImage(
+                    respack.HOLD_BODY,
+                    posX - W / 2,
+                    -end * timeRatio,
+                    W,
+                    (end - start) * timeRatio - H / 2,
+                );
+            }
+
+            context.drawImage(
+                respack.getNoteFromType(note.type),
+                posX - W / 2,
+                posY - H / 2,
+                W,
+                H,
+            );
+        }
+
+        context.restore();
+    }
+
     private drawPreview(beats: number): void {
         // 粘贴：整串一起画（只画第一个看不到排列）
         if (this.pasteGhosts.length > 0) {
@@ -1869,8 +1956,8 @@ export class NotesEditor extends EventTarget {
         // 边缘滚动只在拖动期间有效
         this.stopEdgeScroll();
 
-        // 多选联动的快照只活在这一次手势里
-        this.dragGroupStart = null;
+        // 松手：把这次拖动一次性落成操作（拖动期间只有 ghost 预览）
+        this.commitDrag();
 
         {
             // 先按松手的位置更新指针指向（拖出即放要落在"离开的地方"），
@@ -2449,7 +2536,8 @@ export class NotesEditor extends EventTarget {
         this.drawn = false;
         // 放大时 `beats` 是为了居中算出来的临时值，不能写回视野
         if (!this.magnifier.zooming) this.lastBeats = beats;
-        // 预览画在音符之上、按钮之下（这里还带着相机变换，和 drawNote 同一个空间）
+        // 拖动预览（ghost）和放置预览同一层：音符之上、按钮之下
+        this.drawGhosts();
         this.drawPreview(beats);
 
         // 局部放大视图盖在内容上、按钮下面
@@ -2644,6 +2732,10 @@ export class NotesEditor extends EventTarget {
                 const note = notes[i];
                 const posX = note.positionX;
                 const count = posMap.get(note.positionX) || 0;
+
+                // 正在拖的音符只画 ghost，真实副本先不画（否则看着是双份）
+                if (this.dragGhost?.has(note)) continue;
+
                 this.drawNote(beats, note, count, showsFrom);
                 posMap.set(posX, count + 1);
             }
