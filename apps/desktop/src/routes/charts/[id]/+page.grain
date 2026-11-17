@@ -16,9 +16,6 @@ import PopupOption from "#/components/PopupOption/PopupOption.grain";
 import TimeDivisorPicker from "#/components/IconButtons/TimeDivisorPicker.grain";
 import SwitchButton from "#/components/IconButtons/SwitchButton.grain";
 import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
-    import ArrowedInput from "#/components/Inputs/ArrowedInput.grain";
-    import Label from "#/components/Label.grain";
-    import UnitInput from "#/components/Inputs/UnitInput.grain";
     // 判定线列表直接用移动端那套（`JudgeLinesManager` → `JudgeLineList`）
     import JudgeLines from "./JudgeLineList.grain";
 
@@ -29,22 +26,24 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
     timeDivisor, chartId, refreshAll, reflowAll } from "./store";
         import Constants from "./constants";
-    import Tooltip from "#/components/Tooltip.grain";
-    import JudgeLineEditor from "./JudgeLineEditor.grain";
-    import ChartInfoEditor from "./ChartInfoEditor.grain";
-    import MacroEditor from "./MacroEditor.grain";
 
-    // 从移动端直接搬过来的折叠面板内容
+    // 侧栏里的面板**全部**来自移动端
+    import JudgeLineSheet from "./JudgeLineSheet.grain";
+    import MacroSheet from "./MacroSheet.grain";
     import NoteSheet from "./NoteSheet.grain";
     import EventSheet from "./EventSheet.grain";
     import MultiNoteSheet from "./MultiNoteSheet.grain";
     import MultiNodeSheet from "./MultiNodeSheet.grain";
+
+    // 设置页也换成移动端的三个基础组件
+    import NumField from "#/components/NumField.grain";
+    import Switch from "#/components/Switch.grain";
     import { KPASettings } from "#/settings";
     import { notify } from "#/notify";
     import { respack, waitRespack } from "#/respack";
     import { fetchShader, fetchTexture, fetchVideo } from "#/background";
     import Errors from "./Errors.grain";
-    import MonacoEdtior from "./MonacoEdtior.grain";
+
     import { _ReturnType } from "#/background-tauri";
 
 
@@ -226,6 +225,12 @@ const selectedLineName = $node({
         return line?.name ?? '?';
     },
     listen: (update) => selectedLineNumber.subscribe(update)
+});
+
+/** 当前选中的判定线对象 —— 移动端的 `JudgeLineSheet` 要的就是它 */
+const selectedLineValue = $node({
+    get: () => chart?.judgeLines[selectedLineNumber.get()] ?? null,
+    listen: (update) => selectedLineNumber.subscribe(update),
 });
 
 let pre0 = 0;
@@ -742,16 +747,7 @@ updateTip();
 
 
             {#if activeSecondarySidebarValue === SecondarySidebar.LINES}
-                <!-- 判定线序号原来在另一个侧栏里，并到这 -->
-                <Label small>{_("main.sidebar.linenumber") + ` (${chart?.judgeLines.length ?? 0})`}</Label>
-                <ArrowedInput
-                    max={(chart?.judgeLines.length ?? 1) - 1} min={0}
-                    bind:value={$store(selectedLineNumber)}
-                    suffix={`(${selectedLineName})`}
-                    loops
-                />
                 <JudgeLines></JudgeLines>
-                <JudgeLineEditor></JudgeLineEditor>
             {:else if activeSecondarySidebarValue === SecondarySidebar.NOTE}
                 {#if selectedNoteValue && selectedNoteValue.parentNode}
                     <NoteSheet
@@ -773,9 +769,14 @@ updateTip();
                 <div style="color: var(--color-foreground)">{_("main.event.noEvent")}</div>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.LINE}
-                <JudgeLineEditor></JudgeLineEditor>
-            {:else if activeSecondarySidebarValue === SecondarySidebar.CHART}
-                <ChartInfoEditor></ChartInfoEditor>
+                {#if selectedLineValue}
+                    <JudgeLineSheet
+                        line={selectedLineValue}
+                        onclose={() => {}}
+                    ></JudgeLineSheet>
+                {:else}
+                    <div style="color: var(--color-foreground)">没有选中的判定线</div>
+                {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.MULTI_NODE}
                 {#if selectedNodesValue && selectedNodesValue.size > 0}
                     <MultiNodeSheet
@@ -793,70 +794,89 @@ updateTip();
             {:else if activeSecondarySidebarValue === SecondarySidebar.ERRORS}
                 <Errors/>
             {:else if activeSecondarySidebarValue === SecondarySidebar.MACRO}
-                <MacroEditor/>
+                <MacroSheet macro={null} onclose={() => {}}></MacroSheet>
             {:else if activeSecondarySidebarValue === SecondarySidebar.GENERAL}
-                <!-- 播放器开关原来在另一个侧栏里，并到这 -->
-                <Label>{_("main.sidebar.player")}</Label>
-                <TextSwitchButton wide bgText={_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$store(playerShowsUI)}/>
-                <TextSwitchButton wide bgText={_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$store(playerShowsLineID)}/>
-                <TextSwitchButton wide bgText={_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$store(playerHitEffectNoFollows)}/>
-                <TextSwitchButton wide bgText={_("main.player.showsCurve")} onText="Y" offText="N" bind:checked={$store(playerShowsCurve)}/>
-                <Label small>{_("main.player.volume")}</Label>
-                <ArrowedInput bind:value={volume} step={0.5}></ArrowedInput>
-                <PopupOption wide
-                    bind:currentOption={aspect}
-                    options={
-                        [3 / 2, 16 / 9, 4 / 3]
-                    }
-                    displayTexts={
-                        ["3:2", "16:9", "4:3"]
-                    }
-                    onchange={() => player.useNewAspect()}
-                ></PopupOption>
-                <Label small>{_("main.player.cameraZoom")}</Label>
-                <ArrowedInput bind:value={$store(playerCameraZoom)}></ArrowedInput>
-                <Label small>
-                    {_("main.sidebar.timeDivisor.term")}
-                    <Tooltip>{_("main.sidebar.timeDivisor.desc")}</Tooltip>
-                </Label>
-                <ArrowedInput
-                    bind:value={$store(timeDivisor)}
+                <!-- 播放器开关 / 时间参数：全部用移动端的 Switch + NumField -->
+                <div class="setting">
+                    <span>{_("main.player.showsUI")}</span>
+                    <Switch bind:checked={$store(playerShowsUI)} />
+                </div>
+                <div class="setting">
+                    <span>{_("main.player.showsLineID")}</span>
+                    <Switch bind:checked={$store(playerShowsLineID)} />
+                </div>
+                <div class="setting">
+                    <span>{_("main.player.hitEffectNoFollows")}</span>
+                    <Switch bind:checked={$store(playerHitEffectNoFollows)} />
+                </div>
+                <div class="setting">
+                    <span>{_("main.player.showsCurve")}</span>
+                    <Switch bind:checked={$store(playerShowsCurve)} />
+                </div>
+                <div class="setting">
+                    <span>{_("main.player.volume")}</span>
+                    <NumField
+                        bind:value={get: () => String(volume), set: (raw: string) => {
+                            const next = Number(raw);
+                            if (Number.isFinite(next)) volume = next;
+                        }}
                     />
-                <Label small>
-                    {_("main.sidebar.renderingOffset.term")}
-                    <Tooltip>{_("main.sidebar.renderingOffset.desc")}</Tooltip>
-                </Label>
-                <UnitInput
-                    unit="s"
-                    bind:value={ get: () => KPASettings.renderingOffset, set: (v) => {
-                            player.renderingOffset = v;
-                            KPASettings.renderingOffset = v;
-                        }
-                    }/>
-                <Label small>
-                    {_("main.general.baseOffset")}
-                    <Tooltip>{_("main.general.baseOffsetDesc")}</Tooltip>
-                </Label>
-                <UnitInput
-                    unit="s"
-                    bind:value={ get: () => KPASettings.baseOffset, set: (v) => {
-                            player.baseOffset = v;
-                            KPASettings.baseOffset = v;
-                        }
-                    }
-                />
-                <Label small>
-                    {_("main.general.replayCompensation")}
-                    <Tooltip>{_("main.general.replayCompensationDesc")}</Tooltip>
-                </Label>
-                <UnitInput
-                    unit="s"
-                    bind:value={KPASettings.replayCompensation}
-                />
+                </div>
+                <div class="setting">
+                    <span>{_("main.player.cameraZoom")}</span>
+                    <NumField
+                        bind:value={get: () => String($store(playerCameraZoom)), set: (raw: string) => {
+                            const next = Number(raw);
+                            if (Number.isFinite(next)) $store(playerCameraZoom).set(next);
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>{_("main.sidebar.timeDivisor.term")}</span>
+                    <NumField
+                        bind:value={get: () => String($store(timeDivisor)), set: (raw: string) => {
+                            const next = Number(raw);
+                            if (Number.isFinite(next) && next > 0) $store(timeDivisor).set(next);
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>{_("main.sidebar.renderingOffset.term")}</span>
+                    <NumField
+                        bind:value={get: () => String(KPASettings.renderingOffset), set: (raw: string) => {
+                            const next = Number(raw);
+                            if (!Number.isFinite(next)) return;
+                            player.renderingOffset = next;
+                            KPASettings.renderingOffset = next;
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>{_("main.general.baseOffset")}</span>
+                    <NumField
+                        bind:value={get: () => String(KPASettings.baseOffset), set: (raw: string) => {
+                            const next = Number(raw);
+                            if (!Number.isFinite(next)) return;
+                            player.baseOffset = next;
+                            KPASettings.baseOffset = next;
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>{_("main.general.replayCompensation")}</span>
+                    <NumField
+                        bind:value={get: () => String(KPASettings.replayCompensation), set: (raw: string) => {
+                            const next = Number(raw);
+                            if (Number.isFinite(next)) KPASettings.replayCompensation = next;
+                        }}
+                    />
+                </div>
+            {:else if activeSecondarySidebarValue === SecondarySidebar.SCRIPT}
+                <!-- 用户脚本：预留一页，后面接 -->
+                <div style="color: var(--color-foreground); opacity: 0.6; padding: 8px">
+                    用户脚本（待实现）
+                </div>
             {/if}
-            <div class="monaco-sidebar" style="display: {activeSecondarySidebarValue === SecondarySidebar.SCRIPT ? '' : 'none'}">
-                <MonacoEdtior></MonacoEdtior>
-            </div>
         </div>
     </div>
     <div id="footer">
@@ -1035,6 +1055,18 @@ input[type="range"] {
   color: #4c8dff;
   font-weight: 600;
   box-shadow: inset 0 -2px 0 #4c8dff;
+}
+/* 设置页一行：左边标签、右边控件（移动端 `.setting` 的样子） */
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 0 4px;
+  font-size: 14px;
+  color: #ddd;
+  border-bottom: 1px solid #666;
 }
 .monaco-sidebar {
   width: 100%;

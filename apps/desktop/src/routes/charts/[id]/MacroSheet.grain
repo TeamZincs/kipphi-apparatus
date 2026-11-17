@@ -1,0 +1,318 @@
+<script>
+    /*
+     * 宏面板（底部面板的第三种内容）。
+     *
+     * 对应桌面的 `MacroEditor`：先按「音符宏 / 事件宏」分组列出来，点进去看
+     * 这个宏的属性（类型、编号、被几处引用）；事件宏还能改参数化表达式，
+     * 并重新求值到所有引用者。
+     *
+     * 没有 `macro` 传进来时就停在列表页 —— 面板本身就是一个入口。
+     */
+    import {
+        EventMacroTime,
+        EventMacroValue,
+        MacroEvaluator,
+        NoteMacro,
+        Op
+    } from "kipphi";
+
+    // 桌面端 store 在 `./store`；`chart` 走 `operationList.chart`
+    import { operationList } from "./store";
+
+    const chart = operationList?.chart;
+
+    let { macro: initialMacro, onclose } = $props<{
+        macro: any;
+        onclose: () => void;
+    }>();
+
+    /** 当前正在看的宏；为空就显示列表 */
+    let selected = $state<any>(initialMacro ?? null);
+
+    /** 音符宏 / 事件宏（数值 + 时间）分组 */
+    let noteMacroList = $state<any[]>([]);
+    let eventMacroList = $state<any[]>([]);
+
+    let expression = $state("");
+    let syntaxError = $state<string | null>(null);
+    let error = $state<string | null>(null);
+
+    function kindText(): string {
+        if (selected instanceof NoteMacro) return "音符宏";
+        if (selected instanceof EventMacroTime) return "时间宏";
+        if (selected instanceof EventMacroValue) return "数值宏";
+
+        return "宏求值器";
+    }
+
+    function macroExpression(): string {
+        return selected instanceof MacroEvaluator
+            ? selected.expression
+            : selected.macro;
+    }
+
+    /** 音符宏 / 事件宏 / 宏求值器都有可改的表达式 */
+    function editable(): boolean {
+        return Boolean(selected) && typeof macroExpression() === "string";
+    }
+
+    function pull(): void {
+        const macroLib = chart?.macroLib;
+
+        noteMacroList = macroLib ? [...macroLib.noteMacros.values()] : [];
+        eventMacroList = macroLib
+            ? [
+                  ...macroLib.valueMacros.values(),
+                  ...macroLib.timeMacros.values()
+              ]
+            : [];
+
+        if (!selected) return;
+
+        try {
+            expression = macroExpression();
+            // 宏求值器没有 `checkSyntax`，跳过校验
+            syntaxError =
+                selected instanceof MacroEvaluator
+                    ? null
+                    : (selected.checkSyntax()?.message ?? null);
+        } catch (e) {
+            error = `读取宏失败：${String(e)}`;
+        }
+    }
+
+    /** 列表里点一个宏：切过去并把表达式 / 语法状态拉过来 */
+    function selectMacro(macro: any): void {
+        selected = macro;
+        pull();
+    }
+
+    function backToList(): void {
+        selected = null;
+    }
+
+    function commitExpression(): void {
+        const ops = operationList;
+
+        if (!ops || !selected) return;
+        if (macroExpression() === expression) return;
+
+        ops.do(new Op.MacroExpressionChangeOperation(selected, expression));
+        pull();
+    }
+
+    /** 把宏重新求值到所有引用者（对应桌面的 Apply） */
+    function applyMacro(): void {
+        const ops = operationList;
+
+        if (!ops || !selected) return;
+
+        const target = (ops as any).chart;
+
+        if (selected instanceof NoteMacro) {
+            ops.do(new Op.NoteMacroReevaluateOperation(selected, target));
+        } else if (selected instanceof EventMacroTime) {
+            ops.do(new Op.MacroTimeReevaluateOperation(selected, target));
+        } else if (selected instanceof EventMacroValue) {
+            ops.do(new Op.MacroValueReevaluateOperation(selected, target));
+        } else {
+            ops.do(new Op.MacroEvaluatorReevaluateOperation(selected, target));
+        }
+    }
+
+    try {
+        pull();
+    } catch (e) {
+        error = `读取宏库失败：${String(e)}`;
+    }
+
+    // 撤销 / 重做 / 桌面端改了同一个宏 → 回灌
+    const onOperation = (): void => pull();
+    operationList?.addEventListener("needsupdate", onOperation);
+</script>
+
+<div class="head">
+    <span class="kind">宏</span>
+    {#if selected}
+        <button class="link" onclick={backToList}>返回列表</button>
+    {/if}
+</div>
+
+{#if !selected}
+    {#if noteMacroList.length === 0 && eventMacroList.length === 0}
+        <p class="hint">谱面里还没有宏：桌面端建好之后这里会列出来</p>
+    {:else}
+        {#if noteMacroList.length > 0}
+            <div class="group">音符宏</div>
+            <div class="list">
+                {#for item of noteMacroList}
+                    <button class="item" onclick={() => selectMacro(item)}>
+                        {item.id}
+                    </button>
+                {/for}
+            </div>
+        {/if}
+
+        {#if eventMacroList.length > 0}
+            <div class="group">事件宏</div>
+            <div class="list">
+                {#for item of eventMacroList}
+                    <button class="item" onclick={() => selectMacro(item)}>
+                        {item.id}
+                    </button>
+                {/for}
+            </div>
+        {/if}
+    {/if}
+{:else}
+    <div class="field">
+        <span>类型</span>
+        <code>{kindText()}</code>
+    </div>
+    <div class="field">
+        <span>编号</span>
+        <code>{selected.id}</code>
+    </div>
+    <div class="field">
+        <span>被引用</span>
+        <code>{selected.consumers?.size ?? 0} 处</code>
+    </div>
+
+    {#if editable()}
+        <label class="field">
+            <span>参数化表达式</span>
+            <textarea
+                rows="3"
+                spellcheck="false"
+                bind:value={expression}
+                onchange={commitExpression}
+            ></textarea>
+        </label>
+
+        {#if syntaxError}
+            <p class="error">{syntaxError}</p>
+        {/if}
+
+        <button class="btn" onclick={applyMacro}>应用到引用者</button>
+    {/if}
+{/if}
+
+{#if error}
+    <p class="error">{error}</p>
+{/if}
+
+<div class="actions">
+    <button class="btn" onclick={onclose}>关闭</button>
+</div>
+
+<style>
+    .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .kind {
+        font-size: 13px;
+        opacity: 0.85;
+    }
+
+    .link {
+        border: none;
+        background: none;
+        color: var(--text-dim);
+        font: inherit;
+        font-size: 12px;
+        padding: 0;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .group {
+        font-size: 12px;
+        color: var(--text-dim);
+        padding-top: 6px;
+        border-top: 1px solid var(--border);
+    }
+
+    .list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .item {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .field code {
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 12px;
+        word-break: break-all;
+    }
+
+    .field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+        resize: vertical;
+    }
+
+    .hint {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .error {
+        margin: 0;
+        font-size: 12px;
+        color: #f2545b;
+    }
+
+    .actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn {
+        flex: 1 1 0;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+    }
+</style>
