@@ -9,6 +9,7 @@
     import { Op } from "kipphi";
 
     import NumField from "#/components/NumField.grain";
+    import TextField from "#/components/TextField.grain";
     import { operationList } from "./store";
 
     let { onclose } = $props<{ onclose: () => void }>();
@@ -44,42 +45,42 @@
 <div class="chart-info">
     <div class="field">
         <span>曲名</span>
-        <input
-            value={chart?.name ?? ""}
-            onchange={(event) => commit("name", event.target.value)}
-        />
+        <TextField
+                            value={chart?.name ?? ""}
+                            oncommit={() => commit("name", chart?.name ?? "")}
+                        />
     </div>
 
     <div class="field">
         <span>难度</span>
-        <input
-            value={chart?.level ?? ""}
-            onchange={(event) => commit("level", event.target.value)}
-        />
+        <TextField
+                            value={chart?.level ?? ""}
+                            oncommit={() => commit("level", chart?.level ?? "")}
+                        />
     </div>
 
     <div class="field">
         <span>作曲</span>
-        <input
-            value={chart?.composer ?? ""}
-            onchange={(event) => commit("composer", event.target.value)}
-        />
+        <TextField
+                            value={chart?.composer ?? ""}
+                            oncommit={() => commit("composer", chart?.composer ?? "")}
+                        />
     </div>
 
     <div class="field">
         <span>谱师</span>
-        <input
-            value={chart?.charter ?? ""}
-            onchange={(event) => commit("charter", event.target.value)}
-        />
+        <TextField
+                            value={chart?.charter ?? ""}
+                            oncommit={() => commit("charter", chart?.charter ?? "")}
+                        />
     </div>
 
     <div class="field">
         <span>曲绘</span>
-        <input
-            value={chart?.illustrator ?? ""}
-            onchange={(event) => commit("illustrator", event.target.value)}
-        />
+        <TextField
+                            value={chart?.illustrator ?? ""}
+                            oncommit={() => commit("illustrator", chart?.illustrator ?? "")}
+                        />
     </div>
 
     <div class="field">
@@ -116,16 +117,9 @@
     text-overflow: ellipsis;
 }
 
+/* 输入框只管宽度，配色 / 内边距交给 `TextField` 自己（和 `NumField` 一致） */
 .field >:global(input) {
     width: 100%;
     min-width: 0;
-    box-sizing: border-box;
-    padding: 4px 6px;
-    border: 1px solid var(--input-border-color, #bbb);
-    border-radius: var(--border-radius, 4px);
-    background: var(--surface-2, #4a4a4a);
-    color: var(--text, #eee);
-    font: inherit;
-    font-size: 13px;
 }
 </style>

@@ -1331,6 +1331,7 @@ input[type="range"] {
  * 右侧栏顶部的标签页 —— 样式照搬移动端的 `.tabs` / `.tab`：
  * 均分、无圆角、选中靠「变色 + 底部下划线」，不是高亮块。
  */
+/* 标签多了允许横向溢出（滚动条隐藏），每个标签内部不换行 */
 .tabs {
   display: flex;
   flex: none;
@@ -1339,13 +1340,20 @@ input[type="range"] {
   margin: 0;
   background: #3c3c3c;
   border-bottom: 1px solid #555;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 .tab {
-  flex: 1;
+  /* 不收缩：均分会让长名字被压扁，宁可溢出 */
+  flex: 0 0 auto;
   border: none;
   border-radius: 0;
   background: none;
-  padding: 10px 4px;
+  padding: 10px 10px;
   font: inherit;
   font-size: 13px;
   color: #999;

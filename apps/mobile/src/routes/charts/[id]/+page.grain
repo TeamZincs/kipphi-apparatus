@@ -24,6 +24,7 @@
 
     import NumField from "#/components/NumField.grain";
     import Segmented from "#/components/Segmented.grain";
+    import TextField from "#/components/TextField.grain";
     import Switch from "#/components/Switch.grain";
 
     import JudgeLineList from "./JudgeLineList.grain";
@@ -1725,42 +1726,37 @@ function applyEdgeScroll(value: boolean): void {
                 <div class="settings">
                     <div class="setting">
                         <span>曲名</span>
-                        <input
-                            class="text-field"
+                        <TextField
                             value={chart?.name ?? ""}
-                            onchange={(event) => commitChartField("name", event.target.value)}
+                            oncommit={() => commitChartField("name", chart?.name ?? "")}
                         />
                     </div>
                     <div class="setting">
                         <span>难度</span>
-                        <input
-                            class="text-field"
+                        <TextField
                             value={chart?.level ?? ""}
-                            onchange={(event) => commitChartField("level", event.target.value)}
+                            oncommit={() => commitChartField("level", chart?.level ?? "")}
                         />
                     </div>
                     <div class="setting">
                         <span>作曲</span>
-                        <input
-                            class="text-field"
+                        <TextField
                             value={chart?.composer ?? ""}
-                            onchange={(event) => commitChartField("composer", event.target.value)}
+                            oncommit={() => commitChartField("composer", chart?.composer ?? "")}
                         />
                     </div>
                     <div class="setting">
                         <span>谱师</span>
-                        <input
-                            class="text-field"
+                        <TextField
                             value={chart?.charter ?? ""}
-                            onchange={(event) => commitChartField("charter", event.target.value)}
+                            oncommit={() => commitChartField("charter", chart?.charter ?? "")}
                         />
                     </div>
                     <div class="setting">
                         <span>曲绘</span>
-                        <input
-                            class="text-field"
+                        <TextField
                             value={chart?.illustrator ?? ""}
-                            onchange={(event) => commitChartField("illustrator", event.target.value)}
+                            oncommit={() => commitChartField("illustrator", chart?.illustrator ?? "")}
                         />
                     </div>
                     <div class="setting">
@@ -2206,6 +2202,7 @@ function applyEdgeScroll(value: boolean): void {
 }
 
 /* ---------- 标签栏 ---------- */
+/* 标签多了允许横向溢出（滚动条隐藏），每个标签内部不换行 */
 .tabs {
     display: flex;
     flex: none;
@@ -2214,16 +2211,25 @@ function applyEdgeScroll(value: boolean): void {
     /* 比底色亮一档：暗色下是 rgb(60,60,60)，和内容区分层 */
     background: var(--surface-2);
     border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .tab {
-    flex: 1;
+    /* 不收缩：均分会把长名字压扁，宁可溢出 */
+    flex: 0 0 auto;
     border: none;
     border-radius: 0;
     background: none;
-    padding: 10px 4px;
+    padding: 10px 10px;
     font-size: 13px;
     color: var(--text-dim);
+    white-space: nowrap;
 }
 
 .tab.active {
@@ -2300,19 +2306,11 @@ function applyEdgeScroll(value: boolean): void {
     padding-top: 2px;
 }
 
-/* 谱面信息里的文本输入框（曲名 / 谱师那些） */
-.setting > .text-field {
+/* 谱面信息里的文本输入框由 `TextField` 自己管样式，这里只管列位置 */
+.setting > :global(input) {
     grid-column: 2;
     width: 100%;
     min-width: 0;
-    box-sizing: border-box;
-    padding: 4px 6px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface-2);
-    color: var(--text);
-    font: inherit;
-    font-size: 13px;
 }
 
 /*

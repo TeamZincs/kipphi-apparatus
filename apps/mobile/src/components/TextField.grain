@@ -1,0 +1,74 @@
+<script>
+    /*
+     * 文本输入框，样式和 `NumField` 保持一致（同一个 padding / 圆角 / 配色）。
+     *
+     * 之前谱面信息那几行用的是裸 `<input>`，边框和底色都是浏览器默认，
+     * 和旁边的 `NumField` 摆在一起明显不搭。
+     *
+     * 和 `NumField` 一样**失焦才回传**（`onblur`），避免每敲一个字符就跑一次
+     * `ChartPropChangeOperation`（那会让撤销栈里全是单个字母）。
+     */
+    let {
+        value = $bindable(""),
+        placeholder = "",
+        disabled = false,
+        oncommit,
+    } = $props<{
+        value?: string;
+        placeholder?: string;
+        disabled?: boolean;
+        oncommit?: () => void;
+    }>();
+
+    /** 聚焦期间用本地文本，失焦才写回 `value` */
+    let text = $state("");
+    let focused = $state(false);
+
+    function onFocus(): void {
+        focused = true;
+        text = value;
+    }
+
+    function commit(): void {
+        focused = false;
+
+        const next = text.trim();
+
+        if (next !== value) value = next;
+
+        oncommit?.();
+    }
+</script>
+
+<input
+    class="text"
+    type="text"
+    {placeholder}
+    {disabled}
+    value={focused ? text : value}
+    bind:value={text}
+    onfocus={onFocus}
+    onblur={commit}
+    onkeydown={(event) => {
+        if (event.key === "Enter") {
+            (event.currentTarget as HTMLInputElement).blur();
+        }
+    }}
+/>
+
+<style>
+    .text {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        /* 和 `NumField` 的 `.num` 完全一致 */
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+</style>
