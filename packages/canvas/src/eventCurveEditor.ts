@@ -3189,6 +3189,10 @@ export abstract class EventSequenceEditor<
         { value: number; beats: number }
     > | null = null;
 
+    /** 拖动期间的预览位置（ghost）；松手时一次性提交 */
+    dragGhost: Map<EventStartNode<any>, { value: number; beats: number }> | null =
+        null;
+
     constructor(
         type: EventType,
         canvas: HTMLCanvasElement,
@@ -4536,85 +4540,103 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         switch (this.state) {
             case EventCurveEditorState.selecting: {
                 /*
-                 * 多选联动：每个节点 = **自己的起点** + 同一个偏移（值和时刻
-                 * 都跟着走）。
+                 * 只更新预览，**不提交** —— 松手时 `commitDrag` 一次性发操作。
                  *
-                 * 时刻用 `EventNodePairTimeChangeOperation`：它内部会找背靠背
-                 * 的伙伴一起移。伙伴也在选中集合里时，第二次操作作用在已经移过
-                 * 的节点上 —— 由「自己的起点 + 偏移」保证结果仍然正确。
+                 * 每帧提交的话撤销栈里会塞几百条，撤销一次只挪一像素。
                  */
-                if (this.dragGroupStart && this.dragGroupStart.size > 1) {
-                    const selected = this.selectedNode as EventStartNode<any>;
-                    const base = this.dragGroupStart.get(selected) ?? {
-                        value: this.pointedValue,
-                        beats: TC.toBeats(selected.time),
-                    };
-                    const deltaValue = this.pointedValue - base.value;
-                    const deltaBeats = this.pointedTime
-                        ? TC.toBeats(this.pointedTime) - base.beats
-                        : 0;
-
-                    const operations = [...this.dragGroupStart].flatMap(
-                        ([node, start]) => {
-                            const ops: O.Operation[] = [
-                                new O.EventNodeValueChangeOperation(
-                                    node,
-                                    start.value + deltaValue,
-                                ),
-                            ];
-
-                            if (deltaBeats !== 0) {
-                                ops.push(
-                                    new O.EventNodePairTimeChangeOperation(
-                                        node,
-                                        [start.beats + deltaBeats, 0, 1],
-                                    ),
-                                );
-                            }
-
-                            return ops;
-                        },
-                    );
-
-                    if (operations.length > 0) {
-                        this.operationList.do(
-                            new O.ComplexOperation(...operations),
-                        );
-                    }
-                    break;
-                }
-
-                /*
-                 * 背靠背联动：按下时锁定的那一对一起改**值和时刻**。
-                 *
-                 * 只改值不改时刻的话，交界处的两个节点会被拉开，"背靠背"
-                 * 当场就散了，所以两个都要跟。
-                 */
-                if (this.linkedDrag) {
-                    // 只传选中的那个，另一个由操作自己 `getEndStart` 取；
-                    // 事务性交给 `ComplexOperation`（无效子操作会被跳过）
-                    this.operationList.do(
-                        new O.EventNodePairChangeOperation(
-                            this.selectedNode,
-                            this.pointedValue,
-                            this.pointedTime,
-                        )
-                    );
-                } else {
-                    this.operationList.do(
-                        new O.EventNodeValueChangeOperation(
-                            this.selectedNode,
-                            this.pointedValue
-                        )
-                    );
-                    this.operationList.do(
-                        new O.EventNodePairTimeChangeOperation(
-                            this.selectedNode,
-                            this.pointedTime
-                        )
-                    );
-                }
+                this.updateDragGhost();
+                this.draw(this.lastBeats);
             }
+        }
+    }
+
+    /**
+     * 把当前指针位置换算成 ghost（预览位置），不碰真实数据。
+     *
+     * 多选时每个节点 = **自己的起点** + 同一个偏移；背靠背的伙伴也一起进
+     * ghost，否则拖动过程中交界处会裂开。
+     */
+    private updateDragGhost(): void {
+        const selected = this.selectedNode as EventStartNode<any> | null;
+
+        if (!selected) {
+            this.dragGhost = null;
+
+            return;
+        }
+
+        const base = this.dragGroupStart?.get(selected) ?? {
+            value: this.pointedValue,
+            beats: TC.toBeats(selected.time),
+        };
+        const deltaValue = this.pointedValue - base.value;
+        const deltaBeats = this.pointedTime
+            ? TC.toBeats(this.pointedTime) - base.beats
+            : 0;
+
+        const ghost = new Map<
+            EventStartNode<any>,
+            { value: number; beats: number }
+        >();
+        const entries =
+            this.dragGroupStart ?? new Map([[selected, base]]);
+
+        for (const [node, start] of entries) {
+            ghost.set(node, {
+                value: start.value + deltaValue,
+                beats: start.beats + deltaBeats,
+            });
+        }
+
+        if (this.linkedDrag) {
+            const partner = sameValuePartner(
+                selected as EventStartNode<number> | EventEndNode<number>,
+            );
+
+            if (partner && !ghost.has(partner as EventStartNode<any>)) {
+                ghost.set(partner as EventStartNode<any>, {
+                    value: base.value + deltaValue,
+                    beats: TC.toBeats(partner.time) + deltaBeats,
+                });
+            }
+        }
+
+        this.dragGhost = ghost;
+    }
+
+    /**
+     * 松手：把 ghost 一次性落成操作。
+     *
+     * 按**时间倒序**提交 —— 时刻操作会改序列结构，从前往后的话后面那些
+     * 目标时刻会算到已经被挪动过的树上。
+     */
+    private commitDrag(): void {
+        const ghost = this.dragGhost;
+
+        this.dragGhost = null;
+        this.dragGroupStart = null;
+        this.linkedDrag = false;
+
+        if (!ghost || ghost.size === 0) return;
+
+        const entries = [...ghost].sort((a, b) => b[1].beats - a[1].beats);
+        const operations: O.Operation[] = [];
+
+        for (const [node, target] of entries) {
+            operations.push(
+                new O.EventNodeValueChangeOperation(node, target.value),
+            );
+            operations.push(
+                new O.EventNodePairTimeChangeOperation(node, [
+                    target.beats,
+                    0,
+                    1,
+                ]),
+            );
+        }
+
+        if (operations.length > 0) {
+            this.operationList.do(new O.ComplexOperation(...operations));
         }
     }
     downHandler(event: MouseEvent | TouchEvent) {
@@ -4708,6 +4730,11 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         // 边缘滚动只在拖动期间有效
         this.parentEditorSet.stopEdgeScroll();
 
+        // 松手：把这次拖动一次性落成操作（拖动期间只有 ghost 预览）
+        if (this.state === EventCurveEditorState.selecting) {
+            this.commitDrag();
+        }
+
         const canvasCoord = (this.canvasPoint = getCanvasCoordFromEvent(
             event,
             this.canvas,
@@ -4775,11 +4802,37 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         node: EventStartNode<number> | EventEndNode<number>,
         seqIndex: number,
     ): [number, number] {
-        const pos = new Coordinate(
-            node.value,
-            TC.toBeats(node.time) - beats,
-        ).mul(this.matrix);
-        this.valuesInFrame.push(node.value);
+        /*
+         * 拖动预览（ghost）：拖动期间**不提交操作**，只按 `dragGhost` 画到目标
+         * 位置；松手时 `commitDrag` 一次性发 `ComplexOperation`。
+         *
+         * 一次拖动每帧一条操作的话，撤销栈里会塞几百条，撤销一次只挪一像素。
+         */
+        let value = node.value;
+        let nodeBeats = TC.toBeats(node.time);
+
+        const ghost = this.dragGhost?.get(node);
+
+        if (ghost) {
+            value = ghost.value;
+            nodeBeats = ghost.beats;
+        } else if (this.dragGhost) {
+            // `end` 节点跟着同一对的 `start` 一起动
+            const start = node.previous as EventStartNode<number> | undefined;
+            const startGhost = start ? this.dragGhost.get(start) : undefined;
+
+            if (startGhost) {
+                value = startGhost.value + (node.value - start.value);
+                nodeBeats =
+                    startGhost.beats +
+                    (TC.toBeats(node.time) - TC.toBeats(start.time));
+            }
+        }
+
+        const pos = new Coordinate(value, nodeBeats - beats).mul(this.matrix);
+
+        this.valuesInFrame.push(value);
+
         return [pos.x, pos.y];
     }
     /**
