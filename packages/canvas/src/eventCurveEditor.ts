@@ -4825,33 +4825,17 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         seqIndex: number,
     ): [number, number] {
         /*
-         * 拖动预览（ghost）：拖动期间**不提交操作**，只按 `dragGhost` 画到目标
-         * 位置；松手时 `commitDrag` 一次性发 `ComplexOperation`。
+         * 节点本体**始终画在它的真实位置**。
          *
-         * 一次拖动每帧一条操作的话，撤销栈里会塞几百条，撤销一次只挪一像素。
+         * 拖动预览交给 `drawPreviewMarker`（和粘贴预览同一套）：那里按
+         * `dragGhost` 画半透明副本。在这里改坐标的话，节点会被画两遍 ——
+         * 一遍在目标位置、一遍在预览层，看着是一实一虚叠在一起。
          */
-        let value = node.value;
-        let nodeBeats = TC.toBeats(node.time);
-
-        const ghost = this.dragGhost?.get(node);
-
-        if (ghost) {
-            value = ghost.value;
-            nodeBeats = ghost.beats;
-        }
-
-        /*
-         * 只让**被拖的那个节点**跟随指针。
-         *
-         * 同一对的另一端（面对面的伙伴）留在原地 —— 拖 start 就是改事件时长，
-         * 和 `EventNodePairTimeChangeOperation` 的语义一致（它也只动一端）。
-         * 让 end 跟着走的视觉效果是"整条一起飘"，用户要的不是这个。
-         */
-
-        const pos = new Coordinate(value, nodeBeats - beats).mul(this.matrix);
-
-        this.valuesInFrame.push(value);
-
+        const pos = new Coordinate(
+            node.value,
+            TC.toBeats(node.time) - beats,
+        ).mul(this.matrix);
+        this.valuesInFrame.push(node.value);
         return [pos.x, pos.y];
     }
     /**
