@@ -16,35 +16,33 @@ import PopupOption from "#/components/PopupOption/PopupOption.grain";
 import TimeDivisorPicker from "#/components/IconButtons/TimeDivisorPicker.grain";
 import SwitchButton from "#/components/IconButtons/SwitchButton.grain";
 import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
-    // 判定线列表直接用移动端那套（`JudgeLinesManager` → `JudgeLineList`）
-    import JudgeLines from "./JudgeLineList.grain";
+
+// 设置页用的两个基础组件
+import NumField from "#/components/NumField.grain";
+import Switch from "#/components/Switch.grain";
 
 import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
-    // `operationList` 是本文件里自己 new 出来的（见下方 `setOperationList` 那段），不从 store 取
     eventsType, eventsLayer,
     playerShowsUI, playerShowsLineID, playerHitEffectNoFollows, playerShowsCurve, playerCameraZoom,
     selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
     timeDivisor, chartId, refreshAll, reflowAll } from "./store";
-        import Constants from "./constants";
 
-    // 侧栏里的面板**全部**来自移动端
-    import JudgeLineSheet from "./JudgeLineSheet.grain";
-    import MacroSheet from "./MacroSheet.grain";
-    import NoteSheet from "./NoteSheet.grain";
-    import EventSheet from "./EventSheet.grain";
-    import MultiNoteSheet from "./MultiNoteSheet.grain";
-    import MultiNodeSheet from "./MultiNodeSheet.grain";
+import Constants from "./constants";
 
-    // 设置页也换成移动端的三个基础组件
-    import NumField from "#/components/NumField.grain";
-    import Switch from "#/components/Switch.grain";
-    import { KPASettings } from "#/settings";
-    import { notify } from "#/notify";
-    import { respack, waitRespack } from "#/respack";
-    import { fetchShader, fetchTexture, fetchVideo } from "#/background";
-    import Errors from "./Errors.grain";
+// 侧栏面板：全部来自移动端
+import JudgeLines from "./JudgeLineList.grain";
+import JudgeLineSheet from "./JudgeLineSheet.grain";
+import MacroSheet from "./MacroSheet.grain";
+import NoteSheet from "./NoteSheet.grain";
+import EventSheet from "./EventSheet.grain";
+import MultiNoteSheet from "./MultiNoteSheet.grain";
+import MultiNodeSheet from "./MultiNodeSheet.grain";
 
-    import { _ReturnType } from "#/background-tauri";
+import { KPASettings } from "#/settings";
+import { notify } from "#/notify";
+import { respack, waitRespack } from "#/respack";
+import { fetchShader, fetchTexture, fetchVideo } from "#/background";
+import { _ReturnType } from "#/background-tauri";
 
 
 /**
@@ -232,6 +230,16 @@ const selectedLineValue = $node({
     get: () => chart?.judgeLines[selectedLineNumber.get()] ?? null,
     listen: (update) => selectedLineNumber.subscribe(update),
 });
+
+/* 解析警告：`KPAError.buffer` 的快照，只读（照搬移动端） */
+let chartErrors = $state<Array<{ message: string; fixed: boolean }>>([]);
+
+function refreshChartErrors(): void {
+    chartErrors = KPAError.buffer.map((error) => ({
+        message: error.message,
+        fixed: error.fixed,
+    }));
+}
 
 let pre0 = 0;
 
@@ -707,6 +715,9 @@ updateTip();
     });
 
     function selectTab(id: number): void {
+        // 切到错误页时同步一次 `KPAError.buffer`
+        if (id === 2) refreshChartErrors();
+
         if (id === 0) activeSecondarySidebar.set(SecondarySidebar.LINES);
         else if (id === 2) activeSecondarySidebar.set(SecondarySidebar.ERRORS);
         else if (id === 3) activeSecondarySidebar.set(SecondarySidebar.GENERAL);
@@ -792,7 +803,19 @@ updateTip();
                     ></MultiNoteSheet>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.ERRORS}
-                <Errors/>
+                <!-- 解析警告：照搬移动端那一段（只读列表） -->
+                {#if chartErrors.length === 0}
+                    <p class="errors-empty">没有解析警告</p>
+                {:else}
+                    {#for error of chartErrors}
+                        <div class="error-line">
+                            <span class="error-tag {error.fixed ? 'fixed' : ''}">
+                                {error.fixed ? "已修复" : "警告"}
+                            </span>
+                            <span class="error-text">{error.message}</span>
+                        </div>
+                    {/for}
+                {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.MACRO}
                 <MacroSheet macro={null} onclose={() => {}}></MacroSheet>
             {:else if activeSecondarySidebarValue === SecondarySidebar.GENERAL}
@@ -1067,6 +1090,38 @@ input[type="range"] {
   font-size: 14px;
   color: #ddd;
   border-bottom: 1px solid #666;
+}
+/* 错误页（照搬移动端） */
+.errors-empty {
+  margin: 0;
+  padding: 16px 0;
+  font-size: 13px;
+  color: #999;
+}
+.error-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  border-bottom: 1px solid #5a5a5a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.error-tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: #a33;
+  color: #fff;
+}
+.error-tag.fixed {
+  background: #3a7;
+}
+.error-text {
+  color: #ddd;
+  word-break: break-word;
 }
 .monaco-sidebar {
   width: 100%;
