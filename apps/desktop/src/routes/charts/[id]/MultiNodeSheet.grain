@@ -16,7 +16,7 @@
         EXPRESSION_HELP,
         type ExpressionEvaluator
     } from "#/expression";
-    import { operationList, refreshAll } from "#/store";
+    import { operationList, refreshAll } from "./store";
 
     let { nodes, onclose } = $props<{
         nodes: any[];

@@ -75,7 +75,7 @@
     import Segmented from "#/components/Segmented.grain";
     import Switch from "#/components/Switch.grain";
 
-    import { operationList } from "#/store";
+    import { operationList } from "./store";
 
     // 桌面端 store 没有单独导出 `chart`，它在 `operationList.chart` 上
     const chart = operationList.chart;
