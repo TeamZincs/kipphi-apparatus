@@ -4618,10 +4618,26 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         }
 
         /*
-         * 背靠背的伙伴**不进 ghost**：单拖时就该只动按住的这一个
-         *（`nodesSelection` 为空时这一点尤其明显 —— 旁边那个跟着飘很怪）。
-         * 真需要成对移动的是多选场景，那批节点本来就在 `dragGroupStart` 里。
+         * 背靠背的伙伴（紫节点）跟着一起走。
+         *
+         * 只带交界处的那个（`end` ↔ 下一个 `start`）；一段**内部**的
+         * `start → end` 是"面对面"，拖一端就是改时长，另一端必须留在原地。
+         *
+         * 伙伴是"另一个节点"，不参与 `dragGroupStart` 的偏移计算 ——
+         * 它的值跟被拖那个一致，时刻也一致（背靠背本来就贴在同一刻）。
          */
+        if (this.linkedDrag) {
+            const partner = sameValuePartner(
+                selected as EventStartNode<number> | EventEndNode<number>,
+            );
+
+            if (partner && !ghost.has(partner as EventStartNode<any>)) {
+                ghost.set(partner as EventStartNode<any>, {
+                    value: base.value + deltaValue,
+                    beats: TC.toBeats(partner.time),
+                });
+            }
+        }
 
         this.dragGhost = ghost;
     }
@@ -4634,12 +4650,25 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
      */
     private commitDrag(): void {
         const ghost = this.dragGhost;
+        const primary = this.selectedNode as EventStartNode<any> | null;
+        const group = this.dragGroupStart;
 
         this.dragGhost = null;
         this.dragGroupStart = null;
         this.linkedDrag = false;
 
         if (!ghost || ghost.size === 0) return;
+
+        /*
+         * 只有「真正被拖的那批」才动时刻。
+         *
+         * 背靠背的伙伴是被 `updateDragGhost` 顺手塞进来的 —— 它的值要跟，
+         * 但时刻不能单独再移一次（那会把交界处拆开）。
+         */
+        const movable =
+            group && group.size > 1
+                ? new Set(group.keys())
+                : new Set(primary ? [primary] : []);
 
         const entries = [...ghost].sort((a, b) => b[1].beats - a[1].beats);
         const operations: O.Operation[] = [];
@@ -4648,6 +4677,9 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             operations.push(
                 new O.EventNodeValueChangeOperation(node, target.value),
             );
+
+            if (!movable.has(node)) continue;
+
             operations.push(
                 new O.EventNodePairTimeChangeOperation(node, [
                     target.beats,
