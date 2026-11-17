@@ -120,6 +120,7 @@ main:
     general: Settings
     script: User Scripts
     macro: Macro
+    objects: Objects
   macro:
     noMacro: No macro is selected
     id: Macro ID

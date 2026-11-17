@@ -120,6 +120,7 @@ main:
     general: 设置
     script: 用户脚本
     macro: 宏
+    objects: 对象
   macro:
     noMacro: 没有选中的宏
     id: 宏ID

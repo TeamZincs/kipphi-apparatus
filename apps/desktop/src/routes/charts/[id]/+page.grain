@@ -844,7 +844,7 @@ updateTip();
      */
     const SIDEBAR_TABS = [
         { id: 0, label: "main.secondary.lines" },
-        { id: 1, label: "main.secondary.note" },
+        { id: 1, label: "main.secondary.objects" },
         { id: 2, label: "main.secondary.errors" },
         { id: 3, label: "main.secondary.general" },
         { id: 4, label: "main.secondary.script" },
@@ -920,46 +920,56 @@ updateTip();
                 <JudgeLines></JudgeLines>
             {:else if activeSecondarySidebarValue === SecondarySidebar.NOTE}
                 {#if selectedNoteValue && selectedNoteValue.parentNode}
-                    <NoteSheet
-                        note={selectedNoteValue}
-                        editor={notesEditor}
-                        onclose={() => {}}
-                    ></NoteSheet>
+                    <div class="padded">
+                        <NoteSheet
+                            note={selectedNoteValue}
+                            editor={notesEditor}
+                            onclose={() => {}}
+                        ></NoteSheet>
+                    </div>
                 {:else}
                 <div style="color: var(--color-foreground)">{_("main.note.noNote")}</div>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.EVENT}
                 {#if selectedNodeValue && selectedNodeValue.parentSeq}
-                    <EventSheet
-                        node={selectedNodeValue}
-                        editor={eventSequenceEditors}
-                        onclose={() => {}}
-                    ></EventSheet>
+                    <div class="padded">
+                        <EventSheet
+                            node={selectedNodeValue}
+                            editor={eventSequenceEditors}
+                            onclose={() => {}}
+                        ></EventSheet>
+                    </div>
                 {:else}
                 <div style="color: var(--color-foreground)">{_("main.event.noEvent")}</div>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.LINE}
                 {#if selectedLineValue}
-                    <JudgeLineSheet
-                        line={selectedLineValue}
-                        onclose={() => {}}
-                    ></JudgeLineSheet>
+                    <div class="padded">
+                        <JudgeLineSheet
+                            line={selectedLineValue}
+                            onclose={() => {}}
+                        ></JudgeLineSheet>
+                    </div>
                 {:else}
                     <div style="color: var(--color-foreground)">没有选中的判定线</div>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.MULTI_NODE}
                 {#if selectedNodesValue && selectedNodesValue.size > 0}
-                    <MultiNodeSheet
-                        nodes={[...selectedNodesValue]}
-                        onclose={() => {}}
-                    ></MultiNodeSheet>
+                    <div class="padded">
+                        <MultiNodeSheet
+                            nodes={[...selectedNodesValue]}
+                            onclose={() => {}}
+                        ></MultiNodeSheet>
+                    </div>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.MULTI_NOTE}
                 {#if selectedNotesValue && selectedNotesValue.size > 0}
-                    <MultiNoteSheet
-                        notes={[...selectedNotesValue]}
-                        onclose={() => {}}
-                    ></MultiNoteSheet>
+                    <div class="padded">
+                        <MultiNoteSheet
+                            notes={[...selectedNotesValue]}
+                            onclose={() => {}}
+                        ></MultiNoteSheet>
+                    </div>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.ERRORS}
                 <!-- 解析警告：照搬移动端那一段（只读列表） -->
@@ -978,7 +988,9 @@ updateTip();
                 {/if}
                 </div>
             {:else if activeSecondarySidebarValue === SecondarySidebar.MACRO}
-                <MacroSheet macro={null} onclose={() => {}}></MacroSheet>
+                <div class="padded">
+                    <MacroSheet macro={null} onclose={() => {}}></MacroSheet>
+                </div>
             {:else if activeSecondarySidebarValue === SecondarySidebar.GENERAL}
                 <!-- 播放器开关 / 时间参数：全部用移动端的 Switch + NumField -->
                 <div class="padded">

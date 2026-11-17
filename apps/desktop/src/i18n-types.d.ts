@@ -102,6 +102,7 @@ export interface I18nMapping {
 "main.secondary.general": never;
 "main.secondary.script": never;
 "main.secondary.macro": never;
+"main.secondary.objects": never;
 "main.macro.noMacro": never;
 "main.macro.id": never;
 "main.macro.kind.note": never;
@@ -332,6 +333,12 @@ export interface I18nMapping {
 "general.modes.substract": never;
 "general.modes.none": never;
 "general.return": never;
-"error.chart": never
+"error.chart": never;
+"mobile.tabs.lines": never;
+"mobile.tabs.notes": never;
+"mobile.tabs.events": never;
+"mobile.tabs.ops": never;
+"mobile.tabs.errors": never;
+"mobile.tabs.settings": never
 }
 

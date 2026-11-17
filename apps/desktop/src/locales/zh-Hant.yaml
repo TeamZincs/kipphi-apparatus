@@ -120,6 +120,7 @@ main:
     general: 設定
     script: 使用者指令碼
     macro: 宏
+    objects: 對象
   macro:
     noMacro: 沒有選中的宏
     id: 宏ID
