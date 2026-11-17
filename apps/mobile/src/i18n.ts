@@ -9,6 +9,7 @@
  * 换语言不会自动重画。换语言只发生在设置页，所以这里换完直接整页重载 ——
  * 简单、且不会留下"有些字没换"的半吊子状态。
  */
+import { writable } from '@graints/runtime';
 import { setLocale as KPCESetLocale } from '@kpa/canvas/messages';
 import { parse as parseYAML } from 'yaml';
 
@@ -101,8 +102,35 @@ export function t<T extends keyof I18nMapping>(
 
 /**
  * `_` 是历史上的名字（svelte-i18n 的 `$_`），组件里直接 `import { _ }` 就是它。
+ *
+ * 这是**非响应式**入口：`_("a.b")` 在渲染时求值一次，换语言后不会自己重画。
+ * 要响应式就用 `_i18n`（见下）。
  */
 export const _ = t;
+
+/**
+ * 响应式取词：store 里装的是**函数**，页面里 `let _ = $read(_i18n)`。
+ *
+ * 和 svelte-i18n 把 `$_` 做成 store 是同一个思路 —— 换语言时 `set` 一个新
+ * 函数实例，所有读过它的地方重新求值。
+ *
+ * 函数体故意每次都新建（而不是复用同一个引用）：store 的 `set` 若拿到相同
+ * 引用会跳过通知（`!==` 判等），那样换语言就不生效了。
+ */
+export const _i18n = writable(
+    (id: string, options?: { values?: Record<string, unknown> }): string =>
+        t(id as never, options as never),
+);
+
+/** 重新装词典并把新函数推给所有订阅者 */
+async function refreshI18n(): Promise<void> {
+    await load(KPASettings.lang);
+
+    _i18n.set(
+        (id: string, options?: { values?: Record<string, unknown> }): string =>
+            t(id as never, options as never),
+    );
+}
 
 /** 加载一门语言（不触发重载） */
 async function load(name: string): Promise<void> {
@@ -132,13 +160,15 @@ export async function initI18n(): Promise<void> {
     KPCESetLocale(name);
 }
 
-/** 当前语言；换语言要整页重载，所以这里只提供"改完就重载"的 `set` */
+/** 当前语言。换语言不再整页重载 —— store 换了新函数，界面自己会跟着变 */
 export const locale = {
     get(): string {
         return KPASettings.lang;
     },
     set(value: string): void {
         KPASettings.lang = value;
-        location.reload();
+
+        // 装词典 + 通知订阅者；失败也不要卡住设置页
+        void refreshI18n();
     }
 };

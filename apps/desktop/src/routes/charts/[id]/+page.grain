@@ -6,7 +6,7 @@ import { getChartProject } from "#/background";
 import { setID, setOperationList, registerPageCleanup } from "./store";
 import { Chart, EventEndNode, EventStartNode, EventType, KPAError, Op as O, TC, type ExtendedEventTypeName } from "kipphi";
 
-import { _ } from "#/i18n";
+import { _i18n } from "#/i18n";
 
 import AutoSaveRunner from "./autosaveRunner";
 
@@ -48,6 +48,18 @@ import { _ReturnType } from "#/background-tauri";
 /**
  * 谱面 ID 来自当前路由（原来是 SvelteKit 的 `+page.ts` 里读 `event.params.id`）。
  */
+/*
+ * 取词函数从 store 读 —— 换语言时 store 换新函数，模板里所有 `_("...")`
+ * 跟着重算（和 svelte-i18n 的 `$_` 一个路子）。
+ *
+ * 这里用 `$node` 的长写：`$read` 目前只在**模板位置**有效，写进 `let`
+ * 会展开成 `listen: ...` 那么一段、接不住。
+ */
+let _ = $node({
+    get: () => _i18n.get(),
+    listen: (update: (fn: unknown) => void) => _i18n.subscribe(update),
+});
+
 const chartIdParam = route.get().params.id;
 setID(chartIdParam);
 

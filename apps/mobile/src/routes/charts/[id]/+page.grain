@@ -52,7 +52,7 @@
         setPlayer
     } from "#/store";
     import { readDefaultRespackFile } from "#/tauri";
-import { _ } from "#/i18n";
+import { _i18n } from "#/i18n";
 
     //#region 页面状态
     type MobileTab =
@@ -64,19 +64,28 @@ import { _ } from "#/i18n";
         | "settings";
 
     /*
-     * 标签文案走 i18n。这里只在模块初始化时求值一次 —— 换语言是整页重载，
-     * 不需要响应式。
+     * 取词函数从 store 读：换语言时 store 换新函数，模板里所有 `_("...")`
+     * 跟着重算（和 svelte-i18n 的 `$_` 一个路子）。
+     */
+    let _ = $node({
+        get: () => _i18n.get(),
+        listen: (update: (fn: unknown) => void) => _i18n.subscribe(update),
+    });
+
+    /*
+     * 标签只存**键名**，文案在模板里用 `_(item.label)` 取 —— 那样换语言时
+     * 会跟着重算。
      */
     const tabs: Array<{ id: MobileTab; label: string }> = [
-        { id: "lines", label: _("mobile.tabs.lines") },
-        { id: "notes", label: _("mobile.tabs.notes") },
-        { id: "events", label: _("mobile.tabs.events") },
+        { id: "lines", label: "mobile.tabs.lines" },
+        { id: "notes", label: "mobile.tabs.notes" },
+        { id: "events", label: "mobile.tabs.events" },
         // 只读的操作栈：已撤销的在上面，用虚线跟已做的分开
-        { id: "ops", label: _("mobile.tabs.ops") },
+        { id: "ops", label: "mobile.tabs.ops" },
         // 解析时收集到的警告（`KPAError.buffer`）
-        { id: "errors", label: _("mobile.tabs.errors") },
+        { id: "errors", label: "mobile.tabs.errors" },
         // 画布设置：拍数分母 / 视野跨度 / 网格密度 / NNN 参考线
-        { id: "settings", label: _("mobile.tabs.settings") }
+        { id: "settings", label: "mobile.tabs.settings" }
     ];
 
     let activeTab = $state<MobileTab>("lines");
@@ -1504,7 +1513,7 @@ import { _ } from "#/i18n";
     <nav class="tabs">
         {#for item of tabs with key = item}
             <button class="tab {item.id === activeTab ? "active" : ""}" onclick={() => pick(item.id)}>
-                {item.label}
+                {_(item.label)}
             </button>
         {/for}
 
