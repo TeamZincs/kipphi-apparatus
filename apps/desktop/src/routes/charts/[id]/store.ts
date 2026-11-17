@@ -332,6 +332,14 @@ export function registerRefresh(handler: () => void) {
     };
 }
 
+/**
+ * 谱面加载完成的信号（每次载入 +1）。
+ *
+ * 从移动端搬来的 `JudgeLineList` 用它触发重算：谱面对象是普通变量，
+ * 赋值本身不通知任何人，列表的 `$node` 挂载时就把 `judgeLines` 读进缓存了。
+ */
+export const chartLoaded = writable(0);
+
 let refreshing = false;
 
 export function refreshAll() {

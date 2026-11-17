@@ -19,7 +19,8 @@ import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
     import ArrowedInput from "#/components/Inputs/ArrowedInput.grain";
     import Label from "#/components/Label.grain";
     import UnitInput from "#/components/Inputs/UnitInput.grain";
-    import JudgeLines from "./JudgeLinesManager.grain";
+    // 判定线列表直接用移动端那套（`JudgeLinesManager` → `JudgeLineList`）
+    import JudgeLines from "./JudgeLineList.grain";
 
 import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     // `operationList` 是本文件里自己 new 出来的（见下方 `setOperationList` 那段），不从 store 取
@@ -749,7 +750,7 @@ updateTip();
                     suffix={`(${selectedLineName})`}
                     loops
                 />
-                <JudgeLines chart={chart}></JudgeLines>
+                <JudgeLines></JudgeLines>
                 <JudgeLineEditor></JudgeLineEditor>
             {:else if activeSecondarySidebarValue === SecondarySidebar.NOTE}
                 {#if selectedNoteValue && selectedNoteValue.parentNode}

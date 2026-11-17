@@ -1,0 +1,160 @@
+<script>
+    /*
+     * 判定线列表：工具栏（布局下拉框）+ 三种布局的容器。
+     *
+     * 每一行都是递归组件 `JudgeLineRow`（含子树），跟桌面端
+     * `JudgeLinesManager` → `JudgeLineManager` 的结构一致。
+     */
+    import Segmented from "#/components/Segmented.grain";
+
+    /*
+     * 桌面端的 store 在 `./store`（`#/store` 指向 `src/store.ts`，桌面端没有那个
+     * 文件），而且没有单独导出 `chart` —— 它在 `operationList.chart` 上。
+     */
+    import { operationList, chartLoaded, registerReflow } from "./store";
+
+    const chart = operationList?.chart;
+
+    import JudgeLineGroups from "./JudgeLineGroups.grain";
+    import JudgeLineRows from "./JudgeLineRows.grain";
+
+    /** 三种布局，跟桌面端 `JudgeLinesManager` 一致 */
+    type Layout = "ordered" | "tree" | "grouped";
+
+    let layout = $state<Layout>("ordered");
+    let foldedGroups = $state<string[]>([]);
+
+    /** 三种布局（按钮排：只有三个，直接摆开比下拉框快） */
+    const LAYOUTS: Layout[] = ["ordered", "tree", "grouped"];
+    const layoutOptions: [number, string][] = [
+        [0, "顺序"],
+        [1, "树形"],
+        [2, "分组"]
+    ];
+
+    /*
+     * 注意：`listen` 必须**内联成箭头函数**。
+     * 编译器只认 `listen: (update) => …` 这种字面写法，写成
+     * `listen: someConst` 会被直接丢掉（产物里 $node 就只剩 get，
+     * 于是谱面加载完也不会重算 —— 列表永远是空的）。
+     */
+
+    /** 顺序：平铺，不展开子线 */
+    const orderedLines = $node({
+        get: () => (chart ? [...chart.judgeLines].sort((a, b) => a.id - b.id) : []),
+        listen: (update) => {
+            chartLoaded.subscribe(update);
+            registerReflow(update);
+        }
+    });
+
+    /** 树形：只给根判定线，子线由行组件自己递归 */
+    const treeLines = $node({
+        get: () => (chart ? [...chart.orphanLines].sort((a, b) => a.id - b.id) : []),
+        listen: (update) => {
+            chartLoaded.subscribe(update);
+            registerReflow(update);
+        }
+    });
+
+    /** 分组 */
+    const groups = $node({
+        get: () => (chart ? [...chart.judgeLineGroups] : []),
+        listen: (update) => {
+            chartLoaded.subscribe(update);
+            registerReflow(update);
+        }
+    });
+
+    function toggleGroup(name: string): void {
+        foldedGroups = foldedGroups.includes(name)
+            ? foldedGroups.filter((item) => item !== name)
+            : [...foldedGroups, name];
+    }
+
+    /**
+     * 组标题的点击走**事件委托**。
+     *
+     * 不在 `{#for}` 里直接写 `onclick={() => toggleGroup(group.name)}`：编译器对
+     * `{#for}` 内的事件处理器会生成 `__handler$N` 并要求把定义填回行内的占位符，
+     * 但那个占位符（`/*@row:N*\/`）目前没有写入点，定义被丢掉之后就成了
+     * `ReferenceError: __handler$N is not defined`。
+     */
+    function onListClick(event: MouseEvent): void {
+        const element = (event.target as HTMLElement).closest<HTMLElement>("[data-group]");
+
+        if (!element) return;
+
+        const name = element.dataset.group;
+
+        if (name !== undefined) toggleGroup(name);
+    }
+</script>
+
+<div class="pane">
+    <div class="toolbar">
+        <span class="hint">布局</span>
+        <Segmented
+            variant="plain"
+            options={layoutOptions}
+            bind:value={
+                get: () => Math.max(0, LAYOUTS.indexOf(layout)),
+                set: (v: number) => (layout = LAYOUTS[v] ?? "ordered")
+            }
+        />
+    </div>
+
+    <div class="list" onclick={onListClick}>
+        <!--
+            每个分支都套一层容器：切分支时运行时会把这一段整个摘掉，
+            而 `{#for}` 生成的列表节点是列表自己管的，不套容器就摘不干净 ——
+            表现为"新布局追加在旧布局下面"。
+        -->
+        {#if layout === "ordered"}
+            <div class="rows">
+                <JudgeLineRows lines={orderedLines} flat />
+            </div>
+        {:else if layout === "tree"}
+            <div class="rows">
+                <JudgeLineRows lines={treeLines} />
+            </div>
+        {:else}
+            <div class="rows">
+                <JudgeLineGroups groups={groups} folded={foldedGroups} />
+            </div>
+        {/if}
+    </div>
+</div>
+
+<style>
+.pane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.hint {
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0;
+}
+
+</style>
