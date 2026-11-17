@@ -887,7 +887,11 @@ updateTip();
                 {/for}
             </div>
 
-
+            <!--
+                页面体是**唯一**的滚动容器：tabs 固定在上面不跟着滚。
+                （`.sidebar-content` 只负责纵向排布，overflow 交给这里。）
+            -->
+            <div class="sidebar-panel">
             {#if activeSecondarySidebarValue === SecondarySidebar.LINES}
                 <JudgeLines></JudgeLines>
             {:else if activeSecondarySidebarValue === SecondarySidebar.NOTE}
@@ -1112,6 +1116,7 @@ updateTip();
                     用户脚本（待实现）
                 </div>
             {/if}
+            </div>
         </div>
     </div>
     <div id="footer">
@@ -1254,11 +1259,24 @@ input[type="range"] {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  overflow-y: auto;
+  /* 自己不滚：滚动交给下面的 `.sidebar-panel`，tabs 才能固定住 */
+  overflow: hidden;
   display: flex;
   /* `stretch`：搬来的列表 / Sheet 要铺满整宽（`center` 会让它们缩成一条） */
   align-items: stretch;
   flex-direction: column;
+  gap: 3px;
+  scrollbar-width: none;
+}
+
+/* 页面体：唯一可滚动的部分（tabs 在它上面，不跟着滚） */
+.sidebar-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 3px;
   scrollbar-width: none;
 }
