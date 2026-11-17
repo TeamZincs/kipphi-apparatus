@@ -812,6 +812,43 @@ function commitChartOffset(raw: string): void {
     operationList.do(new Op.ChartPropChangeOperation(chart, "offset", value));
 }
 
+/*
+ * 谱面信息六个字段的节点。
+ *
+ * `TextField` / `NumField` 的 `value` 是 `$bindable` —— 传普通表达式
+ *（`value={chart?.name ?? ""}`）时编译器只求值一次，回写也传不回来，
+ * 输入框就永远是空的。挂到 `$node` 上，读写都走 getter / setter。
+ */
+const chartNameNode = $node({
+    get: () => chart?.name ?? "",
+    set: (value: string) => commitChartField("name", value),
+});
+
+const chartLevelNode = $node({
+    get: () => chart?.level ?? "",
+    set: (value: string) => commitChartField("level", value),
+});
+
+const chartComposerNode = $node({
+    get: () => chart?.composer ?? "",
+    set: (value: string) => commitChartField("composer", value),
+});
+
+const chartCharterNode = $node({
+    get: () => chart?.charter ?? "",
+    set: (value: string) => commitChartField("charter", value),
+});
+
+const chartIllustratorNode = $node({
+    get: () => chart?.illustrator ?? "",
+    set: (value: string) => commitChartField("illustrator", value),
+});
+
+const chartOffsetNode = $node({
+    get: () => String(chart?.offset ?? 0),
+    set: (value: string) => commitChartOffset(value),
+});
+
 function applyEdgeScroll(value: boolean): void {
         if (notesEditor) notesEditor.edgeScrollEnabled = value;
         if (eventEditors) eventEditors.edgeScrollEnabled = value;
@@ -1726,46 +1763,27 @@ function applyEdgeScroll(value: boolean): void {
                 <div class="settings">
                     <div class="setting">
                         <span>曲名</span>
-                        <TextField
-                            value={chart?.name ?? ""}
-                            oncommit={() => commitChartField("name", chart?.name ?? "")}
-                        />
+                        <TextField bind:value={chartNameNode} />
                     </div>
                     <div class="setting">
                         <span>难度</span>
-                        <TextField
-                            value={chart?.level ?? ""}
-                            oncommit={() => commitChartField("level", chart?.level ?? "")}
-                        />
+                        <TextField bind:value={chartLevelNode} />
                     </div>
                     <div class="setting">
                         <span>作曲</span>
-                        <TextField
-                            value={chart?.composer ?? ""}
-                            oncommit={() => commitChartField("composer", chart?.composer ?? "")}
-                        />
+                        <TextField bind:value={chartComposerNode} />
                     </div>
                     <div class="setting">
                         <span>谱师</span>
-                        <TextField
-                            value={chart?.charter ?? ""}
-                            oncommit={() => commitChartField("charter", chart?.charter ?? "")}
-                        />
+                        <TextField bind:value={chartCharterNode} />
                     </div>
                     <div class="setting">
                         <span>曲绘</span>
-                        <TextField
-                            value={chart?.illustrator ?? ""}
-                            oncommit={() => commitChartField("illustrator", chart?.illustrator ?? "")}
-                        />
+                        <TextField bind:value={chartIllustratorNode} />
                     </div>
                     <div class="setting">
                         <span>偏移</span>
-                        <NumField
-                            bind:value={get: () => String(chart?.offset ?? 0), set: (raw: string) => {
-                                commitChartOffset(raw);
-                            }}
-                        />
+                        <NumField bind:value={chartOffsetNode} />
                     </div>
                 </div>
             </div>
