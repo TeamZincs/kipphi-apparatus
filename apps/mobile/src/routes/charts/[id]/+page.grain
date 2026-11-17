@@ -66,11 +66,10 @@ import { _i18n } from "#/i18n";
     /*
      * 取词函数从 store 读：换语言时 store 换新函数，模板里所有 `_("...")`
      * 跟着重算（和 svelte-i18n 的 `$_` 一个路子）。
+     *
+     * `$node` 的参数可以省花括号，`$read` 展开成 `listen: ...` 正好补上。
      */
-    let _ = $node({
-        get: () => _i18n.get(),
-        listen: (update: (fn: unknown) => void) => _i18n.subscribe(update),
-    });
+    let _ = $node($read(_i18n));
 
     /*
      * 标签只存**键名**，文案在模板里用 `_(item.label)` 取 —— 那样换语言时

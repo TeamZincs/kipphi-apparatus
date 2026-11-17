@@ -52,13 +52,10 @@ import { _ReturnType } from "#/background-tauri";
  * 取词函数从 store 读 —— 换语言时 store 换新函数，模板里所有 `_("...")`
  * 跟着重算（和 svelte-i18n 的 `$_` 一个路子）。
  *
- * 这里用 `$node` 的长写：`$read` 目前只在**模板位置**有效，写进 `let`
- * 会展开成 `listen: ...` 那么一段、接不住。
+ * `$node` 的参数可以省花括号，而 `$read` 正好展开成 `listen: ...` 那一截，
+ * 拼起来就是一个完整的节点定义。
  */
-let _ = $node({
-    get: () => _i18n.get(),
-    listen: (update: (fn: unknown) => void) => _i18n.subscribe(update),
-});
+let _ = $node($read(_i18n));
 
 const chartIdParam = route.get().params.id;
 setID(chartIdParam);
