@@ -27,17 +27,17 @@ import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     playerShowsUI, playerShowsLineID, playerHitEffectNoFollows, playerShowsCurve, playerCameraZoom,
     selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
     timeDivisor, chartId, refreshAll, reflowAll } from "./store";
-    import NoteEditor from "./NoteEditor.grain";
-    import Constants from "./constants";
-    import NotesSidebar from "./NotesSidebar.grain";
+        import Constants from "./constants";
     import Tooltip from "#/components/Tooltip.grain";
     import JudgeLineEditor from "./JudgeLineEditor.grain";
-    import EventsSidebar from "./EventsSidebar.grain";
-    import EventEditor from "./EventEditor.grain";
     import ChartInfoEditor from "./ChartInfoEditor.grain";
     import MacroEditor from "./MacroEditor.grain";
-    import MultiNodeEditor from "./MultiNodeEditor.grain";
-    import MultiNoteEditor from "./MultiNoteEditor.grain";
+
+    // 从移动端直接搬过来的折叠面板内容
+    import NoteSheet from "./NoteSheet.grain";
+    import EventSheet from "./EventSheet.grain";
+    import MultiNoteSheet from "./MultiNoteSheet.grain";
+    import MultiNodeSheet from "./MultiNodeSheet.grain";
     import { KPASettings } from "#/settings";
     import { notify } from "#/notify";
     import { respack, waitRespack } from "#/respack";
@@ -722,7 +722,12 @@ updateTip();
         <canvas bind:this={eventSequenceEditorCanvas} id="ece" width={600} height={900}>Your device does not support the HTML5 canvas element.</canvas>
     </div>
     <!-- 画布必须一开始就存在（`Player.create` 拿的就是它们）；侧栏里的面板靠 `{#if}` 惰性建 -->
-    <div id="secondary-sidebar">
+    <!--
+        右侧栏：原来的主 / 次两个（20vh + 30vh）合并成这一块 50vh。
+        判定线序号、播放器开关都并进各自的页签；`NotesSidebar` / `EventsSidebar`
+        不要了 —— KPA 3 的画布自带那些按钮。
+    -->
+    <div id="sidebar">
         <div class="sidebar-shadow"></div>
         <div class="sidebar-content">
             <div class="tabs">
@@ -736,16 +741,33 @@ updateTip();
 
 
             {#if activeSecondarySidebarValue === SecondarySidebar.LINES}
+                <!-- 判定线序号原来在另一个侧栏里，并到这 -->
+                <Label small>{_("main.sidebar.linenumber") + ` (${chart?.judgeLines.length ?? 0})`}</Label>
+                <ArrowedInput
+                    max={(chart?.judgeLines.length ?? 1) - 1} min={0}
+                    bind:value={$store(selectedLineNumber)}
+                    suffix={`(${selectedLineName})`}
+                    loops
+                />
                 <JudgeLines chart={chart}></JudgeLines>
+                <JudgeLineEditor></JudgeLineEditor>
             {:else if activeSecondarySidebarValue === SecondarySidebar.NOTE}
                 {#if selectedNoteValue && selectedNoteValue.parentNode}
-                <NoteEditor target={selectedNoteValue}></NoteEditor>
+                    <NoteSheet
+                        note={selectedNoteValue}
+                        editor={notesEditor}
+                        onclose={() => {}}
+                    ></NoteSheet>
                 {:else}
                 <div style="color: var(--color-foreground)">{_("main.note.noNote")}</div>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.EVENT}
                 {#if selectedNodeValue && selectedNodeValue.parentSeq}
-                <EventEditor></EventEditor>
+                    <EventSheet
+                        node={selectedNodeValue}
+                        editor={eventSequenceEditors}
+                        onclose={() => {}}
+                    ></EventSheet>
                 {:else}
                 <div style="color: var(--color-foreground)">{_("main.event.noEvent")}</div>
                 {/if}
@@ -755,17 +777,43 @@ updateTip();
                 <ChartInfoEditor></ChartInfoEditor>
             {:else if activeSecondarySidebarValue === SecondarySidebar.MULTI_NODE}
                 {#if selectedNodesValue && selectedNodesValue.size > 0}
-                    <MultiNodeEditor target={selectedNodesValue}></MultiNodeEditor>
+                    <MultiNodeSheet
+                        nodes={[...selectedNodesValue]}
+                        onclose={() => {}}
+                    ></MultiNodeSheet>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.MULTI_NOTE}
                 {#if selectedNotesValue && selectedNotesValue.size > 0}
-                    <MultiNoteEditor target={selectedNotesValue}></MultiNoteEditor>
+                    <MultiNoteSheet
+                        notes={[...selectedNotesValue]}
+                        onclose={() => {}}
+                    ></MultiNoteSheet>
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.ERRORS}
                 <Errors/>
             {:else if activeSecondarySidebarValue === SecondarySidebar.MACRO}
                 <MacroEditor/>
             {:else if activeSecondarySidebarValue === SecondarySidebar.GENERAL}
+                <!-- 播放器开关原来在另一个侧栏里，并到这 -->
+                <Label>{_("main.sidebar.player")}</Label>
+                <TextSwitchButton wide bgText={_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$store(playerShowsUI)}/>
+                <TextSwitchButton wide bgText={_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$store(playerShowsLineID)}/>
+                <TextSwitchButton wide bgText={_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$store(playerHitEffectNoFollows)}/>
+                <TextSwitchButton wide bgText={_("main.player.showsCurve")} onText="Y" offText="N" bind:checked={$store(playerShowsCurve)}/>
+                <Label small>{_("main.player.volume")}</Label>
+                <ArrowedInput bind:value={volume} step={0.5}></ArrowedInput>
+                <PopupOption wide
+                    bind:currentOption={aspect}
+                    options={
+                        [3 / 2, 16 / 9, 4 / 3]
+                    }
+                    displayTexts={
+                        ["3:2", "16:9", "4:3"]
+                    }
+                    onchange={() => player.useNewAspect()}
+                ></PopupOption>
+                <Label small>{_("main.player.cameraZoom")}</Label>
+                <ArrowedInput bind:value={$store(playerCameraZoom)}></ArrowedInput>
                 <Label small>
                     {_("main.sidebar.timeDivisor.term")}
                     <Tooltip>{_("main.sidebar.timeDivisor.desc")}</Tooltip>
@@ -808,44 +856,6 @@ updateTip();
             <div class="monaco-sidebar" style="display: {activeSecondarySidebarValue === SecondarySidebar.SCRIPT ? '' : 'none'}">
                 <MonacoEdtior></MonacoEdtior>
             </div>
-        </div>
-    </div>
-    <div id="sidebar">
-        <div class="sidebar-shadow"></div>
-        <div class="sidebar-content">
-            <!--TimeDivisorPicker /-->
-            <Label small>{_("main.sidebar.linenumber") + ` (${chart?.judgeLines.length ?? 0})`}</Label>
-            <ArrowedInput
-                max={(chart?.judgeLines.length ?? 1) - 1} min={0}
-                bind:value={$store(selectedLineNumber)}
-                suffix={`(${selectedLineName})`}
-                loops
-            />
-            {#if activeSidebarValue === Sidebar.DEFAULT}
-                <Label>{_("main.sidebar.player")}</Label>
-                <TextSwitchButton wide bgText={_("main.player.showsUI")} onText="Y" offText="N" bind:checked={$store(playerShowsUI)}/>
-                <TextSwitchButton wide bgText={_("main.player.showsLineID")} onText="Y" offText="N" bind:checked={$store(playerShowsLineID)}/>
-                <TextSwitchButton wide bgText={_("main.player.hitEffectNoFollows")} onText="Y" offText="N" bind:checked={$store(playerHitEffectNoFollows)}/>
-                <TextSwitchButton wide bgText={_("main.player.showsCurve")} onText="Y" offText="N" bind:checked={$store(playerShowsCurve)}/>
-                <Label small>{_("main.player.volume")}</Label>
-                <ArrowedInput bind:value={volume} step={0.5}></ArrowedInput>
-                <PopupOption wide
-                    bind:currentOption={aspect}
-                    options={
-                        [3 / 2, 16 / 9, 4 / 3]
-                    }
-                    displayTexts={
-                        ["3:2", "16:9", "4:3"]
-                    }
-                    onchange={() => player.useNewAspect()}
-                ></PopupOption>
-                <Label small>{_("main.player.cameraZoom")}</Label>
-                <ArrowedInput bind:value={$store(playerCameraZoom)}></ArrowedInput>
-            {:else if activeSidebarValue === Sidebar.NOTES}
-                <NotesSidebar/>
-            {:else if activeSidebarValue === Sidebar.EVENTS}
-                <EventsSidebar/>
-            {/if}
         </div>
     </div>
     <div id="footer">
@@ -958,11 +968,11 @@ input[type="range"] {
 #ece:active {
   cursor: grabbing;
 }
-#sidebar,
-#secondary-sidebar {
+/* 原来两个侧栏合计 50vh，合并后仍然是 50vh（`--player-width` 不用改） */
+#sidebar {
   position: fixed;
   height: var(--player-height);
-  width: 20vh;
+  width: 50vh;
   right: 0;
   top: 0;
   background-color: #555;
@@ -970,10 +980,8 @@ input[type="range"] {
   padding: 1vh;
   box-sizing: border-box;
   scrollbar-width: none;
-}
-#secondary-sidebar {
-  right: 20vh;
-  width: 30vh;
+  display: flex;
+  flex-direction: column;
 }
 .sidebar-shadow {
   position: absolute;
