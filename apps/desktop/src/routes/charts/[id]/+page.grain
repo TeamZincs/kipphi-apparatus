@@ -241,6 +241,77 @@ function refreshChartErrors(): void {
     }));
 }
 
+/*
+ * 画布参数（从移动端设置页搬过来的那几项）。
+ *
+ * 改的是**编辑器上的字段**，不是谱面数据 —— 不走 operationList，改完立刻重绘。
+ * 这里用 `$state` 镜像一份，`NumField` 要字符串、`Switch` 要布尔，直接绑
+ * 编辑器字段的话没有响应式来源。
+ */
+let timeSpanValue = $state(4);
+let positionSpanValue = $state(1350);
+let gridValue = $state(135);
+let showsNNNValue = $state(true);
+let edgeScrollValue = $state(true);
+
+function applyTimeSpan(raw: string): void {
+    const value = Number(raw);
+
+    if (!Number.isFinite(value) || value <= 0) return;
+
+    timeSpanValue = value;
+
+    if (notesEditor) {
+        notesEditor.timeSpan = value;
+        notesEditor.draw();
+    }
+
+    // 事件画布也跟着走，两边时间轴才对得上
+    eventSequenceEditors?.setTimeSpan(value);
+}
+
+function applyPositionSpan(raw: string): void {
+    const value = Number(raw);
+
+    if (!Number.isFinite(value) || value <= 0) return;
+
+    positionSpanValue = value;
+
+    if (notesEditor) {
+        notesEditor.positionSpan = value;
+        notesEditor.draw();
+    }
+}
+
+function applyNoteGrid(raw: string): void {
+    const value = Number(raw);
+
+    if (!Number.isFinite(value) || value <= 0) return;
+
+    gridValue = value;
+
+    if (notesEditor) {
+        notesEditor.positionGridSpan = value;
+        notesEditor.draw();
+    }
+}
+
+function applyShowsNNN(value: boolean): void {
+    showsNNNValue = value;
+
+    if (!notesEditor) return;
+
+    notesEditor.showsNNNListAttachable = value;
+    notesEditor.draw();
+}
+
+function applyEdgeScroll(value: boolean): void {
+    edgeScrollValue = value;
+
+    if (notesEditor) notesEditor.edgeScrollEnabled = value;
+    if (eventSequenceEditors) eventSequenceEditors.edgeScrollEnabled = value;
+}
+
 let pre0 = 0;
 
 const renderingTimeCalculator = Object.getOwnPropertyDescriptor(Player.prototype, "renderingTime").get;
@@ -894,6 +965,48 @@ updateTip();
                         bind:value={get: () => String(KPASettings.replayCompensation), set: (raw: string) => {
                             const next = Number(raw);
                             if (Number.isFinite(next)) KPASettings.replayCompensation = next;
+                        }}
+                    />
+                </div>
+
+                <!-- 画布参数：照搬移动端设置页 -->
+                <div class="setting">
+                    <span>时间跨度（拍）</span>
+                    <NumField
+                        bind:value={get: () => String(timeSpanValue), set: (raw: string) => {
+                            applyTimeSpan(raw);
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>值跨度</span>
+                    <NumField
+                        bind:value={get: () => String(positionSpanValue), set: (raw: string) => {
+                            applyPositionSpan(raw);
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>音符网格间距</span>
+                    <NumField
+                        bind:value={get: () => String(gridValue), set: (raw: string) => {
+                            applyNoteGrid(raw);
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>显示 NNN 参考线</span>
+                    <Switch
+                        bind:checked={get: () => showsNNNValue, set: (v: boolean) => {
+                            applyShowsNNN(v);
+                        }}
+                    />
+                </div>
+                <div class="setting">
+                    <span>拖到边缘自动滚动</span>
+                    <Switch
+                        bind:checked={get: () => edgeScrollValue, set: (v: boolean) => {
+                            applyEdgeScroll(v);
                         }}
                     />
                 </div>
