@@ -4588,18 +4588,11 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             });
         }
 
-        if (this.linkedDrag) {
-            const partner = sameValuePartner(
-                selected as EventStartNode<number> | EventEndNode<number>,
-            );
-
-            if (partner && !ghost.has(partner as EventStartNode<any>)) {
-                ghost.set(partner as EventStartNode<any>, {
-                    value: base.value + deltaValue,
-                    beats: TC.toBeats(partner.time) + deltaBeats,
-                });
-            }
-        }
+        /*
+         * 背靠背的伙伴**不进 ghost**：单拖时就该只动按住的这一个
+         *（`nodesSelection` 为空时这一点尤其明显 —— 旁边那个跟着飘很怪）。
+         * 真需要成对移动的是多选场景，那批节点本来就在 `dragGroupStart` 里。
+         */
 
         this.dragGhost = ghost;
     }
@@ -4816,18 +4809,15 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         if (ghost) {
             value = ghost.value;
             nodeBeats = ghost.beats;
-        } else if (this.dragGhost) {
-            // `end` 节点跟着同一对的 `start` 一起动
-            const start = node.previous as EventStartNode<number> | undefined;
-            const startGhost = start ? this.dragGhost.get(start) : undefined;
-
-            if (startGhost) {
-                value = startGhost.value + (node.value - start.value);
-                nodeBeats =
-                    startGhost.beats +
-                    (TC.toBeats(node.time) - TC.toBeats(start.time));
-            }
         }
+
+        /*
+         * 只让**被拖的那个节点**跟随指针。
+         *
+         * 同一对的另一端（面对面的伙伴）留在原地 —— 拖 start 就是改事件时长，
+         * 和 `EventNodePairTimeChangeOperation` 的语义一致（它也只动一端）。
+         * 让 end 跟着走的视觉效果是"整条一起飘"，用户要的不是这个。
+         */
 
         const pos = new Coordinate(value, nodeBeats - beats).mul(this.matrix);
 
