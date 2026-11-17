@@ -17,8 +17,9 @@ import TimeDivisorPicker from "#/components/IconButtons/TimeDivisorPicker.grain"
 import SwitchButton from "#/components/IconButtons/SwitchButton.grain";
 import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
 
-// 设置页用的两个基础组件
+// 设置页用的基础组件
 import NumField from "#/components/NumField.grain";
+import Segmented from "#/components/Segmented.grain";
 import Switch from "#/components/Switch.grain";
 
 import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
@@ -267,12 +268,56 @@ let gridValue = $state(135);
 let showsNNNValue = $state(true);
 let edgeScrollValue = $state(true);
 
+/*
+ * 常用值（照搬移动端）：初始只有预设，用户在输入框提交新值就追加进来，
+ * 最多 8 个、后来的顶替最早的。
+ */
+const PRESET_LIMIT = 8;
+
+function remember(list: number[], value: number): number[] {
+    if (!Number.isFinite(value) || value <= 0) return list;
+
+    const next = [...list.filter((item) => item !== value), value];
+
+    return next.length > PRESET_LIMIT
+        ? next.slice(next.length - PRESET_LIMIT)
+        : next;
+}
+
+const toOptions = (list: number[]): [number, string][] =>
+    list.map((value) => [value, `${value}`]);
+
+let divisorPresets = $state<number[]>([2, 3, 4, 6, 8, 12, 16]);
+let timeSpanPresets = $state<number[]>([1, 2, 4, 8, 16]);
+let positionSpanPresets = $state<number[]>([900, 1350, 1800]);
+let gridPresets = $state<number[]>([45, 90, 135, 270]);
+
+// 选项要**派生**：模板里直接 `toOptions(list)` 的话，参数进函数后依赖就丢了
+const divisorOptions = $node({ get: () => toOptions(divisorPresets) });
+const timeSpanOptions = $node({ get: () => toOptions(timeSpanPresets) });
+const positionSpanOptions = $node({ get: () => toOptions(positionSpanPresets) });
+const gridOptions = $node({ get: () => toOptions(gridPresets) });
+
+function applyTimeDivisor(raw: string): void {
+    const value = Number(raw);
+
+    if (!Number.isFinite(value) || value <= 0) return;
+
+    divisorPresets = remember(divisorPresets, value);
+
+    if (notesEditor) {
+        notesEditor.timeDivisor = value;
+        notesEditor.draw();
+    }
+}
+
 function applyTimeSpan(raw: string): void {
     const value = Number(raw);
 
     if (!Number.isFinite(value) || value <= 0) return;
 
     timeSpanValue = value;
+    timeSpanPresets = remember(timeSpanPresets, value);
 
     if (notesEditor) {
         notesEditor.timeSpan = value;
@@ -289,6 +334,7 @@ function applyPositionSpan(raw: string): void {
     if (!Number.isFinite(value) || value <= 0) return;
 
     positionSpanValue = value;
+    positionSpanPresets = remember(positionSpanPresets, value);
 
     if (notesEditor) {
         notesEditor.positionSpan = value;
@@ -302,6 +348,7 @@ function applyNoteGrid(raw: string): void {
     if (!Number.isFinite(value) || value <= 0) return;
 
     gridValue = value;
+    gridPresets = remember(gridPresets, value);
 
     if (notesEditor) {
         notesEditor.positionGridSpan = value;
@@ -945,8 +992,16 @@ updateTip();
                     <span>{_("main.sidebar.timeDivisor.term")}</span>
                     <NumField
                         bind:value={get: () => String(timeDivisor.get()), set: (raw: string) => {
-                            const next = Number(raw);
-                            if (Number.isFinite(next) && next > 0) timeDivisor.set(next);
+                            applyTimeDivisor(raw);
+                        }}
+                    />
+                </div>
+                <div class="presets">
+                    <Segmented
+                        variant="plain"
+                        options={divisorOptions}
+                        bind:value={get: () => timeDivisor.get(), set: (value: number) => {
+                            applyTimeDivisor(String(value));
                         }}
                     />
                 </div>
@@ -991,6 +1046,15 @@ updateTip();
                         }}
                     />
                 </div>
+                <div class="presets">
+                    <Segmented
+                        variant="plain"
+                        options={timeSpanOptions}
+                        bind:value={get: () => timeSpanValue, set: (value: number) => {
+                            applyTimeSpan(String(value));
+                        }}
+                    />
+                </div>
                 <div class="setting">
                     <span>值跨度</span>
                     <NumField
@@ -999,11 +1063,29 @@ updateTip();
                         }}
                     />
                 </div>
+                <div class="presets">
+                    <Segmented
+                        variant="plain"
+                        options={positionSpanOptions}
+                        bind:value={get: () => positionSpanValue, set: (value: number) => {
+                            applyPositionSpan(String(value));
+                        }}
+                    />
+                </div>
                 <div class="setting">
                     <span>音符网格间距</span>
                     <NumField
                         bind:value={get: () => String(gridValue), set: (raw: string) => {
                             applyNoteGrid(raw);
+                        }}
+                    />
+                </div>
+                <div class="presets">
+                    <Segmented
+                        variant="plain"
+                        options={gridOptions}
+                        bind:value={get: () => gridValue, set: (value: number) => {
+                            applyNoteGrid(String(value));
                         }}
                     />
                 </div>
@@ -1242,6 +1324,22 @@ input[type="range"] {
 .setting > :last-child {
   width: 100%;
   justify-self: end;
+}
+
+/* `Switch` 的根是 `<button>`（46px 固定），别被上面那条撑满 */
+.setting > button:last-child {
+  width: auto;
+}
+
+/*
+ * 设置项下面那排常用值：贴右、和输入框同一条竖线。
+ * 分隔横线在 `.setting` 上，所以这里不再画线，只收紧上下间距。
+ */
+.presets {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 2px 0 8px;
 }
 /*
  * 设置页 / 错误页的外层留白。
