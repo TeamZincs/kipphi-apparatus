@@ -1321,26 +1321,36 @@ input[type="range"] {
 }
 
 /* 输入框铺满固定那一列；开关保持自己的尺寸、靠右站 */
-.setting > :last-child {
+/*
+ * 子组件的根元素要用 `:global`：编译器给每个选择器加 scope 后缀，而
+ * `NumField` 里的 `input`、`Switch` 里的 `button` 都不属于本文件，
+ * 带上 scope 就永远匹配不到 —— 选择器等于被丢弃。
+ */
+
+/* 输入框（`NumField` 的根就是 `<input class="num">`）：铺满右列 */
+.setting > :global(input) {
+  grid-column: 2;
   width: 100%;
-  justify-self: end;
+  min-width: 0;
 }
 
-/* `Switch` 的根是 `<button>`（46px 固定），别被上面那条撑满 */
-.setting > button:last-child {
-  width: auto;
+/* 开关（`Switch` 的根是 `<button>`）：在右列内贴右 */
+.setting > :global(button) {
+  grid-column: 2;
+  justify-self: end;
 }
 
 /*
  * 设置项下面那排常用值：贴右、和输入框同一条竖线。
  * 分隔横线在 `.setting` 上，所以这里不再画线，只收紧上下间距。
  */
-.presets {
+/* 常用值：`.setting` 的第三个子元素，占满整行 → 换到输入框下面 */
+.setting > .presets {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
-  width: 100%;
-  padding: 2px 0 8px;
-}
+  padding: 2px 0 0;
+  }
 /*
  * 设置页 / 错误页的外层留白。
  *
