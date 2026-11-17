@@ -1366,7 +1366,7 @@ input[type="range"] {
  */
 .setting {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
+  grid-template-columns: minmax(0, 1fr) 210px;
   align-items: center;
   gap: 12px;
   width: 100%;

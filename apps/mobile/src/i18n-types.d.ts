@@ -338,6 +338,7 @@ export interface I18nMapping {
 "mobile.tabs.events": never;
 "mobile.tabs.ops": never;
 "mobile.tabs.errors": never;
-"mobile.tabs.settings": never
+"mobile.tabs.settings": never;
+"mobile.tabs.chart": never
 }
 

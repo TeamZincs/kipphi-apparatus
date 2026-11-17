@@ -61,7 +61,8 @@ import { _i18n } from "#/i18n";
         | "events"
         | "ops"
         | "errors"
-        | "settings";
+        | "settings"
+        | "chart";
 
     /*
      * 取词函数从 store 读：换语言时 store 换新函数，模板里所有 `_("...")`
@@ -88,7 +89,9 @@ import { _i18n } from "#/i18n";
         // 解析时收集到的警告（`KPAError.buffer`）
         { id: "errors", label: "mobile.tabs.errors" },
         // 画布设置：拍数分母 / 视野跨度 / 网格密度 / NNN 参考线
-        { id: "settings", label: "mobile.tabs.settings" }
+        { id: "settings", label: "mobile.tabs.settings" },
+        // 谱面信息：曲名 / 难度 / 作曲 / 谱师 / 曲绘 / 偏移
+        { id: "chart", label: "mobile.tabs.chart" }
     ];
 
     let activeTab = $state<MobileTab>("lines");
@@ -780,7 +783,35 @@ import { _i18n } from "#/i18n";
         notesEditor.draw();
     }
 
-    function applyEdgeScroll(value: boolean): void {
+    /*
+ * 谱面信息：改动走 operationList，所以能撤销。
+ * 文本字段没变 / 为空就跳过，避免往撤销栈里塞空操作。
+ */
+function commitChartField(
+    prop: "name" | "level" | "composer" | "charter" | "illustrator",
+    raw: string,
+): void {
+    const value = raw.trim();
+
+    if (!chart || !operationList || value.length === 0) return;
+
+    const current = (chart as unknown as Record<string, unknown>)[prop];
+
+    if (current === value) return;
+
+    operationList.do(new Op.ChartPropChangeOperation(chart, prop, value));
+}
+
+function commitChartOffset(raw: string): void {
+    const value = Number(raw);
+
+    if (!chart || !operationList || !Number.isFinite(value)) return;
+    if (chart.offset === value) return;
+
+    operationList.do(new Op.ChartPropChangeOperation(chart, "offset", value));
+}
+
+function applyEdgeScroll(value: boolean): void {
         if (notesEditor) notesEditor.edgeScrollEnabled = value;
         if (eventEditors) eventEditors.edgeScrollEnabled = value;
     }
@@ -1590,8 +1621,6 @@ import { _i18n } from "#/i18n";
                                 applyTimeDivisor(raw);
                             }}
                         />
-                    </div>
-
                     <div class="presets">
                         <Segmented
                             variant="plain"
@@ -1601,6 +1630,7 @@ import { _i18n } from "#/i18n";
                             }}
                         />
                     </div>
+                    </div>
 
                     <div class="setting">
                         <span>时间跨度（拍）</span>
@@ -1609,8 +1639,6 @@ import { _i18n } from "#/i18n";
                                 applyTimeSpan(raw);
                             }}
                         />
-                    </div>
-
                     <div class="presets">
                         <Segmented
                             variant="plain"
@@ -1620,6 +1648,7 @@ import { _i18n } from "#/i18n";
                             }}
                         />
                     </div>
+                    </div>
 
                     <div class="setting">
                         <span>值跨度</span>
@@ -1628,8 +1657,6 @@ import { _i18n } from "#/i18n";
                                 applyPositionSpan(raw);
                             }}
                         />
-                    </div>
-
                     <div class="presets">
                         <Segmented
                             variant="plain"
@@ -1639,6 +1666,7 @@ import { _i18n } from "#/i18n";
                             }}
                         />
                     </div>
+                    </div>
 
                     <div class="setting">
                         <span>音符网格间距</span>
@@ -1647,8 +1675,6 @@ import { _i18n } from "#/i18n";
                                 applyNoteGrid(raw);
                             }}
                         />
-                    </div>
-
                     <div class="presets">
                         <Segmented
                             variant="plain"
@@ -1657,6 +1683,7 @@ import { _i18n } from "#/i18n";
                                 applyNoteGrid(String(value));
                             }}
                         />
+                    </div>
                     </div>
 
                     <div class="setting">
@@ -1690,6 +1717,60 @@ import { _i18n } from "#/i18n";
                     <p class="settings-hint">
                         时间跨度同时作用于两个画布；事件网格留空表示各类型默认值。
                     </p>
+                </div>
+            </div>
+
+            <!-- 谱面信息：曲名 / 难度 / 作曲 / 谱师 / 曲绘 / 偏移 -->
+            <div class="slide {tabIndex === 6 ? "active" : ""}">
+                <div class="settings">
+                    <div class="setting">
+                        <span>曲名</span>
+                        <input
+                            class="text-field"
+                            value={chart?.name ?? ""}
+                            onchange={(event) => commitChartField("name", event.target.value)}
+                        />
+                    </div>
+                    <div class="setting">
+                        <span>难度</span>
+                        <input
+                            class="text-field"
+                            value={chart?.level ?? ""}
+                            onchange={(event) => commitChartField("level", event.target.value)}
+                        />
+                    </div>
+                    <div class="setting">
+                        <span>作曲</span>
+                        <input
+                            class="text-field"
+                            value={chart?.composer ?? ""}
+                            onchange={(event) => commitChartField("composer", event.target.value)}
+                        />
+                    </div>
+                    <div class="setting">
+                        <span>谱师</span>
+                        <input
+                            class="text-field"
+                            value={chart?.charter ?? ""}
+                            onchange={(event) => commitChartField("charter", event.target.value)}
+                        />
+                    </div>
+                    <div class="setting">
+                        <span>曲绘</span>
+                        <input
+                            class="text-field"
+                            value={chart?.illustrator ?? ""}
+                            onchange={(event) => commitChartField("illustrator", event.target.value)}
+                        />
+                    </div>
+                    <div class="setting">
+                        <span>偏移</span>
+                        <NumField
+                            bind:value={get: () => String(chart?.offset ?? 0), set: (raw: string) => {
+                                commitChartOffset(raw);
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
         </div>
@@ -2177,14 +2258,61 @@ import { _i18n } from "#/i18n";
     overscroll-behavior: contain;
 }
 
+/*
+ * 一行一个字段：右侧固定一列，输入框左右边才对得齐（flex 下各按内容撑开）。
+ * 左边 `minmax(0, 1fr)` + `nowrap`：标签长了省略，不把输入框挤歪。
+ * 常用值那排是它的子元素，`grid-column: 1 / -1` 换到第二行。
+ */
 .setting {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 210px;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 0 4px;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 10px 0 6px;
     font-size: 14px;
     color: var(--text);
+    border-bottom: 1px solid var(--border);
+}
+
+.setting > span:first-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 子组件的根元素要用 :global（scope 后缀匹配不到） */
+.setting > :global(input) {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+}
+
+.setting > :global(button) {
+    grid-column: 2;
+    justify-self: end;
+}
+
+.setting > .presets {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 2px;
+}
+
+/* 谱面信息里的文本输入框（曲名 / 谱师那些） */
+.setting > .text-field {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
 }
 
 /*
@@ -2193,12 +2321,7 @@ import { _i18n } from "#/i18n";
  * 分隔横线放在**这里**（不在 `.setting` 上）—— 一排预设属于上一个字段，
  * 线画在它下面才对。
  */
-.presets {
-    display: flex;
-    justify-content: flex-end;
-    padding: 2px 0 8px;
-    border-bottom: 1px solid var(--border);
-}
+/* 常用值那排现在在 `.setting` 内部（见上），这里不再单独画分隔线 */
 
 .settings-hint {
     margin: 14px 0 0;
