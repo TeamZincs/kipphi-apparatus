@@ -25,7 +25,7 @@ import Switch from "#/components/Switch.grain";
 import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     eventsType, eventsLayer,
     playerShowsUI, playerShowsLineID, playerHitEffectNoFollows, playerShowsCurve, playerCameraZoom,
-    selectedLineNumber, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
+    selectedLineNumber, selectedLineId, activeSidebar, activeSecondarySidebar, previousActiveSecondarySidebar, selectedNote, selectedNotes, selectedNode, selectedNodes,
     timeDivisor, chartId, refreshAll, reflowAll } from "./store";
 
 import Constants from "./constants";
@@ -745,6 +745,30 @@ async function boot() {
 
     EditorGlobalInit(notesEditor, eventSequenceEditors, operationList, player);
     restoreStates();
+
+    /*
+     * 当前判定线：编辑器用 `selectedLineNumber`（数组下标），判定线列表用
+     * `selectedLineId`（线自己的 id）。两边是独立信号，不接起来就会出现
+     * 「在画布上切了线，列表还高亮着上一条」。
+     *
+     * 互相写之前都比一下当前值，避免 A→B→A 的来回推送。
+     */
+    selectedLineNumber.subscribe((index) => {
+        const line = operationList?.chart.judgeLines[index];
+
+        if (line && selectedLineId.get() !== line.id) selectedLineId.set(line.id);
+    });
+
+    selectedLineId.subscribe((id) => {
+        if (id === null) return;
+
+        const lines = operationList?.chart.judgeLines ?? [];
+        const index = lines.findIndex((line) => line.id === id);
+
+        if (index >= 0 && index !== selectedLineNumber.get()) {
+            selectedLineNumber.set(index);
+        }
+    });
 
     initialized = true;
 }
