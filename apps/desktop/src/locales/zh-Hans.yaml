@@ -403,3 +403,11 @@ general:
   return: 返回首页
 error:
   chart: 哦不！我们遇到了一个错误。您可以按F12打开开发者工具以查看错误详情。如果您无法弄清错误且错误持续复现，请加入官群（478824121），将谱面发给杨哲思。
+mobile:
+  tabs:
+    lines: 判定线
+    notes: 音符
+    events: 事件
+    ops: 操作栈
+    errors: 错误
+    settings: 设置

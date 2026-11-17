@@ -52,6 +52,7 @@
         setPlayer
     } from "#/store";
     import { readDefaultRespackFile } from "#/tauri";
+import { _ } from "#/i18n";
 
     //#region 页面状态
     type MobileTab =
@@ -62,16 +63,20 @@
         | "errors"
         | "settings";
 
+    /*
+     * 标签文案走 i18n。这里只在模块初始化时求值一次 —— 换语言是整页重载，
+     * 不需要响应式。
+     */
     const tabs: Array<{ id: MobileTab; label: string }> = [
-        { id: "lines", label: "判定线" },
-        { id: "notes", label: "音符" },
-        { id: "events", label: "事件" },
-    // 只读的操作栈：已撤销的在上面，用虚线跟已做的分开
-    { id: "ops", label: "操作栈" },
-    // 解析时收集到的警告（`KPAError.buffer`）
-    { id: "errors", label: "错误" },
-    // 画布设置：拍数分母 / 视野跨度 / 网格密度 / NNN 参考线
-    { id: "settings", label: "设置" }
+        { id: "lines", label: _("mobile.tabs.lines") },
+        { id: "notes", label: _("mobile.tabs.notes") },
+        { id: "events", label: _("mobile.tabs.events") },
+        // 只读的操作栈：已撤销的在上面，用虚线跟已做的分开
+        { id: "ops", label: _("mobile.tabs.ops") },
+        // 解析时收集到的警告（`KPAError.buffer`）
+        { id: "errors", label: _("mobile.tabs.errors") },
+        // 画布设置：拍数分母 / 视野跨度 / 网格密度 / NNN 参考线
+        { id: "settings", label: _("mobile.tabs.settings") }
     ];
 
     let activeTab = $state<MobileTab>("lines");

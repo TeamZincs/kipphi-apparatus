@@ -392,3 +392,11 @@ general:
   return: 返回首頁
 error:
   chart: 糟糕！我們遇到了一個錯誤。你可以按 F12 打開開發者工具以查看錯誤詳情。如果您無法弄清錯誤且錯誤持續復現，請加入官群（478824121），將譜面發給楊哲思。
+mobile:
+  tabs:
+    lines: 判定線
+    notes: 音符
+    events: 事件
+    ops: 操作棧
+    errors: 錯誤
+    settings: 設定

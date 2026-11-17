@@ -392,3 +392,11 @@ general:
   return: Return to the Mainpage
 error:
   chart: Oops! We encountered an error. You can press F12 to open the developer tools to view the error details. If you can't figure out the error and it persists, please join the official group (478824121) and send the chart to Zes Minkey Young.
+mobile:
+  tabs:
+    lines: Judge Lines
+    notes: Notes
+    events: Events
+    ops: History
+    errors: Errors
+    settings: Settings
