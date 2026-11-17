@@ -804,6 +804,7 @@ updateTip();
                 {/if}
             {:else if activeSecondarySidebarValue === SecondarySidebar.ERRORS}
                 <!-- 解析警告：照搬移动端那一段（只读列表） -->
+                <div class="padded">
                 {#if chartErrors.length === 0}
                     <p class="errors-empty">没有解析警告</p>
                 {:else}
@@ -816,10 +817,12 @@ updateTip();
                         </div>
                     {/for}
                 {/if}
+                </div>
             {:else if activeSecondarySidebarValue === SecondarySidebar.MACRO}
                 <MacroSheet macro={null} onclose={() => {}}></MacroSheet>
             {:else if activeSecondarySidebarValue === SecondarySidebar.GENERAL}
                 <!-- 播放器开关 / 时间参数：全部用移动端的 Switch + NumField -->
+                <div class="padded">
                 <div class="setting">
                     <span>{_("main.player.showsUI")}</span>
                     <Switch bind:checked={get: () => playerShowsUI.get(), set: (v: boolean) => playerShowsUI.set(v)} />
@@ -894,9 +897,10 @@ updateTip();
                         }}
                     />
                 </div>
+                </div>
             {:else if activeSecondarySidebarValue === SecondarySidebar.SCRIPT}
                 <!-- 用户脚本：预留一页，后面接 -->
-                <div style="color: var(--color-foreground); opacity: 0.6; padding: 8px">
+                <div class="padded" style="opacity: 0.6">
                     用户脚本（待实现）
                 </div>
             {/if}
@@ -1094,6 +1098,17 @@ input[type="range"] {
   font-size: 14px;
   color: #ddd;
   border-bottom: 1px solid #666;
+}
+/*
+ * 设置页 / 错误页的外层留白。
+ *
+ * 判定线列表和几个 Sheet 是移动端组件，自带 padding；这两页是页面手写的，
+ * 侧栏又去掉了统一 padding（否则列表两侧会多一层），所以这里单独补。
+ */
+.padded {
+  width: 100%;
+  padding: 12px 16px;
+  box-sizing: border-box;
 }
 /* 错误页（照搬移动端） */
 .errors-empty {
