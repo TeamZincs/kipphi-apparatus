@@ -26,6 +26,15 @@
         text = value.get();
     }
 
+    /*
+     * 不能写 `bind:value={text}`：它会盖掉上面的 `value` 属性，
+     * 输入框的显示就只剩 `text`（初值是创建那一刻读到的值）——
+     * 外部数据后来才到的话输入框一直空着，聚焦一次才补上。
+     */
+    function onInput(event: Event): void {
+        text = (event.currentTarget as HTMLInputElement).value;
+    }
+
     function commit(): void {
         focused = false;
 
@@ -41,8 +50,8 @@
     inputmode={inputmode}
     placeholder={placeholder}
     value={focused ? text : value.get()}
-    bind:value={text}
     onfocus={onFocus}
+    oninput={onInput}
     onblur={commit}
     onkeydown={(event) => {
         if (event.key === "Enter") {

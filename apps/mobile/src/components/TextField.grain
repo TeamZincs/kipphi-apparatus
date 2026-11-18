@@ -2,10 +2,8 @@
     /*
      * 文本输入框，样式和 `NumField` 保持一致（同一个 padding / 圆角 / 配色）。
      *
-     * `value` 用 `bind:value={ get, set }` —— 和 `NumField` 同一套契约
-     *（`$node` / `$store` 给的就是绑定对象）。
-     *
-     * 和 `NumField` 一样**失焦才回传**，避免每敲一个字符就往撤销栈里塞一条。
+     * `value` 是**绑定值**（`{ get, set }`），和 `NumField` 同一套契约。
+     * 聚焦期间用本地 `text`，失焦才写回 —— 避免每敲一个字符就往撤销栈里塞一条。
      */
     let { value, placeholder = "", disabled = false } = $props<{
         value: { get: () => string; set: (next: string) => void };
@@ -22,6 +20,11 @@
         text = value.get();
     }
 
+    /** 不能写 `bind:value={text}` —— 它会盖掉上面那个 `value` 的渲染 */
+    function onInput(event: Event): void {
+        text = (event.currentTarget as HTMLInputElement).value;
+    }
+
     function commit(): void {
         focused = false;
 
@@ -34,11 +37,10 @@
 </script>
 
 <!--
-    属性必须写成 `name={值}`。
-
-    `{placeholder}` / `{disabled}` 这种简写在这个编译器版本里不会展开 ——
-    产物是 `<input {placeholder}="true" {disabled}="true">`，既不生效又会
-    让 `value` 相关的插槽错乱（输入框永远是空的）。
+    1. 属性必须写成 `name={值}`：`{placeholder}` 这种简写在这个编译器版本里
+       不会展开，产物是 `<input {placeholder}="true" ...>`。
+    2. **不能**再写 `bind:value={text}`：`bind:` 的 getter 会覆盖 `value`
+       属性，输入框的显示就只剩 `text`（初值空串）—— 表现是"点一下才出现"。
 -->
 <input
     class="text"
@@ -46,8 +48,8 @@
     placeholder={placeholder}
     disabled={disabled}
     value={focused ? text : value.get()}
-    bind:value={text}
     onfocus={onFocus}
+    oninput={onInput}
     onblur={commit}
     onkeydown={(event) => {
         if (event.key === "Enter") {
