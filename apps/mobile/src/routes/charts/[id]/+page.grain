@@ -850,6 +850,15 @@ function listenChartOps(prop: string, update: () => void): void {
     for (const type of OPERATION_EVENTS) {
         operationList.addEventListener(type, update);
     }
+
+    /*
+     * 注册完立刻推一次。
+     *
+     * `$node` 的初值是 `<script>` 求值那一刻的 `get()` —— 面板刚创建、谱面
+     * 还没就位时那是空串。不首推的话要等到用户第一次改动（`do` 事件）才会
+     * 显示内容，表现就是「每次进这一页都是空的」。
+     */
+    update();
 }
 
 function unlistenChartOps(prop: string): void {
