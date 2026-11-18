@@ -19,6 +19,7 @@
         operationList,
         reflowAll,
         registerRefresh,
+        registerReflow,
         selectedLineId
     } from "./store";
 
