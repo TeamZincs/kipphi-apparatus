@@ -2,15 +2,18 @@
     /*
      * 文本/数字输入框。
      *
-     * 和 `Switch` / `Segmented` 一样走 `bind:` 的对象形式，但**只有失焦才回传**：
-     * 输入过程中值留在组件内部的草稿里，父组件不会被打字触发重算
-     * （面板里那 10 来个字段，每敲一个字符都跑一遍操作比对太浪费）。
+     * `value` 是 `$bindable` —— 父级 `bind:value={某个 $node}` 传进来。
+     * 编译器为它生成 `__binding$value`：外部变化时重新赋值并刷新用到它的
+     * 属性，`value = next` 也被改写成 `__binding$value.set(next)`。
      *
-     * 外部变化（撤销 / 从操作列表回灌）时：没聚焦就直接显示父级的值，
-     * 聚焦中则以本地的为准，免得把用户正在打的字冲掉。
+     * **只有失焦才回传**：输入过程中值留在草稿里，父组件不会被打字触发重算
+     * （面板里那十来个字段，每敲一个字符都跑一遍操作比对太浪费）。
+     *
+     * 外部变化（撤销 / 从操作列表回灌）时：没聚焦就显示 `value`，聚焦中
+     * 以本地草稿为准，免得把用户正在打的字冲掉。
      */
-    let { value, placeholder = "", inputmode = "decimal", oncommit } = $props<{
-        value: { get: () => string; set: (v: string) => void };
+    let { value = $bindable(""), placeholder = "", inputmode = "decimal", oncommit } = $props<{
+        value?: string;
         placeholder?: string;
         /** `decimal` / `numeric` / `text`，只影响手机键盘 */
         inputmode?: string;
@@ -18,12 +21,12 @@
         oncommit?: () => void;
     }>();
 
-    let text = $state(value.get());
+    let text = $state(value);
     let focused = $state(false);
 
     function onFocus(): void {
         focused = true;
-        text = value.get();
+        text = value;
     }
 
     /*
@@ -38,7 +41,7 @@
     function commit(): void {
         focused = false;
 
-        if (text !== value.get()) value.set(text);
+        if (text !== value) value = text;
 
         oncommit?.();
     }
@@ -49,7 +52,7 @@
     type="text"
     inputmode={inputmode}
     placeholder={placeholder}
-    value={focused ? text : value.get()}
+    value={focused ? text : value}
     onfocus={onFocus}
     oninput={onInput}
     onblur={commit}

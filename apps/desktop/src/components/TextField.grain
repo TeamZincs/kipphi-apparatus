@@ -2,25 +2,29 @@
     /*
      * 文本输入框，样式和 `NumField` 保持一致（同一个 padding / 圆角 / 配色）。
      *
-     * `value` 是**绑定值**（`{ get, set }`），和 `NumField` 同一套契约。
-     * 聚焦期间用本地 `text`，失焦才写回 —— 避免每敲一个字符就往撤销栈里塞一条。
+     * `value` 是 `$bindable` —— 父级 `bind:value={某个 $node}` 传进来。
+     * 编译器会为它生成 `__binding$value`，外部变化时自动重新赋值并刷新
+     * 用到它的属性；`value = next` 也会被改写成 `__binding$value.set(next)`。
+     *
+     * 所以**不要**再给 value 加 `{ get, set }` 那种包装，也**不要**在 input 上
+     * 同时写 `bind:value={text}` —— `bind:` 的 getter 会盖掉 `value` 属性，
+     * 输入框就只剩本地 `text`（初值空串），表现是"点一下才出现"。
      */
-    let { value, placeholder = "", disabled = false } = $props<{
-        value: { get: () => string; set: (next: string) => void };
+    let { value = $bindable(""), placeholder = "", disabled = false } = $props<{
+        value?: string;
         placeholder?: string;
         disabled?: boolean;
     }>();
 
-    /** 聚焦期间用本地文本，失焦才写回 */
+    /** 聚焦期间用本地草稿，失焦才写回 `value` */
     let text = $state("");
     let focused = $state(false);
 
     function onFocus(): void {
         focused = true;
-        text = value.get();
+        text = value;
     }
 
-    /** 不能写 `bind:value={text}` —— 它会盖掉上面那个 `value` 的渲染 */
     function onInput(event: Event): void {
         text = (event.currentTarget as HTMLInputElement).value;
     }
@@ -29,25 +33,22 @@
         focused = false;
 
         const next = text.trim();
-        const current = value.get();
 
-        // 没变就不回传；空值也不写，免得把已有内容清掉
-        if (next.length > 0 && next !== current) value.set(next);
+        // 没变就不写回；空值也不写，免得把已有内容清掉
+        if (next.length > 0 && next !== value) value = next;
     }
 </script>
 
 <!--
-    1. 属性必须写成 `name={值}`：`{placeholder}` 这种简写在这个编译器版本里
-       不会展开，产物是 `<input {placeholder}="true" ...>`。
-    2. **不能**再写 `bind:value={text}`：`bind:` 的 getter 会覆盖 `value`
-       属性，输入框的显示就只剩 `text`（初值空串）—— 表现是"点一下才出现"。
+    属性必须写成 `name={值}`：`{placeholder}` 这种简写在这个编译器版本里
+    不会展开，产物是 `<input {placeholder}="true" ...>`。
 -->
 <input
     class="text"
     type="text"
     placeholder={placeholder}
     disabled={disabled}
-    value={focused ? text : value.get()}
+    value={focused ? text : value}
     onfocus={onFocus}
     oninput={onInput}
     onblur={commit}
