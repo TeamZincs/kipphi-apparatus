@@ -1,3 +1,21 @@
+<script macro>
+    /*
+     * `$chartBinding(prop)`：把谱面字段展开成完整的绑定字面量。
+     *
+     * `$node` 是 rune —— 只吃字面量的 get / set / listen / unlisten，
+     * 传一个 `{ listen, unlisten }` 对象是不行的。宏返回代码片段，
+     * 正好拼进 `$node(...)` 的参数位置。
+     */
+    function $chartBinding(prop: string) {
+        return [
+            "get", ":", `() => chart?.${prop} ?? ""`, ",",
+            "set", ":", `(value: string) => commitChartField("${prop}", value)`, ",",
+            "listen", ":", `(update: () => void) => listenChartOps("${prop}", update)`, ",",
+            "unlisten", ":", `() => unlistenChartOps("${prop}")`,
+        ];
+    }
+</script>
+
 <script>
     /*
      * 移动端编辑器页：播放器 + 标签栏 + 两块画布，全部内联。
@@ -819,55 +837,44 @@ function commitChartOffset(raw: string): void {
  * 而 `chart` 不是 store，没东西可监听 —— 组件创建那一刻求一次值（那时谱面
  * 可能还没加载）就再也不更新，表现是首次打开输入框全空、点一下才有内容。
  */
-/*
- * 谱面信息六个字段的节点。
- *
- * \`listen\` 挂在 \`operationList\` 上：它是 EventTarget，do / undo / redo 都发
- * 事件，任何改动都会让 getter 重算。没有 listen 的话 \`$node\` 只在组件创建
- * 时求一次值，那时谱面可能还没加载 —— 输入框全空、点一下才有内容。
- */
-function listenChartOps(update: () => void): void {
+const OPERATION_EVENTS = ["do", "undo", "redo"] as const;
+
+/** 字段名 -> 这一路的事件回调（\`unlisten\` 靠它找回 \`update\`） */
+const chartEventHandlers = new Map<string, () => void>();
+
+function listenChartOps(prop: string, update: () => void): void {
     if (!operationList) return;
 
-    for (const type of ["do", "undo", "redo"] as const) {
+    chartEventHandlers.set(prop, update);
+
+    for (const type of OPERATION_EVENTS) {
         operationList.addEventListener(type, update);
     }
 }
 
-const chartNameNode = $node({
-    get: () => chart?.name ?? "",
-    set: (value: string) => commitChartField("name", value),
-    listen: listenChartOps,
-});
+function unlistenChartOps(prop: string): void {
+    const update = chartEventHandlers.get(prop);
 
-const chartLevelNode = $node({
-    get: () => chart?.level ?? "",
-    set: (value: string) => commitChartField("level", value),
-    listen: listenChartOps,
-});
+    if (!operationList || !update) return;
 
-const chartComposerNode = $node({
-    get: () => chart?.composer ?? "",
-    set: (value: string) => commitChartField("composer", value),
-    listen: listenChartOps,
-});
+    for (const type of OPERATION_EVENTS) {
+        operationList.removeEventListener(type, update);
+    }
 
-const chartCharterNode = $node({
-    get: () => chart?.charter ?? "",
-    set: (value: string) => commitChartField("charter", value),
-    listen: listenChartOps,
-});
+    chartEventHandlers.delete(prop);
+}
 
-const chartIllustratorNode = $node({
-    get: () => chart?.illustrator ?? "",
-    set: (value: string) => commitChartField("illustrator", value),
-    listen: listenChartOps,
-});
+const chartNameNode = $node($chartBinding("name"));
+const chartLevelNode = $node($chartBinding("level"));
+const chartComposerNode = $node($chartBinding("composer"));
+const chartCharterNode = $node($chartBinding("charter"));
+const chartIllustratorNode = $node($chartBinding("illustrator"));
 
 const chartOffsetNode = $node({
     get: () => String(chart?.offset ?? 0),
     set: (value: string) => commitChartOffset(value),
-    listen: listenChartOps,
+    listen: (update: () => void) => listenChartOps("offset", update),
+    unlisten: () => unlistenChartOps("offset"),
 });
 
 function applyEdgeScroll(value: boolean): void {
