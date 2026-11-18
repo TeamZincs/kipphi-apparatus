@@ -2,14 +2,12 @@
     /*
      * 谱面信息面板（替代被废掉的 `ChartInfoEditor`）。
      *
-     * 绑定写成 `bind:value={get, set}` 字面量，**不套 `$node`**。
+     * 每个字段一个 `$node`，`listen` 挂在 `operationList` 上：`OperationList`
+     * 是 `EventTarget`，`do` / `undo` / `redo` 都会发事件 —— 任何改动（包括
+     * 撤销）都会让 getter 重算。
      *
-     * `$node` 会把 `get` 的结果缓存进一个变量（`let nameNode = node.get()`），
-     * 只在 `listen` 触发时重算。而 `operationList.chart` 不是 store，没东西可
-     * 监听 —— 结果是组件创建那一刻求一次值，那时谱面可能还没加载，输入框全空，
-     * 点一下（触发 setter）才会有内容。
-     *
-     * 直接给 `get` 函数：`TextField` / `NumField` 每次读都现调，永远是最新的。
+     * 没有 `listen` 的话 `$node` 只在组件创建时求一次值，那时谱面可能还没
+     * 加载，输入框全空、点一下才有内容。
      *
      * 改完走 `operationList`，所以能撤销。
      */
@@ -29,6 +27,20 @@
     const current = (): ChartShape | undefined =>
         operationList?.chart as unknown as ChartShape | undefined;
 
+    /**
+     * 把 `update` 接到操作列表的三个事件上。
+     *
+     * `operationList` 是页面赋值的 `let`，可能比组件晚就位 —— 这里取当前值，
+     * 还没就位就什么也不订阅（那种情况下本来也没有内容可显示）。
+     */
+    function listenOps(update: () => void): void {
+        if (!operationList) return;
+
+        for (const type of ["do", "undo", "redo"] as const) {
+            operationList.addEventListener(type, update);
+        }
+    }
+
     function commit(prop: TextProp, raw: string): void {
         const value = raw.trim();
         const chart = operationList?.chart;
@@ -36,9 +48,7 @@
         if (!chart || value.length === 0) return;
         if ((chart as unknown as Record<string, unknown>)[prop] === value) return;
 
-        operationList!.do(
-            new Op.ChartPropChangeOperation(chart, prop, value),
-        );
+        operationList!.do(new Op.ChartPropChangeOperation(chart, prop, value));
     }
 
     function commitOffset(raw: string): void {
@@ -48,65 +58,75 @@
         if (!chart || !Number.isFinite(value)) return;
         if (chart.offset === value) return;
 
-        operationList!.do(
-            new Op.ChartPropChangeOperation(chart, "offset", value),
-        );
+        operationList!.do(new Op.ChartPropChangeOperation(chart, "offset", value));
     }
+
+    const nameNode = $node({
+        get: () => current()?.name ?? "",
+        set: (value: string) => commit("name", value),
+        listen: listenOps,
+    });
+
+    const levelNode = $node({
+        get: () => current()?.level ?? "",
+        set: (value: string) => commit("level", value),
+        listen: listenOps,
+    });
+
+    const composerNode = $node({
+        get: () => current()?.composer ?? "",
+        set: (value: string) => commit("composer", value),
+        listen: listenOps,
+    });
+
+    const charterNode = $node({
+        get: () => current()?.charter ?? "",
+        set: (value: string) => commit("charter", value),
+        listen: listenOps,
+    });
+
+    const illustratorNode = $node({
+        get: () => current()?.illustrator ?? "",
+        set: (value: string) => commit("illustrator", value),
+        listen: listenOps,
+    });
+
+    const offsetNode = $node({
+        get: () => String(current()?.offset ?? 0),
+        set: (raw: string) => commitOffset(raw),
+        listen: listenOps,
+    });
 </script>
 
 <div class="chart-info">
     <div class="field">
         <span>曲名</span>
-        <TextField
-            bind:value={get: () => current()?.name ?? "", set: (value: string) => {
-                commit("name", value);
-            }}
-        ></TextField>
+        <TextField bind:value={nameNode}></TextField>
     </div>
 
     <div class="field">
         <span>难度</span>
-        <TextField
-            bind:value={get: () => current()?.level ?? "", set: (value: string) => {
-                commit("level", value);
-            }}
-        ></TextField>
+        <TextField bind:value={levelNode}></TextField>
     </div>
 
     <div class="field">
         <span>作曲</span>
-        <TextField
-            bind:value={get: () => current()?.composer ?? "", set: (value: string) => {
-                commit("composer", value);
-            }}
-        ></TextField>
+        <TextField bind:value={composerNode}></TextField>
     </div>
 
     <div class="field">
         <span>谱师</span>
-        <TextField
-            bind:value={get: () => current()?.charter ?? "", set: (value: string) => {
-                commit("charter", value);
-            }}
-        ></TextField>
+        <TextField bind:value={charterNode}></TextField>
     </div>
 
     <div class="field">
         <span>曲绘</span>
-        <TextField
-            bind:value={get: () => current()?.illustrator ?? "", set: (value: string) => {
-                commit("illustrator", value);
-            }}
-        ></TextField>
+        <TextField bind:value={illustratorNode}></TextField>
     </div>
 
     <div class="field">
         <span>偏移</span>
-        <NumField
-            bind:value={get: () => String(current()?.offset ?? 0), set: (raw: string) => {
-                commitOffset(raw);
-            }}
-        ></NumField>
+        <NumField bind:value={offsetNode}></NumField>
     </div>
 </div>
 
