@@ -2,11 +2,14 @@
     /*
      * 谱面信息面板（替代被废掉的 `ChartInfoEditor`）。
      *
-     * 每个字段都走 `$node`：读的是 `operationList.chart` 的**当前值**。
+     * 绑定写成 `bind:value={get, set}` 字面量，**不套 `$node`**。
      *
-     * 不能写成 `const chart = operationList?.chart` —— 那是组件创建时求值
-     * 一次，而 `operationList` 是页面在 `init` 里才赋值的；面板先建、列表后设
-     * 的话这里就一直是 `undefined`，输入框全空。`$node` 的 getter 每次都重读。
+     * `$node` 会把 `get` 的结果缓存进一个变量（`let nameNode = node.get()`），
+     * 只在 `listen` 触发时重算。而 `operationList.chart` 不是 store，没东西可
+     * 监听 —— 结果是组件创建那一刻求一次值，那时谱面可能还没加载，输入框全空，
+     * 点一下（触发 setter）才会有内容。
+     *
+     * 直接给 `get` 函数：`TextField` / `NumField` 每次读都现调，永远是最新的。
      *
      * 改完走 `operationList`，所以能撤销。
      */
@@ -49,71 +52,61 @@
             new Op.ChartPropChangeOperation(chart, "offset", value),
         );
     }
-
-    /*
-     * 每个字段一个 `$node`：getter 现读，setter 提交操作。
-     * `TextField` / `NumField` 的 `bind:value` 接的就是它。
-     */
-    const nameNode = $node({
-        get: () => current()?.name ?? "",
-        set: (value: string) => commit("name", value),
-    });
-
-    const levelNode = $node({
-        get: () => current()?.level ?? "",
-        set: (value: string) => commit("level", value),
-    });
-
-    const composerNode = $node({
-        get: () => current()?.composer ?? "",
-        set: (value: string) => commit("composer", value),
-    });
-
-    const charterNode = $node({
-        get: () => current()?.charter ?? "",
-        set: (value: string) => commit("charter", value),
-    });
-
-    const illustratorNode = $node({
-        get: () => current()?.illustrator ?? "",
-        set: (value: string) => commit("illustrator", value),
-    });
-
-    const offsetNode = $node({
-        get: () => String(current()?.offset ?? 0),
-        set: (value: string) => commitOffset(value),
-    });
 </script>
 
 <div class="chart-info">
     <div class="field">
         <span>曲名</span>
-        <TextField bind:value={nameNode}></TextField>
+        <TextField
+            bind:value={get: () => current()?.name ?? "", set: (value: string) => {
+                commit("name", value);
+            }}
+        ></TextField>
     </div>
 
     <div class="field">
         <span>难度</span>
-        <TextField bind:value={levelNode}></TextField>
+        <TextField
+            bind:value={get: () => current()?.level ?? "", set: (value: string) => {
+                commit("level", value);
+            }}
+        ></TextField>
     </div>
 
     <div class="field">
         <span>作曲</span>
-        <TextField bind:value={composerNode}></TextField>
+        <TextField
+            bind:value={get: () => current()?.composer ?? "", set: (value: string) => {
+                commit("composer", value);
+            }}
+        ></TextField>
     </div>
 
     <div class="field">
         <span>谱师</span>
-        <TextField bind:value={charterNode}></TextField>
+        <TextField
+            bind:value={get: () => current()?.charter ?? "", set: (value: string) => {
+                commit("charter", value);
+            }}
+        ></TextField>
     </div>
 
     <div class="field">
         <span>曲绘</span>
-        <TextField bind:value={illustratorNode}></TextField>
+        <TextField
+            bind:value={get: () => current()?.illustrator ?? "", set: (value: string) => {
+                commit("illustrator", value);
+            }}
+        ></TextField>
     </div>
 
     <div class="field">
         <span>偏移</span>
-        <NumField bind:value={offsetNode}></NumField>
+        <NumField
+            bind:value={get: () => String(current()?.offset ?? 0), set: (raw: string) => {
+                commitOffset(raw);
+            }}
+        ></NumField>
     </div>
 </div>
 

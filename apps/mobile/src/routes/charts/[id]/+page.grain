@@ -813,42 +813,12 @@ function commitChartOffset(raw: string): void {
 }
 
 /*
- * 谱面信息六个字段的节点。
+ * 谱面信息的绑定直接写在模板里（`bind:value={get, set}` 字面量）。
  *
- * `TextField` / `NumField` 的 `value` 是 `$bindable` —— 传普通表达式
- *（`value={chart?.name ?? ""}`）时编译器只求值一次，回写也传不回来，
- * 输入框就永远是空的。挂到 `$node` 上，读写都走 getter / setter。
+ * 不要套 `$node`：它会把 `get` 的结果缓存进变量、只在 `listen` 触发时重算，
+ * 而 `chart` 不是 store，没东西可监听 —— 组件创建那一刻求一次值（那时谱面
+ * 可能还没加载）就再也不更新，表现是首次打开输入框全空、点一下才有内容。
  */
-const chartNameNode = $node({
-    get: () => chart?.name ?? "",
-    set: (value: string) => commitChartField("name", value),
-});
-
-const chartLevelNode = $node({
-    get: () => chart?.level ?? "",
-    set: (value: string) => commitChartField("level", value),
-});
-
-const chartComposerNode = $node({
-    get: () => chart?.composer ?? "",
-    set: (value: string) => commitChartField("composer", value),
-});
-
-const chartCharterNode = $node({
-    get: () => chart?.charter ?? "",
-    set: (value: string) => commitChartField("charter", value),
-});
-
-const chartIllustratorNode = $node({
-    get: () => chart?.illustrator ?? "",
-    set: (value: string) => commitChartField("illustrator", value),
-});
-
-const chartOffsetNode = $node({
-    get: () => String(chart?.offset ?? 0),
-    set: (value: string) => commitChartOffset(value),
-});
-
 function applyEdgeScroll(value: boolean): void {
         if (notesEditor) notesEditor.edgeScrollEnabled = value;
         if (eventEditors) eventEditors.edgeScrollEnabled = value;
@@ -1763,27 +1733,51 @@ function applyEdgeScroll(value: boolean): void {
                 <div class="settings">
                     <div class="setting">
                         <span>曲名</span>
-                        <TextField bind:value={chartNameNode} />
+                        <TextField
+                            bind:value={get: () => chart?.name ?? "", set: (value: string) => {
+                                commitChartField("name", value);
+                            }}
+                        />
                     </div>
                     <div class="setting">
                         <span>难度</span>
-                        <TextField bind:value={chartLevelNode} />
+                        <TextField
+                            bind:value={get: () => chart?.level ?? "", set: (value: string) => {
+                                commitChartField("level", value);
+                            }}
+                        />
                     </div>
                     <div class="setting">
                         <span>作曲</span>
-                        <TextField bind:value={chartComposerNode} />
+                        <TextField
+                            bind:value={get: () => chart?.composer ?? "", set: (value: string) => {
+                                commitChartField("composer", value);
+                            }}
+                        />
                     </div>
                     <div class="setting">
                         <span>谱师</span>
-                        <TextField bind:value={chartCharterNode} />
+                        <TextField
+                            bind:value={get: () => chart?.charter ?? "", set: (value: string) => {
+                                commitChartField("charter", value);
+                            }}
+                        />
                     </div>
                     <div class="setting">
                         <span>曲绘</span>
-                        <TextField bind:value={chartIllustratorNode} />
+                        <TextField
+                            bind:value={get: () => chart?.illustrator ?? "", set: (value: string) => {
+                                commitChartField("illustrator", value);
+                            }}
+                        />
                     </div>
                     <div class="setting">
                         <span>偏移</span>
-                        <NumField bind:value={chartOffsetNode} />
+                        <NumField
+                            bind:value={get: () => String(chart?.offset ?? 0), set: (raw: string) => {
+                                commitChartOffset(raw);
+                            }}
+                        />
                     </div>
                 </div>
             </div>
