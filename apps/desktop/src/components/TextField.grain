@@ -2,50 +2,50 @@
     /*
      * 文本输入框，样式和 `NumField` 保持一致（同一个 padding / 圆角 / 配色）。
      *
-     * 之前谱面信息那几行用的是裸 `<input>`，边框和底色都是浏览器默认，
-     * 和旁边的 `NumField` 摆在一起明显不搭。
+     * `value` 用 `bind:value={ get, set }` —— 和 `NumField` 同一套契约
+     *（`$node` / `$store` 给的就是绑定对象）。
      *
-     * 和 `NumField` 一样**失焦才回传**（`onblur`），避免每敲一个字符就跑一次
-     * `ChartPropChangeOperation`（那会让撤销栈里全是单个字母）。
+     * 和 `NumField` 一样**失焦才回传**，避免每敲一个字符就往撤销栈里塞一条。
      */
-    let {
-        value = $bindable(""),
-        placeholder = "",
-        disabled = false,
-        oncommit,
-    } = $props<{
-        value?: string;
+    let { value, placeholder = "", disabled = false } = $props<{
+        value: { get: () => string; set: (next: string) => void };
         placeholder?: string;
         disabled?: boolean;
-        oncommit?: () => void;
     }>();
 
-    /** 聚焦期间用本地文本，失焦才写回 `value` */
+    /** 聚焦期间用本地文本，失焦才写回 */
     let text = $state("");
     let focused = $state(false);
 
     function onFocus(): void {
         focused = true;
-        text = value;
+        text = value.get();
     }
 
     function commit(): void {
         focused = false;
 
         const next = text.trim();
+        const current = value.get();
 
-        if (next !== value) value = next;
-
-        oncommit?.();
+        // 没变就不回传；空值也不写，免得把已有内容清掉
+        if (next.length > 0 && next !== current) value.set(next);
     }
 </script>
 
+<!--
+    属性必须写成 `name={值}`。
+
+    `{placeholder}` / `{disabled}` 这种简写在这个编译器版本里不会展开 ——
+    产物是 `<input {placeholder}="true" {disabled}="true">`，既不生效又会
+    让 `value` 相关的插槽错乱（输入框永远是空的）。
+-->
 <input
     class="text"
     type="text"
-    {placeholder}
-    {disabled}
-    value={focused ? text : value}
+    placeholder={placeholder}
+    disabled={disabled}
+    value={focused ? text : value.get()}
     bind:value={text}
     onfocus={onFocus}
     onblur={commit}
