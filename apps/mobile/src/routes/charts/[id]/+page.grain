@@ -66,6 +66,7 @@
         loadChart,
         musicUrl,
         operationList,
+    chartLoaded,
         refreshAll,
         selectedLineId,
         setPlayer
@@ -843,20 +844,26 @@ const OPERATION_EVENTS = ["do", "undo", "redo"] as const;
 const chartEventHandlers = new Map<string, () => void>();
 
 function listenChartOps(prop: string, update: () => void): void {
-    if (!operationList) return;
-
     chartEventHandlers.set(prop, update);
 
-    for (const type of OPERATION_EVENTS) {
-        operationList.addEventListener(type, update);
+    if (operationList) {
+        for (const type of OPERATION_EVENTS) {
+            operationList.addEventListener(type, update);
+        }
     }
+
+    /*
+     * 谱面是**异步加载**的：页面 `<script>` 跑的时候 `chart` 还是 `null`，
+     * 挂在它上面的 `$node` 全按空值算过一次。`chartLoaded` 在加载完成后
+     * 自增 —— 订上它，谱面一到就重新读。
+     */
+    chartLoaded.subscribe(() => update());
 
     /*
      * 注册完立刻推一次。
      *
-     * `$node` 的初值是 `<script>` 求值那一刻的 `get()` —— 面板刚创建、谱面
-     * 还没就位时那是空串。不首推的话要等到用户第一次改动（`do` 事件）才会
-     * 显示内容，表现就是「每次进这一页都是空的」。
+     * `$node` 的初值就是 `<script>` 求值那一刻的 `get()`，那时谱面多半还没
+     * 就位。不首推的话要等用户第一次改动（`do` 事件）才有内容。
      */
     update();
 }
@@ -885,6 +892,16 @@ const chartOffsetNode = $node({
     listen: (update: () => void) => listenChartOps("offset", update),
     unlisten: () => unlistenChartOps("offset"),
 });
+
+/* TEMP: 诊断用 —— 看 $node 的 get 到底返回什么 */
+(globalThis as unknown as Record<string, unknown>).__nodes = {
+    get chartNameNode() {
+        return chartNameNode;
+    },
+    get chart() {
+        return chart?.name;
+    },
+};
 
 function applyEdgeScroll(value: boolean): void {
         if (notesEditor) notesEditor.edgeScrollEnabled = value;

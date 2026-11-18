@@ -41,12 +41,34 @@ export let operationList: OperationList;
  * 侧栏里的组件在建树时就会用它（`addEventListener`、读 `.chart`），而 grain 的 `{#if}`
  * 只控制插入、内容照样建 —— 所以它得在模板之前就位，不能等 `init()`。
  */
-export function setOperationList(ol: OperationList) { operationList = ol; }
+export function setOperationList(ol: OperationList) {
+    operationList = ol;
+
+    // TEMP: 诊断用，确认 chart 上的字段到底有没有被写进去
+    (globalThis as unknown as Record<string, unknown>).__kpa = {
+        get chart() {
+            return operationList?.chart;
+        },
+        get ops() {
+            return operationList?.operations?.length ?? -1;
+        },
+    };
+}
 export function init(ne: NotesEditor, ece: EventSequenceEditors, ol: OperationList, pl: Player) {
     notesEditor = ne;
     eventSequenceEditors = ece;
     operationList = ol;
     player = pl;
+
+    // TEMP: 诊断用
+    (globalThis as unknown as Record<string, unknown>).__kpa = {
+        get chart() {
+            return operationList?.chart;
+        },
+        get ops() {
+            return operationList?.operations?.length ?? -1;
+        },
+    };
 }
 
 // GlobalContext - 每个属性独立的 writable store

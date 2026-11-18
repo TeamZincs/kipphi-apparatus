@@ -36,6 +36,16 @@ export function setPlayer(instance: Player | null): void {
     player = instance;
 }
 
+/* TEMP: 诊断用，确认谱面上的字段到底有没有被写进去 */
+(globalThis as unknown as Record<string, unknown>).__kpa = {
+    get chart() {
+        return chart;
+    },
+    get ops() {
+        return operationList?.operations?.length ?? -1;
+    },
+};
+
 /** 当前选中的判定线（编辑器与判定线列表共用） */
 export const selectedLineId = writable<number | null>(null);
 
@@ -173,6 +183,16 @@ export async function loadChart(id: string | null): Promise<void> {
         illustration = null;
         musicUrl = null;
     }
+
+    /*
+     * 通知"谱面到位了"。
+     *
+     * 页面的 `<script>` 跑在加载之前，那时 `chart` 还是 `null` —— 挂在
+     * `chart` 上的 `$node` / 列表全按空值求值过一次。没有这个信号，它们
+     * 要等到用户第一次操作（`operationList` 发 do）才会重新算，
+     * 表现就是"面板一进去全是空的，动手改了才出来"。
+     */
+    chartLoaded.set(chartLoaded.get() + 1);
 
     const first = chart.judgeLines[0];
 
