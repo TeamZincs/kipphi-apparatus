@@ -1,5 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import {
+    existsSync,
+    lstatSync,
+    readFileSync,
+    readdirSync,
+    realpathSync,
+    statSync
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -108,38 +115,57 @@ const assertCompilerFresh = (root: string): void => {
     const repo = resolve(pluginDir, '..', '..');
 
     /**
-     * 只算这两个目录里 **`.ts` 源码** 的提交。
+     * 两个包里 `.ts` 源码的最新修改时间。
      *
-     * 不用整个目录：改 `package.json`（比如加个 scripts）、README 都不影响产物，
-     * 拿它们当判据会误报。`:(glob)` 让 pathspec 按 glob 匹配而不是当目录前缀。
+     * **不用 git 提交时间**：正常的开发顺序是「改代码 → 构建 → 提交」，
+     * 构建时刻必然早于提交时刻 —— 拿提交时间当基准，只要构建完随手提交一次
+     * 就会误报「dist 比源码旧」，而 dist 里其实已经是最新代码。
+     *
+     * 文件 mtime 才对应"这份产物是从什么状态编出来的"。
+     *
+     * 排除项：
+     *   · `dist` —— 里面的 `.d.ts` 也是 `.ts` 结尾，会被算进来
+     *   · `tests` —— 改测试不该要求重建产物
      */
-    const committedAt = ((): number | null => {
-        try {
-            const seconds = Number(
-                execFileSync(
-                    'git',
-                    [
-                        '-C',
-                        repo,
-                        'log',
-                        '-1',
-                        '--format=%ct',
-                        '--',
-                        ':(glob)packages/compiler/**/*.ts',
-                        ':(glob)packages/vite-plugin/**/*.ts'
-                    ],
-                    { encoding: 'utf8' }
-                ).trim()
-            );
+    const sourceMtime = ((): number => {
+        let latest = 0;
 
-            return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null;
-        } catch {
-            // 不是 git 仓库 / 没装 git —— 查不了就不拦
-            return null;
-        }
+        const walk = (dir: string): void => {
+            let entries;
+
+            try {
+                entries = readdirSync(dir, { withFileTypes: true });
+            } catch {
+                return;
+            }
+
+            for (const entry of entries) {
+                const full = join(dir, entry.name);
+
+                if (entry.isDirectory()) {
+                    if (entry.name === 'node_modules') continue;
+                    if (entry.name === 'dist') continue;
+                    if (entry.name === 'tests') continue;
+
+                    walk(full);
+                    continue;
+                }
+
+                if (!entry.name.endsWith('.ts')) continue;
+                // 声明文件是产物，不是源码
+                if (entry.name.endsWith('.d.ts')) continue;
+
+                latest = Math.max(latest, statSync(full).mtimeMs);
+            }
+        };
+
+        walk(join(repo, 'packages', 'compiler'));
+        walk(join(repo, 'packages', 'vite-plugin'));
+
+        return latest;
     })();
 
-    if (committedAt === null) return;
+    if (sourceMtime === 0) return;
 
     const artifacts = [
         join(pluginDir, 'dist', 'vite-plugin', 'index.js'),
@@ -147,7 +173,7 @@ const assertCompilerFresh = (root: string): void => {
     ];
 
     const stale = artifacts.filter(
-        (file) => !existsSync(file) || statSync(file).mtimeMs < committedAt
+        (file) => !existsSync(file) || statSync(file).mtimeMs < sourceMtime
     );
 
     if (stale.length === 0) return;
@@ -159,7 +185,7 @@ const assertCompilerFresh = (root: string): void => {
                 (file) =>
                     `  ${file.replace(repo, '<grain>')}  ${existsSync(file) ? statSync(file).mtime.toLocaleString() : '缺失'}`
             ),
-            `  最新提交: ${new Date(committedAt).toLocaleString()}`,
+            `  源码最后修改: ${new Date(sourceMtime).toLocaleString()}`,
             '',
             '修复：',
             `  cd ${repo}`,
