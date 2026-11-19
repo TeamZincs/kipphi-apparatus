@@ -268,6 +268,7 @@
 | 35 | 模板缓动封装（追加7） | ⬜ 参考已废的 `EventsSidebar`，要翻 git |
 | 36 | 缓动画布不反馈 audio（追加7） | ✅ 钩子是 `timescroll`：`easing` 类型不派发。两处都加了（外层 `EventSequenceEditors.scrollTimeBy`、子编辑器同名方法）—— 页面收到它才 `audio.currentTime +=` |
 | 37 | 两端基础组件进共享包 | ✅ 新建 `@kpa/ui`：BezierEditor / CodeField / EasingBox / NumField / Segmented / Switch / TextField 搬进去，删掉两端各一份的副本（`Segmented` 的 padding、`TextField` 的 `console.log` 早就漂了） |
+| 38 | 组件属性去 `{ get, set }` | 🟡 `Switch` / `Segmented` / `NumField` / `TextField` 已改成 `$bindable`（调用方零改动）；剩 `CodeField` / `EasingBox` / `BezierEditor`（后者有 `<script macro>` 拼字符串，面大） |
 
 ### 建议实施顺序
 
@@ -353,6 +354,18 @@
 - 添加谱面信息分页，用移动版的组件实现桌面端已经被废掉的ChartInfoEditor的功能
 - 实现模板缓动的封装，做在多事件编辑里面，封装参考已经被废掉的EventsSidebar（可能要到git里面去翻一下）
 - 对于缓动这一类型的事件画布编辑器，不需要反馈东西到audio去引起滚动，它的滚动是自己管。
+
+# 追加8
+- NumField类输入框，右边加上“+”“-”按钮，步长可调
+- EasingCanvas在桌面端没有正确限制住大小，修复之
+- 桌面端“对象”一栏应当持久化上一次的状态，而不是每次从tab栏重新进入时都是音符的sheet
+- 设置页把播放器相关的设置和其他设置分开，加小标题；移动端增加播放器相关设置
+- 移动端的拖动调时间，之前应该是要拖动一段时间才暂停掉的，现在点一下就暂停了，这不对。播放器那一块box，其中的很多按钮都应该停止冒泡
+- 桌面端通过非点击播放暂停按钮达成暂停，应当同步按钮状态
+- 一个事件具有缓动求值器且缓动为模板缓动，应当提供前往这个模板缓动的途径。（点了之后事件画布切到缓动类型并且将target设为该缓动的eventNodeSequence）
+- 双端在判定线列表布局为分组布局时添加一个创建新组的按钮
+- 事件总览的选层加一个“ezn”层，展示所有模板缓动。
+- 所有非总览的事件画布，在正中心显示序列名字（如果序列存在）
 
 ----
 用户每次追加填写内容到分割线上方。agent不得修改追加的TODO项目prompt原文。将每条TODO的详情整理至“#整理版”，在“##整理版 ###逝世进度”最后的表格中添加行。如agent对用户的描述有疑问，在“##整理版 ###待确认”中询问用户。
