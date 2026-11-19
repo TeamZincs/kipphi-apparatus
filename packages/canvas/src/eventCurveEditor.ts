@@ -4151,6 +4151,28 @@ export function sameValuePartner(
     return partner as EventStartNode<number> | EventEndNode<number>;
 }
 
+/**
+ * 这次拖动 ghost 里应该有哪些节点。
+ *
+ * 三条规则，按优先级：
+ *   1. **多选拖动**（`group` 非空）—— 整批一起走；
+ *   2. 单节点 + 开了紫节点绑定（`partner` 非空）—— 被拖的那个 + 交界处的伙伴；
+ *   3. 其余 —— **只画被拖的那个**。
+ *
+ * 抽成纯函数是为了能直接测：编辑器实例要 canvas / operationList，太重。
+ */
+export function draggedNodes<Node>(
+    selected: Node,
+    group: Iterable<Node> | null,
+    partner: Node | null,
+): Node[] {
+    if (group) return [...group];
+
+    if (partner && partner !== selected) return [selected, partner];
+
+    return [selected];
+}
+
 export class NumericEventCurveEditor extends EventSequenceEditor<number> {
     override readonly valueType = EventValueType.numeric;
 
@@ -4607,36 +4629,44 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
             EventStartNode<any>,
             { value: number; beats: number }
         >();
-        const entries =
-            this.dragGroupStart ?? new Map([[selected, base]]);
-
-        for (const [node, start] of entries) {
-            ghost.set(node, {
-                value: start.value + deltaValue,
-                beats: start.beats + deltaBeats,
-            });
-        }
+        const entries = this.dragGroupStart ?? new Map([[selected, base]]);
 
         /*
-         * 背靠背的伙伴（紫节点）跟着一起走。
+         * 这次拖动要动哪些节点。
          *
-         * 只带交界处的那个（`end` ↔ 下一个 `start`）；一段**内部**的
-         * `start → end` 是"面对面"，拖一端就是改时长，另一端必须留在原地。
-         *
-         * 伙伴是"另一个节点"，不参与 `dragGroupStart` 的偏移计算 ——
-         * 它的值跟被拖那个一致，时刻也一致（背靠背本来就贴在同一刻）。
+         * 伙伴只在这个开关**确实生效**时才参与：没启用紫节点绑定时，拖单节点
+         * 就只画被拖的那个（否则 ghost 里会多出一个跟着飘的副本）。
          */
-        if (this.linkedDrag) {
-            const partner = sameValuePartner(
-                selected as EventStartNode<number> | EventEndNode<number>,
-            );
+        const partner = this.linkedDrag
+            ? sameValuePartner(
+                  selected as EventStartNode<number> | EventEndNode<number>,
+              )
+            : null;
 
-            if (partner && !ghost.has(partner as EventStartNode<any>)) {
-                ghost.set(partner as EventStartNode<any>, {
-                    value: base.value + deltaValue,
-                    beats: TC.toBeats(partner.time),
+        for (const node of draggedNodes(
+            selected as EventStartNode<any>,
+            this.dragGroupStart ? this.dragGroupStart.keys() : null,
+            partner as EventStartNode<any> | null,
+        )) {
+            const start = entries.get(node);
+
+            if (start) {
+                ghost.set(node, {
+                    value: start.value + deltaValue,
+                    beats: start.beats + deltaBeats,
                 });
+
+                continue;
             }
+
+            /*
+             * 背靠背的伙伴：值跟着被拖那个走，**时刻不动** ——
+             * 交界处本来就贴在同一刻，跟着挪反而会把它拆开。
+             */
+            ghost.set(node, {
+                value: base.value + deltaValue,
+                beats: TC.toBeats(node.time),
+            });
         }
 
         this.dragGhost = ghost;
