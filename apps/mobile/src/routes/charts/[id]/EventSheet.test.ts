@@ -24,6 +24,8 @@ import {
 const HERE = import.meta.dir;
 const OUT = join(HERE, ".tmp");
 const MOBILE_SRC = resolve(HERE, "..", "..", "..");
+/** 共享组件包（`@kpa/ui`）：和两端共用的那批基础组件 */
+const UI_SRC = resolve(HERE, "../../../../../..", "packages", "ui", "src");
 const RUNTIME = resolve(
     HERE,
     "../../../../../../../grain/packages/runtime/index.ts"
@@ -213,16 +215,16 @@ async function mountSheet(
     );
 
     const segmented = await build(
-        join(MOBILE_SRC, "components", "Segmented.grain"),
+        join(UI_SRC, "Segmented.grain"),
         `ev-segmented-${tag}`
     );
     const easingBox = await build(
-        join(MOBILE_SRC, "components", "EasingBox.grain"),
+        join(UI_SRC, "EasingBox.grain"),
         `ev-easing-box-${tag}`,
-        { "#/components/Segmented.grain": segmented }
+        { "@kpa/ui/Segmented.grain": segmented }
     );
     const bezierEditor = await build(
-        join(MOBILE_SRC, "components", "BezierEditor.grain"),
+        join(UI_SRC, "BezierEditor.grain"),
         `ev-bezier-editor-${tag}`,
         { "@kpa/canvas": canvasStub }
     );
@@ -231,11 +233,11 @@ async function mountSheet(
         `ev-sheet-${tag}`,
         {
         "@kpa/canvas": canvasStub,
-        "#/components/BezierEditor.grain": bezierEditor,
-        "#/components/EasingBox.grain": easingBox,
-        "#/components/Segmented.grain": segmented,
-        "#/components/Switch.grain": await build(
-            join(MOBILE_SRC, "components", "Switch.grain"),
+        "@kpa/ui/BezierEditor.grain": bezierEditor,
+        "@kpa/ui/EasingBox.grain": easingBox,
+        "@kpa/ui/Segmented.grain": segmented,
+        "@kpa/ui/Switch.grain": await build(
+            join(UI_SRC, "Switch.grain"),
             `ev-switch-${tag}`
         ),
         "#/store": storeStub,

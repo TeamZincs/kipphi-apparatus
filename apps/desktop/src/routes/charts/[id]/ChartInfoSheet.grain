@@ -29,8 +29,8 @@
      */
     import { Op } from "kipphi";
 
-    import NumField from "#/components/NumField.grain";
-    import TextField from "#/components/TextField.grain";
+    import NumField from "@kpa/ui/NumField.grain";
+    import TextField from "@kpa/ui/TextField.grain";
     import { operationList } from "./store";
 
     let { onclose } = $props<{ onclose: () => void }>();

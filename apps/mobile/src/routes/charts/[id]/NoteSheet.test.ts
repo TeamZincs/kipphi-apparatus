@@ -17,6 +17,8 @@ import { NoteType } from "kipphi";
 const HERE = import.meta.dir;
 const OUT = join(HERE, ".tmp");
 const MOBILE_SRC = resolve(HERE, "..", "..", "..");
+/** 共享组件包（`@kpa/ui`）：和两端共用的那批基础组件 */
+const UI_SRC = resolve(HERE, "../../../../../..", "packages", "ui", "src");
 const RUNTIME = resolve(
     HERE,
     "../../../../../../../grain/packages/runtime/index.ts"
@@ -120,18 +122,18 @@ describe("NoteSheet 宏", () => {
         );
 
         const numField = await build(
-            join(MOBILE_SRC, "components", "NumField.grain"),
+            join(UI_SRC, "NumField.grain"),
             "ns-numfield"
         );
         const segmented = await build(
-            join(MOBILE_SRC, "components", "Segmented.grain"),
+            join(UI_SRC, "Segmented.grain"),
             "ns-segmented"
         );
         const sheet = await build(join(HERE, "NoteSheet.grain"), "ns-sheet", {
-            "#/components/NumField.grain": numField,
-            "#/components/Segmented.grain": segmented,
-            "#/components/Switch.grain": await build(
-                join(MOBILE_SRC, "components", "Switch.grain"),
+            "@kpa/ui/NumField.grain": numField,
+            "@kpa/ui/Segmented.grain": segmented,
+            "@kpa/ui/Switch.grain": await build(
+                join(UI_SRC, "Switch.grain"),
                 "ns-switch"
             ),
             "#/store": storeStub,

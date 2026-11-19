@@ -1,6 +1,7 @@
 import Notification from '#/components/Notification.grain';
 
 export function notify(message: string, type: 'info' | 'error' | 'warning') {
+    console.log(message);
     const target = document.getElementById('notifications') ?? document.body;
 
     // grain 没有 unmount：把这一次弹出来占的节点记下来，自己收

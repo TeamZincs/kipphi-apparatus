@@ -1,0 +1,14 @@
+{
+    "name": "@kpa/ui",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "Kipphi Apparatus - 两端共用的基础组件（纯 UI，无平台依赖）",
+    "exports": {
+        "./*": "./src/*"
+    },
+    "dependencies": {
+        "@kpa/canvas": "workspace:*",
+        "kipphi": "link:kipphi"
+    }
+}

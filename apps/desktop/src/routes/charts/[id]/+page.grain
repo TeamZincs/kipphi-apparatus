@@ -18,9 +18,9 @@ import SwitchButton from "#/components/IconButtons/SwitchButton.grain";
 import TextSwitchButton from "#/components/IconButtons/TextSwitchButton.grain";
 
 // 设置页用的基础组件
-import NumField from "#/components/NumField.grain";
-import Segmented from "#/components/Segmented.grain";
-import Switch from "#/components/Switch.grain";
+import NumField from "@kpa/ui/NumField.grain";
+import Segmented from "@kpa/ui/Segmented.grain";
+import Switch from "@kpa/ui/Switch.grain";
 
 import { Sidebar, init as EditorGlobalInit, SecondarySidebar, restoreStates,
     eventsType, eventsLayer,

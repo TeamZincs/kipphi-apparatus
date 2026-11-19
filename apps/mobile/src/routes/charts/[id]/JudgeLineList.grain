@@ -5,7 +5,7 @@
      * 每一行都是递归组件 `JudgeLineRow`（含子树），跟桌面端
      * `JudgeLinesManager` → `JudgeLineManager` 的结构一致。
      */
-    import Segmented from "#/components/Segmented.grain";
+    import Segmented from "@kpa/ui/Segmented.grain";
 
     import { chart, chartLoaded, registerReflow } from "#/store";
 

@@ -101,9 +101,9 @@
      */
     import { NoteType, Op, TC, type Note } from "kipphi";
 
-    import NumField from "#/components/NumField.grain";
-    import Segmented from "#/components/Segmented.grain";
-    import Switch from "#/components/Switch.grain";
+    import NumField from "@kpa/ui/NumField.grain";
+    import Segmented from "@kpa/ui/Segmented.grain";
+    import Switch from "@kpa/ui/Switch.grain";
 
     import { chart, operationList } from "#/store";
     import {

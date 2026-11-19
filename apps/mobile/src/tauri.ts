@@ -42,7 +42,7 @@ export async function readDefaultRespackFile(filename: string): Promise<Blob | n
             const data = await readFile(path);
 
             return new Blob([data]);
-        } catch {
+        } catch (e) {
             // 掉到下面的 fetch
         }
     }

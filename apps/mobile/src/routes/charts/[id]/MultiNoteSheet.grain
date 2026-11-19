@@ -10,7 +10,7 @@
      */
     import { Op, type Note } from "kipphi";
 
-    import CodeField from "#/components/CodeField.grain";
+    import CodeField from "@kpa/ui/CodeField.grain";
     import {
         compileExpression,
         EXPRESSION_HELP,

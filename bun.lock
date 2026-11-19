@@ -93,6 +93,14 @@
         "yaml": "^2.8.2",
       },
     },
+    "packages/ui": {
+      "name": "@kpa/ui",
+      "version": "0.1.0",
+      "dependencies": {
+        "@kpa/canvas": "workspace:*",
+        "kipphi": "link:kipphi",
+      },
+    },
   },
   "packages": {
     "7zip-bin": ["7zip-bin@5.2.0", "https://registry.npmmirror.com/7zip-bin/-/7zip-bin-5.2.0.tgz", {}, "sha512-ukTPVhqG4jNzMro2qA9HSCSSVJN3aN7tlb+hfqYCt3ER0yWroeA2VR38MNrOHLQ/cVj+DaIMad0kFCtWWowh/A=="],
@@ -148,6 +156,8 @@
     "@kpa/mobile": ["@kpa/mobile@workspace:apps/mobile"],
 
     "@kpa/shared": ["@kpa/shared@workspace:packages/shared"],
+
+    "@kpa/ui": ["@kpa/ui@workspace:packages/ui"],
 
     "@lezer/common": ["@lezer/common@1.5.5", "https://registry.npmmirror.com/@lezer/common/-/common-1.5.5.tgz", {}, "sha512-Pw7PVCndruF1pb3ebCxpSVpkMHSDjwRCLcTRw+RizUKco5QbWylwq2g4lnG/RYN7yTTQDXE9F77MwtkAyphrjg=="],
 

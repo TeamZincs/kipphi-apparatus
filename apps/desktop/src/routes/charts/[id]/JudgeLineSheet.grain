@@ -20,8 +20,8 @@
         uploadTexture
     } from "@kpa/shared/background/tauri";
 
-    import NumField from "#/components/NumField.grain";
-    import Switch from "#/components/Switch.grain";
+    import NumField from "@kpa/ui/NumField.grain";
+    import Switch from "@kpa/ui/Switch.grain";
 
     // 桌面端 store 在 `./store`；`chart` 走 `operationList.chart`
     import {

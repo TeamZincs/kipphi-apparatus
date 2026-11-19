@@ -70,10 +70,10 @@
 
     import { EasingCanvas as EasingCanvasImpl } from "@kpa/canvas";
 
-    import BezierEditor from "#/components/BezierEditor.grain";
-    import EasingBox from "#/components/EasingBox.grain";
-    import Segmented from "#/components/Segmented.grain";
-    import Switch from "#/components/Switch.grain";
+    import BezierEditor from "@kpa/ui/BezierEditor.grain";
+    import EasingBox from "@kpa/ui/EasingBox.grain";
+    import Segmented from "@kpa/ui/Segmented.grain";
+    import Switch from "@kpa/ui/Switch.grain";
 
     import { chart, operationList } from "#/store";
     import {

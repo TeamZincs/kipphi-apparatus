@@ -40,10 +40,10 @@
     } from "kipphi-player";
     import { fetchTexture, _ReturnType } from "@kpa/shared/background/tauri";
 
-    import NumField from "#/components/NumField.grain";
-    import Segmented from "#/components/Segmented.grain";
-    import TextField from "#/components/TextField.grain";
-    import Switch from "#/components/Switch.grain";
+    import NumField from "@kpa/ui/NumField.grain";
+    import Segmented from "@kpa/ui/Segmented.grain";
+    import TextField from "@kpa/ui/TextField.grain";
+    import Switch from "@kpa/ui/Switch.grain";
 
     import JudgeLineList from "./JudgeLineList.grain";
     import EventSheet from "./EventSheet.grain";

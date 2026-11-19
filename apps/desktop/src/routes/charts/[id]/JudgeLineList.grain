@@ -5,7 +5,7 @@
      * 每一行都是递归组件 `JudgeLineRow`（含子树），跟桌面端
      * `JudgeLinesManager` → `JudgeLineManager` 的结构一致。
      */
-    import Segmented from "#/components/Segmented.grain";
+    import Segmented from "@kpa/ui/Segmented.grain";
 
     /*
      * 桌面端的 store 在 `./store`（`#/store` 指向 `src/store.ts`，桌面端没有那个

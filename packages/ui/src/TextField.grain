@@ -36,6 +36,7 @@
 
         // 没变就不写回；空值也不写，免得把已有内容清掉
         if (next.length > 0 && next !== value) value = next;
+        console.log(value);
     }
 </script>
 

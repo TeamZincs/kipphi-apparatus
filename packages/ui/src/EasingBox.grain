@@ -1,7 +1,11 @@
 <script>
     import { Easing, easingArray, easingMap } from "kipphi";
 
-    import Segmented from "#/components/Segmented.grain";
+    /*
+     * 用包内的**自引用**而不是 `./Segmented.grain`：
+     * 测试会把单个组件编译到临时目录，相对路径在那儿解析不到。
+     */
+    import Segmented from "@kpa/ui/Segmented.grain";
 
     /*
      * 普通缓动选择器（桌面端 `EasingBox` 的移动版）。
