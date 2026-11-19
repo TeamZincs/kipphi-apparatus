@@ -339,6 +339,16 @@ export interface I18nMapping {
 "mobile.tabs.events": never;
 "mobile.tabs.ops": never;
 "mobile.tabs.errors": never;
-"mobile.tabs.settings": never
+"mobile.tabs.settings": never;
+"easteregg.pipes": never;
+"easteregg.thickness": never;
+"easteregg.height": never;
+"easteregg.thin": never;
+"easteregg.medium": never;
+"easteregg.thick": never;
+"easteregg.low": never;
+"easteregg.high": never;
+"easteregg.message": never;
+"easteregg.back": never
 }
 

@@ -1,0 +1,56 @@
+<script>
+import Switch from "@kpa/ui/Switch.grain";
+import Segmented from "@kpa/ui/Segmented.grain";
+
+import { _ } from "#/i18n";
+
+let pipes = $state(false);
+let thickness = $state(1);
+let height = $state(1);
+</script>
+
+<main>
+    <div class="grid">
+    <span>{_("easteregg.pipes")}</span>
+    <Switch bind:checked={pipes} />
+    {#if pipes}
+    <span>{_("easteregg.thickness")}</span>
+    <Segmented
+        variant="plain"
+        options={[[0, _("easteregg.thin")], [1, _("easteregg.medium")], [2, _("easteregg.thick")]]}
+        bind:value={thickness}
+    />
+    <span>{_("easteregg.height")}</span>
+    <Segmented
+        variant="plain"
+        options={[[0, _("easteregg.low")], [1, _("easteregg.medium")], [2, _("easteregg.high")]]}
+        bind:value={height}
+    />
+    {/if}
+    </div>
+    {#if pipes && thickness === 0 && height === 2}
+    <p>
+        {_("easteregg.message")}
+        <a href="/">{_("easteregg.back")}</a>
+    </p>
+    {/if}
+</main>
+
+<style>
+main {
+    padding: 2em;
+    background-color: var(--bg);
+    color: var(--text);
+    height: 100%;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1em;
+}
+
+.grid :global(:nth-child(even)) {
+    justify-self: end;
+}
+</style>

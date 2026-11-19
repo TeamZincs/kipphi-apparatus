@@ -412,3 +412,15 @@ mobile:
     ops: 操作栈
     errors: 错误
     settings: 设置
+
+easteregg:
+    pipes: 管道
+    thickness: 壁厚
+    height: 高度
+    thin: 薄
+    medium: 中
+    thick: 厚
+    low: 低
+    high: 高
+    message: 天哪，太棒了！
+    back: 返回主页

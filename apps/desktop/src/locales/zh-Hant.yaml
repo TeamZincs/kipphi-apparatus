@@ -401,3 +401,15 @@ mobile:
     ops: 操作棧
     errors: 錯誤
     settings: 設定
+
+easteregg:
+    pipes: 管道
+    thickness: 壁厚
+    height: 高度
+    thin: 薄
+    medium: 中
+    thick: 厚
+    low: 低
+    high: 高
+    message: 天哪，太棒了！
+    back: 返回主頁

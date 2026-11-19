@@ -401,3 +401,15 @@ mobile:
     ops: History
     errors: Errors
     settings: Settings
+
+easteregg:
+    pipes: Pipes
+    thickness: Thickness
+    height: Height
+    thin: Thin
+    medium: Medium
+    thick: Thick
+    low: Low
+    high: High
+    message: Wow, that's amazing!
+    back: Back to home
