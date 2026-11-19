@@ -3402,28 +3402,54 @@ export abstract class EventSequenceEditor<
         };
 
         /*
-         * 两类预览走同一条路：
-         *   · `pasteGhosts` —— 粘贴的整串节点（只画一个看不出排列）；
-         *   · `dragGhost`   —— 拖动中的目标位置。
+         * 单个节点（start 在上、end 在下）。
+         *
+         * 拖动预览要能用它 —— 只拖一个节点时就该只看到一个副本，不能按
+         * "一段的两个端点"成对画出来（那样看起来像带着背靠背的伙伴）。
          */
-        const ghosts = [
-            ...this.pasteGhosts.map((ghost) => ({
-                value: ghost.value,
-                beats: TC.toBeats(ghost.time),
-            })),
-            ...(this.dragGhost
-                ? [...this.dragGhost.values()].map((ghost) => ({
-                      value: ghost.value,
-                      beats: ghost.beats,
-                  }))
-                : []),
-        ];
+        const paintOne = (
+            value: number,
+            nodeBeats: number,
+            isEnd: boolean,
+        ): void => {
+            const pos = new Coordinate(value, nodeBeats - beats).mul(matrix);
 
-        if (ghosts.length > 0) {
+            this.paintNode(
+                context,
+                pos.x - width / 2,
+                isEnd ? pos.y : pos.y - height,
+                width,
+                height,
+                isEnd ? NODE_END_COLOR : NODE_START_COLOR,
+            );
+        };
+
+        /*
+         * 两类预览分开画：
+         *   · `pasteGhosts` —— 粘贴的整串节点，按"一对"画才看得出排列；
+         *   · `dragGhost`   —— 拖动中的目标位置，**每个节点画一个**。
+         */
+        const pasted = this.pasteGhosts.map((ghost) => ({
+            value: ghost.value,
+            beats: TC.toBeats(ghost.time),
+        }));
+        const dragged = this.dragGhost
+            ? [...this.dragGhost].map(([node, ghost]) => ({
+                  value: ghost.value,
+                  beats: ghost.beats,
+                  // 拖动时 end 节点也会进 ghost（拖的就是它），按实际类型画
+                  isEnd: (node as unknown) instanceof EventEndNode,
+              }))
+            : [];
+
+        if (pasted.length > 0 || dragged.length > 0) {
             context.save();
             context.globalAlpha = 0.6;
 
-            for (const ghost of ghosts) paintPair(ghost.value, ghost.beats);
+            for (const ghost of pasted) paintPair(ghost.value, ghost.beats);
+            for (const ghost of dragged) {
+                paintOne(ghost.value, ghost.beats, ghost.isEnd);
+            }
 
             context.restore();
 
