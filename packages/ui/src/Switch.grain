@@ -2,30 +2,26 @@
     /*
      * 圆角矩形开关（滑块那种），圆角半径和输入框一致。
      *
-     * 值通过 `bind:checked={ get: …, set: … }` 传进来 —— 这套写法在 grain 里是
-     * "活的"（读值会登记依赖），所以父级改状态时这里会跟着刷新。
+     * `checked` 是 `$bindable`：父级 `bind:checked={...}` 传进来，编译期生成
+     * `__binding$checked` —— 外部变化时重新赋值并刷新用它的属性，`checked = v`
+     * 也会被改写成 `__binding$checked.set(v)` 写回父级。
      */
-    /*
-     * 值由 `bind:checked={ get: …, set: … }` 传进来 —— 读它就是读**真相来源**
-     *（比如 `operationList` 里的对象）。它的 `listen` 通知由运行时接线到
-     * 组件自己的 `setProps`，所以这里不需要额外订阅。
-     */
-    let { checked, disabled = false } = $props<{
-        checked: { get: () => boolean; set: (v: boolean) => void };
+    let { checked = $bindable(false), disabled = false } = $props<{
+        checked?: boolean;
         disabled?: boolean;
     }>();
 
     function toggle(): void {
         if (disabled) return;
 
-        checked.set(!checked.get());
+        checked = !checked;
     }
 </script>
 
 <button
-    class="switch {checked.get() ? "on" : ""} {disabled ? "disabled" : ""}"
+    class="switch {checked ? "on" : ""} {disabled ? "disabled" : ""}"
     role="switch"
-    aria-checked={checked.get()}
+    aria-checked={checked}
     onclick={toggle}
 >
     <span class="knob"></span>

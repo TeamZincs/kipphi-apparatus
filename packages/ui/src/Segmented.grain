@@ -2,16 +2,13 @@
     /*
      * 排形按钮组：组内密接、无圆角，只有整组圆角；选中填强调色。
      *
-     * `value` 用 `bind:value={ get: …, set: … }` 传，写回时由父级负责落操作。
+     * `value` 是 `$bindable`：父级 `bind:value={...}` 传进来，写回由编译期
+     * 生成的 `__binding$value.set(...)` 负责；父级那一侧决定要不要落操作。
      */
-    /*
-     * 值由 `bind:value={ get: …, set: … }` 传进来；它的 `listen` 通知由运行时
-     * 接到组件的 `setProps`，这里不需要自己订阅。
-     */
-    let { options, value, variant = "solid" } = $props<{
+    let { options, value = $bindable(NaN), variant = "solid" } = $props<{
         /** `[值, 显示文字]` 列表 */
         options: [number, string][];
-        value: { get: () => number; set: (v: number) => void };
+        value?: number;
         /**
          * `solid`（默认）：整组外框 + 选中填充强调色；
          * `plain`：只有文字和项间竖线，选中项文字变强调色。
@@ -23,8 +20,8 @@
 <div class="segmented {variant}">
     {#for option of options with key = option[0]}
         <button
-            class="seg {value.get() === option[0] ? "on" : ""}"
-            onclick={() => value.set(option[0])}
+            class="seg {value === option[0] ? "on" : ""}"
+            onclick={() => value = option[0]}
         >{option[1]}</button>
     {/for}
 </div>
