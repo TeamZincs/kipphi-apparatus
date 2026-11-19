@@ -266,7 +266,7 @@
 | 33 | 设置页输入框对齐（追加7） | ✅ 双端：`.setting` 改 grid（右列 210px），左标签 `nowrap` + 省略号；常用值挪进 `.setting` 贴着输入框 |
 | 34 | 谱面信息分页（追加7） | ✅ 双端：桌面 `ChartInfoSheet` + 移动端第 7 页；走 `ChartPropChangeOperation` 可撤销 |
 | 35 | 模板缓动封装（追加7） | ⬜ 参考已废的 `EventsSidebar`，要翻 git |
-| 36 | 缓动画布不反馈 audio（追加7） | ⬜ |
+| 36 | 缓动画布不反馈 audio（追加7） | ✅ 钩子是 `timescroll`：`easing` 类型不派发。两处都加了（外层 `EventSequenceEditors.scrollTimeBy`、子编辑器同名方法）—— 页面收到它才 `audio.currentTime +=` |
 | 37 | 两端基础组件进共享包 | ✅ 新建 `@kpa/ui`：BezierEditor / CodeField / EasingBox / NumField / Segmented / Switch / TextField 搬进去，删掉两端各一份的副本（`Segmented` 的 padding、`TextField` 的 `console.log` 早就漂了） |
 
 ### 建议实施顺序

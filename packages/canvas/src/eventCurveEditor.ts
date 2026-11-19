@@ -1571,7 +1571,13 @@ export class EventSequenceEditors extends EventTarget {
     scrollTimeBy(deltaBeats: number): void {
         this.lastBeats = (this.lastBeats ?? 0) + deltaBeats;
 
-        this.dispatchEvent(Object.assign(new Event("timescroll"), { deltaBeats }));
+        /*
+         * `easing` 序列**不对轴音乐** —— 它的时间轴是缓动曲线自己的参数，
+         * 竖向拖画布只是平移视图，不该让播放器跟着 seek。
+         */
+        if (this.activatedEditor.type !== EventType.easing) {
+            this.dispatchEvent(Object.assign(new Event("timescroll"), { deltaBeats }));
+        }
 
         this.draw(this.lastBeats);
     }
@@ -2337,6 +2343,9 @@ export abstract class EventSequenceEditorBase extends EventTarget {
      * 自己画会让没激活的分支也跑一遍（它可能还没有 target / sequence）。
      */
     scrollTimeBy(deltaBeats: number): void {
+        // `easing` 序列不对轴音乐，见外层同名方法的说明
+        if (this.type === EventType.easing) return;
+
         this.dispatchEvent(Object.assign(new Event("timescroll"), { deltaBeats }));
     }
 
