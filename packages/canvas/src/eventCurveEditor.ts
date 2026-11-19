@@ -4209,7 +4209,7 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
      * 不能在拖动过程中重算：值会被改成同一个数，原本不同值的邻居也会
      * 变成"同值"，把不该动的一起卷进来。
      */
-    private linkedDrag = false;
+
 
     protected override isSameValueLinked(
         node: EventStartNode<number> | EventEndNode<number>,
@@ -4634,10 +4634,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
         /*
          * 这次拖动要动哪些节点。
          *
-         * 伙伴只在这个开关**确实生效**时才参与：没启用紫节点绑定时，拖单节点
-         * 就只画被拖的那个（否则 ghost 里会多出一个跟着飘的副本）。
+         * 伙伴**只看开关本身**（`sameValueLinked`），不看 `linkedDrag` ——
+         * 那个是按下时算好缓存的，只在 `mouseDown` 的 select 分支里重置；
+         * 触摸拖动、或从别的状态进来时会残留上一轮的 `true`，于是"没开绑定
+         * 也一直带着伙伴"。
+         *
+         * 开关关着就只画被拖的那个。
          */
-        const partner = this.linkedDrag
+        const partner = this.sameValueLinked
             ? sameValuePartner(
                   selected as EventStartNode<number> | EventEndNode<number>,
               )
@@ -4685,7 +4689,6 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
 
         this.dragGhost = null;
         this.dragGroupStart = null;
-        this.linkedDrag = false;
 
         if (!ghost || ghost.size === 0) return;
 
@@ -4747,8 +4750,6 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                 this.state = !snode
                     ? EventCurveEditorState.select
                     : EventCurveEditorState.selecting;
-                // 每次按下都重新算，避免上一次的联动状态残留
-                this.linkedDrag = false;
                 this.dragGroupStart = null;
 
                 if (snode && snode.target instanceof EventNode) {
@@ -4772,22 +4773,14 @@ export class NumericEventCurveEditor extends EventSequenceEditor<number> {
                               )
                             : null;
                     /*
-                     * 背靠背联动：在这里就把"这次拖要不要带伙伴"定下来。
+                     * 背靠背联动**不在这里缓存**。
                      *
-                     * 只有交界处那一个（`end` ↔ 下一个 `start`）才算 —— 一段
-                     * 内部的 `start → end` 之间隔着一整段时间，那是"面对面"。
-                     * 拖动过程中值会变，每帧重算会把新同值的节点也卷进来。
-                     *
-                     * 具体带哪个节点由操作自己 `getEndStart` 取，这里只判断
-                     * 有没有。
+                     * 以前这里算一次 `linkedDrag` 存着，拖动过程只看那个标记 ——
+                     * 但它只在 `mouseDown` 的这条分支里重置，触摸拖动或从别的
+                     * 状态进来时会残留上一轮的 `true`，表现是"没开绑定也一直
+                     * 带着伙伴"。现在每帧由 `updateDragGhost` 直接看
+                     * `sameValueLinked`，开关关着就绝不算伙伴。
                      */
-                    this.linkedDrag =
-                        this.sameValueLinked &&
-                        sameValuePartner(
-                            this.selectedNode as
-                                | EventStartNode<number>
-                                | EventEndNode<number>
-                        ) !== null;
                     // 放大镜以这个节点为中心（松手才收起）
                     this.focusMagnifier();
                     // 按住不动也要把局部视图画出来，不等下一次 move
