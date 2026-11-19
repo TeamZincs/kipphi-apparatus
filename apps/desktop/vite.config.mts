@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -85,6 +86,91 @@ const assertSingleKipphi = (root: string): void => {
     );
 };
 
+/**
+ * 本地软链的编译器，dist 必须比源码「新」。
+ *
+ * `@graints/vite-plugin` 的入口是 `dist/vite-plugin/index.js`，而它把编译器
+ * 整个 bundle 进去了。所以只改 `packages/compiler/**` 的源码、不重新构建，
+ * dev 拿到的还是上一次 `bun run build` 的产物 —— **改了代码却完全不生效**。
+ *
+ * 更坑的是：编译不报错、单元测试也照过（测试直接 import 源码），只有运行时
+ * 行为不对，看起来像"编译器有 bug"。
+ *
+ * 只对软链生效；发布版是 npm 装的普通目录，没有 git 可查，跳过。
+ */
+const assertCompilerFresh = (root: string): void => {
+    const link = join(root, 'node_modules', '@graints', 'vite-plugin');
+
+    if (!existsSync(link)) return;
+    if (!lstatSync(link).isSymbolicLink()) return;
+
+    const pluginDir = realpathSync(link);
+    const repo = resolve(pluginDir, '..', '..');
+
+    /**
+     * 只算这两个目录里 **`.ts` 源码** 的提交。
+     *
+     * 不用整个目录：改 `package.json`（比如加个 scripts）、README 都不影响产物，
+     * 拿它们当判据会误报。`:(glob)` 让 pathspec 按 glob 匹配而不是当目录前缀。
+     */
+    const committedAt = ((): number | null => {
+        try {
+            const seconds = Number(
+                execFileSync(
+                    'git',
+                    [
+                        '-C',
+                        repo,
+                        'log',
+                        '-1',
+                        '--format=%ct',
+                        '--',
+                        ':(glob)packages/compiler/**/*.ts',
+                        ':(glob)packages/vite-plugin/**/*.ts'
+                    ],
+                    { encoding: 'utf8' }
+                ).trim()
+            );
+
+            return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null;
+        } catch {
+            // 不是 git 仓库 / 没装 git —— 查不了就不拦
+            return null;
+        }
+    })();
+
+    if (committedAt === null) return;
+
+    const artifacts = [
+        join(pluginDir, 'dist', 'vite-plugin', 'index.js'),
+        join(pluginDir, 'dist', 'compiler', 'index.js')
+    ];
+
+    const stale = artifacts.filter(
+        (file) => !existsSync(file) || statSync(file).mtimeMs < committedAt
+    );
+
+    if (stale.length === 0) return;
+
+    throw new Error(
+        [
+            '[grain] 编译器 dist 比源码提交旧，dev 会跑在旧版本上（改了代码却不生效）：',
+            ...stale.map(
+                (file) =>
+                    `  ${file.replace(repo, '<grain>')}  ${existsSync(file) ? statSync(file).mtime.toLocaleString() : '缺失'}`
+            ),
+            `  最新提交: ${new Date(committedAt).toLocaleString()}`,
+            '',
+            '修复：',
+            `  cd ${repo}`,
+            '  bun run packages:build                    # 构建一次（runtime + vite-plugin）',
+            `  # 或者边改边构建：cd ${join(repo, 'packages', 'vite-plugin')} && bun run build:watch`,
+            '',
+            '顺带一提：单元测试直接 import 源码，所以它不会替你发现这个问题。'
+        ].join('\n')
+    );
+};
+
 const TAURI_CONF_VERSION = TAURI_CONF.version;
 
 const noFrontend = process.argv.includes('--no-frontend');
@@ -137,6 +223,9 @@ const __dependencies = getDependencies();
 
 // 从仓库根往下找（cwd 可能被 bun workspace 改过）
 assertSingleKipphi(REPO_ROOT);
+
+// 编译器是本地软链时，dist 太旧就等于没改（改了源码但不重新构建）
+assertCompilerFresh(REPO_ROOT);
 
 // https://vite.dev/config/
 export default defineConfig(() => {
